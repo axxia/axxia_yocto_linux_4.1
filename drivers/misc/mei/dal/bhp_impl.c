@@ -68,8 +68,6 @@ static int bh_send_message(int conn_idx, void *cmd, unsigned int clen,
 			   const void *data, unsigned int dlen, u64 seq);
 static int bh_recv_message(int conn_idx, u64 *seq);
 
-static int bh_proxy_reset_svm(int conn_idx);
-
 static int kdi_send_wrapper(unsigned int handle,
 		unsigned char *buffer, unsigned int length, u64 seq);
 
@@ -533,39 +531,16 @@ static int bh_transport_send(unsigned int handle, const void *buffer,
 
 int bh_do_open_vm(struct bh_sd_id sdid, int *conn_idx, int mode)
 {
-
 	if (!conn_idx)
 		return BPE_INVALID_PARAMS;
 
-	if (memcmp(&sdid, &isd_uuid, sizeof(struct bh_sd_id)) == 0) {
-		*conn_idx = CONN_IDX_IVM;
-		return BH_SUCCESS;
-	}
-
-	return BPE_INVALID_PARAMS;
+	*conn_idx = CONN_IDX_IVM;
+	return BH_SUCCESS;
 }
 
 int bh_do_close_vm(int conn_idx)
 {
-	int ret;
-	unsigned int count = 0;
-
-	/* only close connected SVM */
-	if (conn_idx <= CONN_IDX_IVM || connections[conn_idx].handle == 0)
-		return BH_SUCCESS;
-
-	mutex_enter(connections[conn_idx].lock);
-
-	count = (--connections[conn_idx].conn_count);
-
-	if (count == 0)
-		ret = bh_proxy_reset_svm(conn_idx);
-	else
-		ret = BH_SUCCESS;
-
-	mutex_exit(connections[conn_idx].lock);
-
-	return ret;
+	return BH_SUCCESS;
 }
 
 static int bh_send_message(int conn_idx, void *cmd, unsigned int clen,
@@ -730,38 +705,10 @@ static void bh_connections_init(void)
 
 static void bh_connections_deinit(void)
 {
-	int i = 0;
+	int i;
 
 	for (i = CONN_IDX_START; i < MAX_CONNECTIONS; i++)
 		bh_do_disconnect(i);
-}
-
-static int bh_proxy_reset(int conn_idx)
-{
-	char cmdbuf[CMDBUF_SIZE];
-	struct bhp_command_header *h = (struct bhp_command_header *) cmdbuf;
-	struct bh_response_record rr;
-	int ret;
-
-	h->id = BHP_CMD_RESET;
-
-	ret = bh_cmd_transfer(conn_idx, (char *) h, sizeof(*h),
-			NULL, 0, rrmap_add(conn_idx, &rr));
-
-	if (ret == BH_SUCCESS)
-		ret = rr.code;
-
-	kfree(rr.buffer);
-
-	return ret;
-}
-
-static int bh_proxy_reset_svm(int conn_idx)
-{
-	if (conn_idx <= CONN_IDX_IVM || connections[conn_idx].handle == 0)
-		return BPE_INVALID_PARAMS;
-
-	return bh_proxy_reset(conn_idx);
 }
 
 /* get isd uuid from SDM in Firmware side. */
