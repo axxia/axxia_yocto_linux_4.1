@@ -135,6 +135,8 @@
 #define PPC_INST_DCBA_MASK		0xfc0007fe
 #define PPC_INST_DCBAL			0x7c2005ec
 #define PPC_INST_DCBZL			0x7c2007ec
+#define PPC_INST_ICBI			0x7c0007ac
+#define PPC_INST_ICBI_MASK		0xfc0007fe
 #define PPC_INST_ICBT			0x7c00002c
 #define PPC_INST_ISEL			0x7c00001e
 #define PPC_INST_ISEL_MASK		0xfc00003e
