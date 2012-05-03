@@ -220,6 +220,10 @@ _ENTRY(_start);
 	li	r0,0
 	mtspr	SPRN_MCSR,r0
 
+#ifdef CONFIG_PPC_47x
+	bl	init_cpu_features
+#endif
+
 	/* Let's move on */
 	lis	r4,start_kernel@h
 	ori	r4,r4,start_kernel@l
@@ -995,6 +999,25 @@ skpinv:	addi	r4,r4,1				/* Increment */
 
 #ifdef CONFIG_PPC_47x
 
+/*
+ * per-processor initialization that depends on feature sections.
+ *
+ * We can't use the FTR_SECTION in init_cpu_state since early_init
+ * has not yet been called.
+ */
+_GLOBAL(init_cpu_features)
+BEGIN_FTR_SECTION
+	/* DD2 workaround, trap on icbi. Configure IOCR1 and enable
+	 * it in IOCCR.
+	 */
+	LOAD_REG_IMMEDIATE(r3, (31 << 26) | (982 << 16))	/* icbi */
+	lis r4,(IOCCR_IOCR1EN | IOCCR_IOCR1U)@h
+	mtspr	SPRN_IOCR1,r3
+	mtspr	SPRN_IOCCR,r4
+END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
+
+	blr
+
 #ifdef CONFIG_SMP
 
 /* Entry point for secondary 47x processors */
@@ -1002,6 +1025,7 @@ _GLOBAL(start_secondary_47x)
         mr      r24,r3          /* CPU number */
 
 	bl	init_cpu_state
+	bl	init_cpu_features
 
 	/* Now we need to bolt the rest of kernel memory which
 	 * is done in C code. We must be careful because our task
