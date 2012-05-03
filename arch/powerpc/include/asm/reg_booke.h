@@ -360,6 +360,8 @@
 #define ESR_IMCN	0x40000000	/* Instr. Machine Check - Non-config */
 #define ESR_IMCB	0x20000000	/* Instr. Machine Check - Bus error */
 #define ESR_IMCT	0x10000000	/* Instr. Machine Check - Timeout */
+#define ESR_POT1	0x20000000	/* 476 - IOCR1 trap */
+#define ESR_POT2	0x10000000	/* 476 - IOCR2 trap */
 #define ESR_PIL		0x08000000	/* Program Exception - Illegal */
 #define ESR_PPR		0x04000000	/* Program Exception - Privileged */
 #define ESR_PTR		0x02000000	/* Program Exception - Trap */
@@ -741,6 +743,17 @@
 #define MMUBE1_VBE3		0x00000004
 #define MMUBE1_VBE4		0x00000002
 #define MMUBE1_VBE5		0x00000001
+#define SPRN_IOCCR		860
+#define IOCCR_IOCR1EN		0x80000000
+#define IOCCR_IOCR1M		0x40000000
+#define IOCCR_IOCR2EN		0x20000000
+#define IOCCR_IOCR2M		0x10000000
+#define IOCCR_IOCR1ME		0x08000000
+#define IOCCR_IOCR2ME		0x08000000
+#define IOCCR_IOCR1U		0x02000000
+#define IOCCR_IOCR2U		0x01000000
+#define SPRN_IOCR1		861
+#define SPRN_IOCR2		862
 
 #define TMRN_IMSR0	0x120	/* Initial MSR Register 0 (e6500) */
 #define TMRN_IMSR1	0x121	/* Initial MSR Register 1 (e6500) */

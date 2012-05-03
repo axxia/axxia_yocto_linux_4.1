@@ -1208,3 +1208,33 @@ relocate_new_kernel_end:
 relocate_new_kernel_size:
 	.long relocate_new_kernel_end - relocate_new_kernel
 #endif
+
+#ifdef CONFIG_PPC_47x
+#define ICBT(CT,RA,RB)							\
+	.long	0x7c00002c | ((CT) << 21) | ((RA) << 16) | ((RB) << 11)
+
+_GLOBAL(__icbi)
+	mflr	r5
+1:	icbi	0,r3
+	bl 2f
+2:	mflr	r3
+	li	r4,32
+	ICBT(0,r3,r4)
+	add	r3,r3,r4
+	ICBT(0,r3,r4)
+	add	r3,r3,r4
+	ICBT(0,r3,r4)
+	sync
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	nop
+	mtlr	r5
+	li	r3, 0
+	blr
+#endif /* CONFIG_PPC_47x */
