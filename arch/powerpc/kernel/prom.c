@@ -700,7 +700,14 @@ void __init early_init_devtree(void *params)
 	if (fadump_reserve_mem() == 0)
 #endif
 		reserve_crashkernel();
+
 	early_reserve_mem();
+	/*
+	 * The range of reserved memory region is out of memory
+	 * while MEMORY_START is larger than 0.
+	 * so we should remove it.
+	 */
+	memblock_free(0, MEMORY_START);
 
 	/* Ensure that total memory size is page-aligned. */
 	limit = ALIGN(memory_limit ?: memblock_phys_mem_size(), PAGE_SIZE);
