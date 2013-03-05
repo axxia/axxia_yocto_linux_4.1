@@ -1290,6 +1290,13 @@ swapper_pg_dir:
 	.space	PGD_TABLE_SIZE
 
 /*
+ * KEXEC secondary kernel will run at same address as old one
+ * spin in data segment avoid it's flushed by new kernel
+ */
+_GLOBAL(kexec_smp_wait)
+	b .
+
+/*
  * Room for two PTE pointers, usually the kernel and current user pointers
  * to their respective root page table.
  */
