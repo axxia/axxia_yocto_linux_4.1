@@ -1022,9 +1022,9 @@ END_FTR_SECTION_IFSET(CPU_FTR_476_DD2)
 	blr
 
 #ifdef CONFIG_SMP
-
 /* Entry point for secondary 47x processors */
-_GLOBAL(start_secondary_47x)
+__CPUINIT
+_ENTRY(start_secondary_47x)
         mr      r24,r3          /* CPU number */
 
 	bl	init_cpu_state
@@ -1061,7 +1061,7 @@ _GLOBAL(start_secondary_47x)
 	mtspr	SPRN_SPRG3,r4
 
 	b	start_secondary
-
+__FINIT
 #endif /* CONFIG_SMP */
 
 /*
