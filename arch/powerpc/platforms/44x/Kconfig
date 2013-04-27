@@ -225,6 +225,14 @@ config AKEBONO
 	  This option enables support for the IBM Akebono (476gtr) evaluation board
 
 
+config ELPASO
+	bool "Support for LSI's ACP ElPaso Evaluation board"
+	depends on (44x || 40x)
+	default n
+	select ACP
+	select PPC_CLOCK
+	select DEFAULT_UIMAGE
+
 config ICON
 	bool "Icon"
 	depends on 44x
@@ -235,6 +243,16 @@ config ICON
 	select PPC4xx_PCI_EXPRESS
 	help
 	  This option enables support for the AMCC PPC440SPe evaluation board.
+
+config ACP
+	bool "Support for LSI's ACP Platform"
+	depends on (44x || 40x)
+	select PPC4xx_PCI_EXPRESS
+	default n
+	select 440GP
+	select PPC_FPU
+	select HAS_RAPIDIO
+	select PPC_CLOCK
 
 config XILINX_VIRTEX440_GENERIC_BOARD
 	bool "Generic Xilinx Virtex 5 FXT board support"
