@@ -813,6 +813,9 @@ _GLOBAL(init_cpu_state)
 	/* We use the PVR to differenciate 44x cores from 476 */
 	mfspr	r3,SPRN_PVR
 	srwi	r3,r3,16
+	/* Some X2 chips had a PVR that doesn't conform to the standard */
+	cmplwi	cr0,r3,PVR_476X2@h
+	beq	head_start_47x
 	cmplwi	cr0,r3,PVR_476FPE@h
 	beq	head_start_47x
 	cmplwi	cr0,r3,PVR_476@h
