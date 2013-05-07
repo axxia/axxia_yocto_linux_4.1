@@ -19,6 +19,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/spinlock_types.h>
 #include <linux/random.h>
@@ -533,7 +534,7 @@ static u32 crypto4xx_fill_one_page(struct crypto4xx_device *dev,
 			(*idx)++;
 
 		return 0;
-    }
+	}
 }
 
 static void crypto4xx_copy_pkt_to_dst(struct crypto4xx_device *dev,
@@ -1129,27 +1130,27 @@ static irqreturn_t crypto4xx_ce_interrupt_handler(int irq, void *data)
 struct crypto4xx_alg_common crypto4xx_alg[] = {
 	/* Crypto AES modes */
 	{ .type = CRYPTO_ALG_TYPE_ABLKCIPHER, .u.cipher = {
-		.cra_name 	= "cbc(aes)",
+		.cra_name	= "cbc(aes)",
 		.cra_driver_name = "cbc-aes-ppc4xx",
-		.cra_priority 	= CRYPTO4XX_CRYPTO_PRIORITY,
-		.cra_flags 	= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
-		.cra_blocksize 	= AES_BLOCK_SIZE,
-		.cra_ctxsize 	= sizeof(struct crypto4xx_ctx),
-		.cra_type 	= &crypto_ablkcipher_type,
+		.cra_priority	= CRYPTO4XX_CRYPTO_PRIORITY,
+		.cra_flags	= CRYPTO_ALG_TYPE_ABLKCIPHER | CRYPTO_ALG_ASYNC,
+		.cra_blocksize	= AES_BLOCK_SIZE,
+		.cra_ctxsize	= sizeof(struct crypto4xx_ctx),
+		.cra_type	= &crypto_ablkcipher_type,
 		.cra_init	= crypto4xx_alg_init,
 		.cra_exit	= crypto4xx_alg_exit,
-		.cra_module 	= THIS_MODULE,
-		.cra_u 		= {
+		.cra_module	= THIS_MODULE,
+		.cra_u		= {
 			.ablkcipher = {
-				.min_keysize 	= AES_MIN_KEY_SIZE,
-				.max_keysize 	= AES_MAX_KEY_SIZE,
+				.min_keysize	= AES_MIN_KEY_SIZE,
+				.max_keysize	= AES_MAX_KEY_SIZE,
 				.ivsize		= AES_IV_SIZE,
-				.setkey 	= crypto4xx_setkey_aes_cbc,
-				.encrypt 	= crypto4xx_encrypt,
-				.decrypt 	= crypto4xx_decrypt,
+				.setkey		= crypto4xx_setkey_aes_cbc,
+				.encrypt	= crypto4xx_encrypt,
+				.decrypt	= crypto4xx_decrypt,
 			}
 		}
-	}},
+	} },
 };
 
 /**
