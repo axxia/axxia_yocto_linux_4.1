@@ -64,7 +64,7 @@ static void ppc44x_update_tlb_hwater(void)
 /*
  * "Pins" a 256MB TLB entry in AS0 for kernel lowmem for 44x type MMU
  */
-static void __init ppc44x_pin_tlb(unsigned int virt, unsigned int phys)
+static void __cpuinit ppc44x_pin_tlb(unsigned int virt, unsigned int phys)
 {
 	unsigned int entry = tlb_44x_hwater--;
 
