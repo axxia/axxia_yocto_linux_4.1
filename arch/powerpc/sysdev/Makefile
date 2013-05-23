@@ -41,9 +41,12 @@ obj-$(CONFIG_PPC4xx_OCM)	+= ppc4xx_ocm.o
 obj-$(CONFIG_4xx_SOC)		+= ppc4xx_soc.o
 obj-$(CONFIG_XILINX_VIRTEX)	+= xilinx_intc.o
 obj-$(CONFIG_XILINX_PCI)	+= xilinx_pci.o
+obj-$(CONFIG_LSI_PCI)		+= lsi_pci.o
 obj-$(CONFIG_OF_RTC)		+= of_rtc.o
 ifeq ($(CONFIG_PCI),y)
+ifeq ($(CONFIG_LSI_PCI),n)
 obj-$(CONFIG_4xx)		+= ppc4xx_pci.o
+endif
 endif
 obj-$(CONFIG_PPC4xx_HSTA_MSI)	+= ppc4xx_hsta_msi.o
 obj-$(CONFIG_PPC4xx_MSI)	+= ppc4xx_msi.o
