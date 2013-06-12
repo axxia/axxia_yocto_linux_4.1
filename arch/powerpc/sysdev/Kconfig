@@ -2,7 +2,7 @@
 # see Documentation/kbuild/kconfig-language.txt.
 #
 
-config LSI_PCI
+config LSI_PPC_PCI
 	bool "LSI ACP34XX PCIe support"
 	default y
         help
