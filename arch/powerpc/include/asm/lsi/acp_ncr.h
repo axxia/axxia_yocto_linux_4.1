@@ -39,4 +39,7 @@ int ncr_write(unsigned long, unsigned long, int, void *);
 
 int is_asic(void);
 
+extern int acp_mdio_read(unsigned long, unsigned long, unsigned short *);
+extern int acp_mdio_write(unsigned long, unsigned long, unsigned short);
+
 #endif /*  __DRIVERS_LSI_ACP_NCR_H */
