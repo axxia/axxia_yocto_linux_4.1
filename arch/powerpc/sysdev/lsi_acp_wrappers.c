@@ -30,6 +30,40 @@ MODULE_DESCRIPTION("ACP Wrappers");
 MODULE_LICENSE("GPL");
 
 /*
+  ==============================================================================
+  ==============================================================================
+  Platform Device Registration
+  ==============================================================================
+  ==============================================================================
+*/
+
+/*
+  ------------------------------------------------------------------------------
+  acp_platform_device_register
+*/
+
+int
+acp_platform_device_register(struct platform_device *pdev)
+{
+	return platform_device_register(pdev);
+}
+EXPORT_SYMBOL(acp_platform_device_register);
+
+/*
+  ------------------------------------------------------------------------------
+  acp_platform_device_unregister
+*/
+
+void
+acp_platform_device_unregister(struct platform_device *pdev)
+{
+	platform_device_unregister(pdev);
+
+	return;
+}
+EXPORT_SYMBOL(acp_platform_device_unregister);
+
+/*
   ============================================================================
   ============================================================================
   MDIO Access
