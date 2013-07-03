@@ -211,6 +211,8 @@ ncr_read(unsigned long region, unsigned long address, int number, void *buffer)
 		memcpy((void *) buffer, &temp, number);
 	}
 
+	ncr_unlock(LOCK_DOMAIN);
+
 	return 0;
 }
 EXPORT_SYMBOL(ncr_read);
