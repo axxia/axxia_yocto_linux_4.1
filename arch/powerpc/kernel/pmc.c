@@ -20,6 +20,10 @@
 #include <asm/processor.h>
 #include <asm/cputable.h>
 #include <asm/pmc.h>
+#if defined(CONFIG_ACP_PMU_PERFMON)
+#include <linux/smp.h>
+#include <asm/reg_acp_pmu.h>
+#endif
 
 #ifndef MMCR0_PMAO
 #define MMCR0_PMAO	0
@@ -32,6 +36,11 @@ static void dummy_perf(struct pt_regs *regs)
 #elif defined(CONFIG_PPC64) || defined(CONFIG_6xx)
 	if (cur_cpu_spec->pmc_type == PPC_PMC_IBM)
 		mtspr(SPRN_MMCR0, mfspr(SPRN_MMCR0) & ~(MMCR0_PMXE|MMCR0_PMAO));
+#elif defined(CONFIG_ACP_PMU_PERFMON) && defined(CONFIG_SMP)
+	int core = raw_smp_processor_id();
+
+	mtdcrx(PMUDCRAI(core), PMRN_PMUIE0);
+	mtdcrx(PMUDCRDI(core), 0);
 #else
 	mtspr(SPRN_MMCR0, mfspr(SPRN_MMCR0) & ~MMCR0_PMXE);
 #endif

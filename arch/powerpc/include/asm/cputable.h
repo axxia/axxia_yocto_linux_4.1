@@ -24,6 +24,7 @@ enum powerpc_oprofile_type {
 	PPC_OPROFILE_FSL_EMB = 4,
 	PPC_OPROFILE_CELL = 5,
 	PPC_OPROFILE_PA6T = 6,
+	PPC_OPROFILE_ACP_PMU = 7,
 };
 
 enum powerpc_pmc_type {
