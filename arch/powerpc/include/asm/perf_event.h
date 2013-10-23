@@ -22,6 +22,10 @@
 #include <asm/perf_event_fsl_emb.h>
 #endif
 
+#ifdef CONFIG_ACP_PMU_PERF_EVENT
+#include <asm/perf_event_acp.h>
+#endif
+
 #ifdef CONFIG_PERF_EVENTS
 #include <asm/ptrace.h>
 #include <asm/reg.h>

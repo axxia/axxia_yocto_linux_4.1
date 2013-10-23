@@ -65,6 +65,7 @@ extern struct op_powerpc_model op_model_power4;
 extern struct op_powerpc_model op_model_7450;
 extern struct op_powerpc_model op_model_cell;
 extern struct op_powerpc_model op_model_pa6t;
+extern struct op_powerpc_model op_model_acp_pmu;
 
 
 /* All the classic PPC parts use these */

@@ -43,3 +43,4 @@ header-y += tm.h
 header-y += types.h
 header-y += ucontext.h
 header-y += unistd.h
+header-y += reg_acp_pmu.h
