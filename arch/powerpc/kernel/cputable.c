@@ -1866,9 +1866,9 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.platform		= "ppc440",
 	},
 	{ /* 476 DD2 core */
-		.pvr_mask		= 0xffffffff,
-		.pvr_value		= 0x11a52080,
-		.cpu_name		= "476",
+		.pvr_mask		= 0x800fffff,
+		.pvr_value		= 0x00052080,
+		.cpu_name		= "476, DD2",
 		.cpu_features		= CPU_FTRS_47X | CPU_FTR_476_DD2,
 		.cpu_user_features	= COMMON_USER_BOOKE |
 			PPC_FEATURE_HAS_FPU,
@@ -1877,6 +1877,29 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.icache_bsize		= 32,
 		.dcache_bsize		= 128,
 		.machine_check		= machine_check_47x,
+		.platform		= "ppc470",
+		.machine_check          = machine_check_47x,
+		.num_pmcs		= 8,
+		.oprofile_cpu_type	= "ppc/476",
+		.oprofile_type		= PPC_OPROFILE_ACP_PMU,
+		.platform		= "ppc470",
+	},
+	{ /* X2 DD2 core */
+		.pvr_mask		= 0xffffffff,
+		.pvr_value		= 0x11b22080,
+		.cpu_name		= "476, X2 DD2",
+		.cpu_features		= CPU_FTRS_47X | CPU_FTR_476_DD2,
+		.cpu_user_features	= COMMON_USER_BOOKE |
+			PPC_FEATURE_HAS_FPU,
+		.mmu_features		= MMU_FTR_TYPE_47x |
+			MMU_FTR_USE_TLBIVAX_BCAST | MMU_FTR_LOCK_BCAST_INVAL,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 128,
+		.machine_check		= machine_check_47x,
+		.platform		= "ppc470",
+		.num_pmcs		= 8,
+		.oprofile_cpu_type	= "ppc/476",
+		.oprofile_type		= PPC_OPROFILE_ACP_PMU,
 		.platform		= "ppc470",
 	},
 	{ /* 476fpe */
@@ -1894,10 +1917,10 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.platform		= "ppc470",
 	},
 	{ /* 476 iss */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x00050000,
+		.pvr_mask		= 0xffffffff,
+		.pvr_value		= 0x12b520c0,
 		.cpu_name		= "476",
-		.cpu_features		= CPU_FTRS_47X,
+		.cpu_features		= CPU_FTRS_47X | CPU_FTR_476_DD2,
 		.cpu_user_features	= COMMON_USER_BOOKE |
 			PPC_FEATURE_HAS_FPU,
 		.mmu_features		= MMU_FTR_TYPE_47x |
@@ -1907,10 +1930,46 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check		= machine_check_47x,
 		.platform		= "ppc470",
 	},
+	{ /* 476 DD3 core */
+		.pvr_mask		= 0xffff20c0,
+		.pvr_value		= 0x11a520c0,
+		.cpu_name		= "476, DD3",
+		.cpu_features		= CPU_FTRS_47X,
+		.cpu_user_features	= COMMON_USER_BOOKE |
+			PPC_FEATURE_HAS_FPU,
+		.mmu_features		= MMU_FTR_TYPE_47x |
+			MMU_FTR_USE_TLBIVAX_BCAST | MMU_FTR_LOCK_BCAST_INVAL,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 128,
+		.machine_check		= machine_check_47x,
+		.platform		= "ppc470",
+		.num_pmcs		= 8,
+		.oprofile_cpu_type	= "ppc/476",
+		.oprofile_type		= PPC_OPROFILE_ACP_PMU,
+		.platform		= "ppc470",
+	},
+	{ /* 476 ACP25xx */
+		.pvr_mask		= 0x7ff520c1,
+		.pvr_value		= 0x7ff520c1,
+		.cpu_name		= "476, ACP25xx",
+		.cpu_features		= CPU_FTRS_47X,
+		.cpu_user_features	= COMMON_USER_BOOKE |
+			PPC_FEATURE_HAS_FPU,
+		.mmu_features		= MMU_FTR_TYPE_47x |
+			MMU_FTR_USE_TLBIVAX_BCAST | MMU_FTR_LOCK_BCAST_INVAL,
+		.icache_bsize		= 32,
+		.dcache_bsize		= 128,
+		.machine_check		= machine_check_47x,
+		.platform		= "ppc470",
+		.num_pmcs		= 8,
+		.oprofile_cpu_type	= "ppc/476",
+		.oprofile_type		= PPC_OPROFILE_ACP_PMU,
+		.platform		= "ppc470",
+	},
 	{ /* 476 others */
-		.pvr_mask		= 0xffff0000,
-		.pvr_value		= 0x11a50000,
-		.cpu_name		= "476",
+		.pvr_mask		= 0x800f0000,
+		.pvr_value		= 0x00050000,
+		.cpu_name		= "476, Other",
 		.cpu_features		= CPU_FTRS_47X,
 		.cpu_user_features	= COMMON_USER_BOOKE |
 			PPC_FEATURE_HAS_FPU,

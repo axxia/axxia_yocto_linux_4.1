@@ -212,6 +212,9 @@ int __init oprofile_arch_init(struct oprofile_operations *ops)
 			model = &op_model_pa6t;
 			break;
 #endif
+		case PPC_OPROFILE_ACP_PMU:
+			model = &op_model_acp_pmu;
+			break;
 #ifdef CONFIG_6xx
 		case PPC_OPROFILE_G4:
 			model = &op_model_7450;

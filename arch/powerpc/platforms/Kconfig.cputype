@@ -201,7 +201,24 @@ config FSL_EMB_PERF_EVENT_E500
 
 config 4xx
 	bool
+	select ACP_PMU_PERFMON
 	depends on 40x || 44x
+	default y
+
+config ACP_PMU_PERFMON
+	bool "LSI Embedded Perfmon"
+	depends on 44x && ACP
+	help
+	  This is the Performance Monitor support found on acp3400 ppc476 chip
+
+config ACP_PMU_PERF_EVENT
+	bool
+	depends on ACP_PMU_PERFMON && PERF_EVENTS && !PPC_PERF_CTRS
+	default y
+
+config ACP_PMU_PERF_EVENT_PPC476
+	bool
+	depends on ACP_PMU_PERFMON && PERF_EVENTS && !PPC_PERF_CTRS
 	default y
 
 config BOOKE
