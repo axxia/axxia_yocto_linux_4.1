@@ -712,7 +712,7 @@ _GLOBAL(abs)
 	blr
 
 #ifdef CONFIG_SMP
-__DEVINIT
+__CPUINIT
 _ENTRY(start_secondary_resume)
 	/* Reset stack */
 	CURRENT_THREAD_INFO(r1, r1)
