@@ -1101,8 +1101,14 @@ static const struct i2c_device_id rt286_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt286_i2c_id);
 
+/* the default platform data for acpi devices */
+static struct rt286_platform_data rt286_acpi_data = {
+	.cbj_en = true,
+	.gpio2_en = false,
+};
+
 static const struct acpi_device_id rt286_acpi_match[] = {
-	{ "INT343A", 0 },
+	{ "INT343A", (unsigned long)&rt286_acpi_data },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt286_acpi_match);
@@ -1134,6 +1140,8 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	struct rt286_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt286_priv *rt286;
 	int i, ret, val;
+	struct device *dev = &i2c->dev;
+	const struct acpi_device_id *acpiid;
 
 	rt286 = devm_kzalloc(&i2c->dev,	sizeof(*rt286),
 				GFP_KERNEL);
@@ -1179,6 +1187,14 @@ static int rt286_i2c_probe(struct i2c_client *i2c,
 	if (dmi_check_system(force_combo_jack_table) ||
 		dmi_check_system(dmi_dell_dino))
 		rt286->pdata.cbj_en = true;
+
+	/* enable jack combo mode on supported devices */
+	acpiid = acpi_match_device(dev->driver->acpi_match_table, dev);
+	if (acpiid) {
+		rt286->pdata = *(struct rt286_platform_data *)
+			acpiid->driver_data;
+	}
+
 
 	regmap_write(rt286->regmap, RT286_SET_AUDIO_POWER, AC_PWRST_D3);
 
