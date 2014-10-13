@@ -159,6 +159,11 @@ source "kernel/Kconfig.freezer"
 
 menu "Platform selection"
 
+config ARCH_AXXIA
+	bool "Axxia SoC family"
+	help
+	  This enables support for LSI Axxia 56xx SOC Family
+
 config ARCH_EXYNOS
 	bool
 	help
