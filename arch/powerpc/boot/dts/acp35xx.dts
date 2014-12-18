@@ -103,7 +103,7 @@
 			reset-type = <3>; // 1=core, 2=chip, 3=system (default)
 		};
 
-	cpu@4 {
+		cpu@4 {
 			device_type = "cpu";
 			model = "PowerPC,4xx"; // real CPU changed in sim
 			reg = <4>;
@@ -121,7 +121,7 @@
 			reset-type = <3>; // 1=core, 2=chip, 3=system (default)
 		};
 
-	cpu@5 {
+		cpu@5 {
 			device_type = "cpu";
 			model = "PowerPC,4xx"; // real CPU changed in sim
 			reg = <5>;
@@ -303,6 +303,40 @@
 				tzc-reg = <0x00541000 0x1000>;
 			};
 
+			MSI0: msi0 {
+				compatible = "lsi,msi";
+				device_type = "lsi_msi";
+				status = "ok";
+				enabled = <0x1>;
+				port = <0>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				/* config space access MPAGE7 registers*/
+				reg = <0x580000 0x2000>;
+			};
+			MSI1: msi1 {
+				compatible = "lsi,msi";
+				device_type = "lsi_msi";
+				status = "ok";
+				enabled = <0x1>;
+				port = <1>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				/* config space access MPAGE7 registers*/
+				reg = <0x588000 0x2000>;
+			};
+			MSI2: msi2 {
+				compatible = "lsi,msi";
+				device_type = "lsi_msi";
+				status = "ok";
+				enabled = <0x1>;
+				port = <2>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				/* config space access MPAGE7 registers*/
+				reg = <0x590000 0x2000>;
+			};
+
 			TRNG: trng {
 				compatible = "lsi,trng";
 				enabled = <1>;
@@ -402,6 +436,7 @@
 			0000 0 0 4 &MPIC 54
 		>;
 	};
+
 	PCIE2: pei2 {
 		compatible = "lsi,plb-pciex";
 		device_type = "pci";
@@ -438,6 +473,7 @@
 			0000 0 0 4 &MPIC 55
 		>;
 	};
+
 	SRIO0: srio0 {
 		compatible = "acp,rapidio-delta";
 		device_type = "rapidio";
