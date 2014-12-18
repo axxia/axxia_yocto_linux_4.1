@@ -1,4 +1,4 @@
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
+#subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 ccflags-$(CONFIG_PPC64)		:= $(NO_MINIMAL_TOC)
 
@@ -42,6 +42,7 @@ obj-$(CONFIG_4xx_SOC)		+= ppc4xx_soc.o
 obj-$(CONFIG_XILINX_VIRTEX)	+= xilinx_intc.o
 obj-$(CONFIG_XILINX_PCI)	+= xilinx_pci.o
 obj-$(CONFIG_LSI_PPC_PCI)	+= lsi_pci.o
+obj-$(CONFIG_LSI_PPC_PCI_MSI)	+= lsi_msi.o
 obj-$(CONFIG_OF_RTC)		+= of_rtc.o
 ifeq ($(CONFIG_PCI),y)
 ifeq ($(CONFIG_LSI_PCI),n)
@@ -71,7 +72,7 @@ obj-$(CONFIG_PPC_SCOM)		+= scom.o
 
 obj-$(CONFIG_PPC_EARLY_DEBUG_MEMCONS)	+= udbg_memcons.o
 
-subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
+#subdir-ccflags-$(CONFIG_PPC_WERROR) := -Werror
 
 obj-$(CONFIG_PPC_XICS)		+= xics/
 

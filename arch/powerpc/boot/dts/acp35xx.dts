@@ -303,6 +303,40 @@
 				tzc-reg = <0x00541000 0x1000>;
 			};
 
+			MSI0: msi0 {
+				compatible = "lsi,msi";
+				device_type = "lsi_msi";
+				status = "ok";
+				enabled = <0x1>;
+				port = <0>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				/* config space access MPAGE7 registers*/
+				reg = <0x580000 0x2000>;
+			};
+			MSI1: msi1 {
+				compatible = "lsi,msi";
+				device_type = "lsi_msi";
+				status = "ok";
+				enabled = <0x1>;
+				port = <1>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				/* config space access MPAGE7 registers*/
+				reg = <0x588000 0x2000>;
+			};
+			MSI2: msi2 {
+				compatible = "lsi,msi";
+				device_type = "lsi_msi";
+				status = "ok";
+				enabled = <0x1>;
+				port = <2>;
+				#address-cells = <2>;
+				#size-cells = <1>;
+				/* config space access MPAGE7 registers*/
+				reg = <0x590000 0x2000>;
+			};
+
 			TRNG: trng {
 				compatible = "lsi,trng";
 				enabled = <1>;
@@ -366,7 +400,6 @@
                         0000 0 0 4 &MPIC 52
                 >;
         };
-
         PCIE1: pei1 {
                 compatible = "lsi,plb-pciex";
                 device_type = "pci";
