@@ -3,10 +3,17 @@
 #
 
 config LSI_PPC_PCI
-	bool "LSI ACP34XX PCIe support"
+	bool "LSI ACP34XX/AXM35XX PCIe support"
 	default y
         help
-          PCIe driver support for LSI's ACP34xx
+          PCIe driver support for LSI's ACP34xx/AXM35xx
+
+config LSI_PPC_PCI_MSI
+	bool "LSI ACP34XX/AXM35XX PCIe MSI support"
+	depends on PCI_MSI
+	default y
+        help
+          PCIe MSI driver support for LSI's ACP34xx/AXM35xx
 
 config PPC4xx_PCI_EXPRESS
 	bool
