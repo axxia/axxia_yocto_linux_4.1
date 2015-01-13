@@ -8,5 +8,7 @@ dts-dirs += mediatek
 dts-dirs += qcom
 dts-dirs += sprd
 dts-dirs += xilinx
+dts-dirs += intel
+ 
 
 subdir-y	:= $(dts-dirs)
