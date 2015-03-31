@@ -259,6 +259,13 @@ config SPI_LM70_LLP
 	  which interfaces to an LM70 temperature sensor using
 	  a parallel port.
 
+config SPI_LSI_ACP
+	tristate "LSI ACP34xx SPI Controller"
+	depends on PPC_OF
+	help
+	  This is the driver for the LSI SPI controller, present in
+	  ACP34xx devices. The controller is essentially a AMBA pl022.
+
 config SPI_MPC52xx
 	tristate "Freescale MPC52xx SPI (non-PSC) controller support"
 	depends on PPC_MPC52xx
