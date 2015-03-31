@@ -209,6 +209,7 @@ static int cpu_pmu_init(struct arm_pmu *cpu_pmu)
 
 	for_each_possible_cpu(cpu) {
 		struct pmu_hw_events *events = per_cpu_ptr(cpu_hw_events, cpu);
+
 		raw_spin_lock_init(&events->pmu_lock);
 		events->percpu_pmu = cpu_pmu;
 	}
@@ -273,6 +274,9 @@ static const struct pmu_probe_info pmu_probe_table[] = {
 	ARM_PMU_PROBE(ARM_CPU_PART_ARM11MPCORE, armv6mpcore_pmu_init),
 	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A8, armv7_a8_pmu_init),
 	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A9, armv7_a9_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A5, armv7_a5_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A15, armv7_a15_pmu_init),
+	ARM_PMU_PROBE(ARM_CPU_PART_CORTEX_A7, armv7_a7_pmu_init),
 	XSCALE_PMU_PROBE(ARM_CPU_XSCALE_ARCH_V1, xscale1pmu_init),
 	XSCALE_PMU_PROBE(ARM_CPU_XSCALE_ARCH_V2, xscale2pmu_init),
 	{ /* sentinel value */ }
@@ -371,7 +375,8 @@ static int cpu_pmu_device_probe(struct platform_device *pdev)
 	cpu_pmu = pmu;
 	cpu_pmu->plat_device = pdev;
 
-	if (node && (of_id = of_match_node(cpu_pmu_of_device_ids, pdev->dev.of_node))) {
+	of_id = of_match_node(cpu_pmu_of_device_ids, pdev->dev.of_node);
+	if (node && of_id) {
 		init_fn = of_id->data;
 
 		ret = of_pmu_irq_cfg(pdev);
