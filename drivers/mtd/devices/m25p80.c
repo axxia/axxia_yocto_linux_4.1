@@ -134,7 +134,7 @@ static int m25p80_read(struct spi_nor *nor, loff_t from, size_t len,
 	dummy /= 8;
 
 	spi_message_init(&m);
-	memset(t, 0, (sizeof t));
+	memset(t, 0, (sizeof(t)));
 
 	flash->command[0] = nor->read_opcode;
 	m25p_addr2cmd(nor, from, flash->command);
@@ -268,26 +268,27 @@ static const struct spi_device_id m25p_ids[] = {
 	{"en25q64"},	{"en25qh128"},	{"en25qh256"},
 	{"f25l32pa"},
 	{"mr25h256"},	{"mr25h10"},
+	{"mb85rs1mt"},
 	{"gd25q32"},	{"gd25q64"},
 	{"160s33b"},	{"320s33b"},	{"640s33b"},
 	{"mx25l2005a"},	{"mx25l4005a"},	{"mx25l8005"},	{"mx25l1606e"},
 	{"mx25l3205d"},	{"mx25l3255e"},	{"mx25l6405d"},	{"mx25l12805d"},
-	{"mx25l12855e"},{"mx25l25635e"},{"mx25l25655e"},{"mx66l51235l"},
+	{"mx25l12855e"}, {"mx25l25635e"}, {"mx25l25655e"}, {"mx66l51235l"},
 	{"mx66l1g55g"},
-	{"n25q064"},	{"n25q128a11"},	{"n25q128a13"},	{"n25q256a"},
-	{"n25q512a"},	{"n25q512ax3"},	{"n25q00"},
+	{"n25q032"},    {"n25q064"},	{"n25q128a11"},	{"n25q128a13"},
+	{"n25q256a"},   {"n25q512a"},	{"n25q512ax3"},	{"n25q00"},
 	{"pm25lv512"},	{"pm25lv010"},	{"pm25lq032"},
 	{"s25sl032p"},	{"s25sl064p"},	{"s25fl256s0"},	{"s25fl256s1"},
 	{"s25fl512s"},	{"s70fl01gs"},	{"s25sl12800"},	{"s25sl12801"},
-	{"s25fl129p0"},	{"s25fl129p1"},	{"s25sl004a"},	{"s25sl008a"},
-	{"s25sl016a"},	{"s25sl032a"},	{"s25sl064a"},	{"s25fl008k"},
-	{"s25fl016k"},	{"s25fl064k"},	{"s25fl132k"},
-	{"sst25vf040b"},{"sst25vf080b"},{"sst25vf016b"},{"sst25vf032b"},
-	{"sst25vf064c"},{"sst25wf512"},	{"sst25wf010"},	{"sst25wf020"},
-	{"sst25wf040"},
+	{"s25fl128s"},  {"s25fl129p0"},	{"s25fl129p1"},	{"s25sl004a"},
+	{"s25sl008a"},  {"s25sl016a"},	{"s25sl032a"},	{"s25sl064a"},
+	{"s25fl008k"},  {"s25fl016k"},	{"s25fl064k"},	{"s25fl132k"},
+	{"sst25vf040b"}, {"sst25vf080b"}, {"sst25vf016b"}, {"sst25vf032b"},
+	{"sst25vf064c"}, {"sst25wf512"}, {"sst25wf010"}, {"sst25wf020"},
+	{"sst25wf040"}, {"sst25wf080"},
 	{"m25p05"},	{"m25p10"},	{"m25p20"},	{"m25p40"},
 	{"m25p80"},	{"m25p16"},	{"m25p32"},	{"m25p64"},
-	{"m25p128"},	{"n25q032"},
+	{"m25p128"},
 	{"m25p05-nonjedec"},	{"m25p10-nonjedec"},	{"m25p20-nonjedec"},
 	{"m25p40-nonjedec"},	{"m25p80-nonjedec"},	{"m25p16-nonjedec"},
 	{"m25p32-nonjedec"},	{"m25p64-nonjedec"},	{"m25p128-nonjedec"},
