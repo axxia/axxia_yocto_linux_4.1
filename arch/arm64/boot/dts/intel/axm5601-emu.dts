@@ -40,17 +40,22 @@
 };
 
 &femac {
-       status = "okay";
+       status = "disabled";
        phy-handle = <&phy0>;
+};
+
+&nemac {
+	status = "okay";
+	phy-handle = <&phy0>;
 };
 
 &mdio {
       status = "okay";
       lsi,mdio-clk-offset = <0x5>;
       lsi,mdio-clk-period = <0xc>;
-      max-speed = <10>;
 
       phy0: ethernet-phy@3 {
            reg = <0x3>;
+	    max-speed = <10>;
       };
 };
