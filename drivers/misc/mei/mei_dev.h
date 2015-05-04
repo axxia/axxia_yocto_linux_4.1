@@ -482,6 +482,8 @@ const char *mei_pg_state_str(enum mei_pg_state state);
  * @host_clients_map : host clients id pool
  * @me_client_index : last FW client index in enumeration
  *
+ * @allow_fixed_address: allow user space to connect a fixed client
+ *
  * @wd_cl       : watchdog client
  * @wd_state    : watchdog client state
  * @wd_pending  : watchdog command is pending
@@ -572,6 +574,8 @@ struct mei_device {
 	DECLARE_BITMAP(me_clients_map, MEI_CLIENTS_MAX);
 	DECLARE_BITMAP(host_clients_map, MEI_CLIENTS_MAX);
 	unsigned long me_client_index;
+
+	u32 allow_fixed_address;
 
 	struct mei_cl wd_cl;
 	enum mei_wd_states wd_state;
