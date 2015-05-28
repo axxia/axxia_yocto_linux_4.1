@@ -7,7 +7,6 @@
  */
 
 #include <linux/linkage.h>
-#include <asm/dwarf2.h>
 
 #define FIX_ALIGNMENT 1
 
@@ -48,7 +47,6 @@
  * This will force destination/source out of cache for more performance.
  */
 ENTRY(__copy_user_nocache)
-	CFI_STARTPROC
 	ASM_STAC
 	cmpl $8,%edx
 	jb 20f		/* less then 8 bytes, go to byte copy loop */
@@ -132,5 +130,4 @@ ENTRY(__copy_user_nocache)
 	_ASM_EXTABLE(19b,40b)
 	_ASM_EXTABLE(21b,50b)
 	_ASM_EXTABLE(22b,50b)
-	CFI_ENDPROC
 ENDPROC(__copy_user_nocache)
