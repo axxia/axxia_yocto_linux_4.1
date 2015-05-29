@@ -4654,6 +4654,17 @@ static int patch_ca0132(struct hda_codec *codec)
 	codec->spec = spec;
 	spec->codec = codec;
 
+	codec->patch_ops = ca0132_patch_ops;
+	codec->pcm_format_first = 1;
+	codec->no_sticky_stream = 1;
+
+	/* Detect codec quirk */
+	quirk = snd_pci_quirk_lookup(codec->bus->pci, ca0132_quirks);
+	if (quirk)
+		spec->quirk = quirk->value;
+	else
+		spec->quirk = QUIRK_NONE;
+
 	spec->dsp_state = DSP_DOWNLOAD_INIT;
 	spec->num_mixers = 1;
 	spec->mixers[0] = ca0132_mixer;
@@ -4673,10 +4684,6 @@ static int patch_ca0132(struct hda_codec *codec)
 	err = snd_hda_parse_pin_def_config(codec, &spec->autocfg, NULL);
 	if (err < 0)
 		return err;
-
-	codec->patch_ops = ca0132_patch_ops;
-	codec->pcm_format_first = 1;
-	codec->no_sticky_stream = 1;
 
 	return 0;
 }
