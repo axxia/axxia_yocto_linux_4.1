@@ -2020,8 +2020,8 @@ static int azx_probe_continue(struct azx *chip)
 	 * display codec needs the power and it can be released after probe.
 	 */
 	if (chip->driver_caps & AZX_DCAPS_I915_POWERWELL) {
-		/* Baytral/Braswell controllers don't need this power */
-		if (pci->device != 0x0f04 && pci->device != 0x2284)
+		/* HSW/BDW controllers need this power */
+		if (CONTROLLER_IN_GPU(pci))
 			hda->need_i915_power = 1;
 
 		err = snd_hdac_i915_init(bus);
