@@ -8,4 +8,4 @@ obj-$(CONFIG_SND_SST_MFLD_PLATFORM) += atom/
 obj-$(CONFIG_SND_SOC_INTEL_SKYLAKE) += skylake/
 
 # Machine support
-obj-$(CONFIG_SND_SOC_INTEL_SST) += boards/
+obj-$(CONFIG_SND_SOC) += boards/
