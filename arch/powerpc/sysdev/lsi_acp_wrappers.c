@@ -19,8 +19,6 @@
  */
 
 #include <linux/module.h>
-#include <linux/spinlock.h>
-#include <linux/sched.h>
 #include <linux/of.h>
 #include <linux/io.h>
 #include <asm/irq.h>
@@ -216,91 +214,6 @@ unsigned int acp_irq_create_mapping(struct irq_domain *host,
 	return mapped_irq;
 }
 EXPORT_SYMBOL(acp_irq_create_mapping);
-
-/*
-  ============================================================================
-  ============================================================================
-  Spin Locks
-  ============================================================================
-  ============================================================================
-*/
-
-/*
- * -------------------------------------------------------------------------
- * acp_spin_lock_init
- */
-
-void acp_spin_lock_init(spinlock_t *lock)
-{
-	spin_lock_init(lock);
-}
-EXPORT_SYMBOL(acp_spin_lock_init);
-
-/*
- * -------------------------------------------------------------------------
- * acp_spin_lock
- */
-
-void acp_spin_lock(spinlock_t *lock)
-{
-	spin_lock(lock);
-}
-EXPORT_SYMBOL(acp_spin_lock);
-
-/*
- * -------------------------------------------------------------------------
- * acp_spin_unlock
- */
-
-void acp_spin_unlock(spinlock_t *lock)
-{
-	spin_unlock(lock);
-}
-EXPORT_SYMBOL(acp_spin_unlock);
-
-/*
- * -------------------------------------------------------------------------
- * acp_spin_lock_bh
- */
-
-void acp_spin_lock_bh(spinlock_t *lock)
-{
-	spin_lock_bh(lock);
-}
-EXPORT_SYMBOL(acp_spin_lock_bh);
-
-/*
- * -------------------------------------------------------------------------
- * acp_spin_unlock_bh
- */
-
-void acp_spin_unlock_bh(spinlock_t *lock)
-{
-	spin_unlock_bh(lock);
-}
-EXPORT_SYMBOL(acp_spin_unlock_bh);
-
-/*
- * -------------------------------------------------------------------------
- * acp_spin_lock_irqsave
- */
-
-void acp_spin_lock_irqsave(spinlock_t *lock, unsigned long flags)
-{
-	spin_lock_irqsave(lock, flags);
-}
-EXPORT_SYMBOL(acp_spin_lock_irqsave);
-
-/*
- * -------------------------------------------------------------------------
- * acp_spin_unlock_irqrestore
- */
-
-void acp_spin_unlock_irqrestore(spinlock_t *lock, unsigned long flags)
-{
-	spin_unlock_irqrestore(lock, flags);
-}
-EXPORT_SYMBOL(acp_spin_unlock_irqrestore);
 
 /*
  * -------------------------------------------------------------------------
