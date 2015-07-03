@@ -260,6 +260,8 @@ struct sst_mem_block {
  */
 struct sst_dsp {
 
+	/* Shared for all platforms */
+
 	/* runtime */
 	struct sst_dsp_device *sst_dev;
 	spinlock_t spinlock;	/* IPC locking */
@@ -269,10 +271,6 @@ struct sst_dsp {
 	void *thread_context;
 	int irq;
 	u32 id;
-
-	/* list of free and used ADSP memory blocks */
-	struct list_head used_block_list;
-	struct list_head free_block_list;
 
 	/* operations */
 	struct sst_ops *ops;
@@ -285,6 +283,12 @@ struct sst_dsp {
 
 	/* mailbox */
 	struct sst_mailbox mailbox;
+
+	/* HSW/Byt data */
+
+	/* list of free and used ADSP memory blocks */
+	struct list_head used_block_list;
+	struct list_head free_block_list;
 
 	/* SST FW files loaded and their modules */
 	struct list_head module_list;
