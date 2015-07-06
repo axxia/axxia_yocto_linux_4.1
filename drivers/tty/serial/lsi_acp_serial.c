@@ -50,6 +50,7 @@
 #include <linux/amba/serial.h>
 #include <linux/irq.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 
 #define SZ_4K (4*1024)
