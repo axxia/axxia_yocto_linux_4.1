@@ -30,6 +30,7 @@
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <asm/cacheflush.h>
@@ -592,7 +593,6 @@ lsi_nand_command(struct mtd_info *mtd, unsigned int command,
 	register struct nand_chip *chip = mtd->priv;
 	unsigned int status = 0;
 	struct lsi_nand_private *priv = &lsi_nand_private;
-	struct device_node *np = NULL;
 
 	DEBUG_PRINT("command=0x%x\n", command);
 	command &= 0xff;
@@ -789,7 +789,6 @@ static int lsi_nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 {
 	unsigned long status = 0;
 	loff_t offset = 0;
-	struct device_node *np = NULL;
 
 	/*
 	  When reading or writing, wait for the
@@ -3358,9 +3357,15 @@ static int
 lsi_nand_init_size(struct mtd_info *mtd, struct nand_chip *chip, u8 *id_data)
 {
 	int busw, extid;
+	int bits;
+	u8 cellinfo;
 
 	/* The 3rd id byte holds MLC / multichip data */
-	chip->cellinfo = readb(chip->IO_ADDR_R + NAND_ID4_REG);
+	cellinfo = readb(chip->IO_ADDR_R + NAND_ID4_REG);
+	bits = cellinfo & NAND_CI_CELLTYPE_MSK;
+	bits >>= NAND_CI_CELLTYPE_SHIFT;
+	chip->bits_per_cell = bits + 1;
+
 	/* The 4th id byte is the important one */
 	extid = readb(chip->IO_ADDR_R + NAND_ID6_REG);
 
