@@ -19,6 +19,7 @@
 
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/io.h>
 #include <linux/rio.h>
 #include <linux/rio_drv.h>
 #include <linux/rio_ids.h>
