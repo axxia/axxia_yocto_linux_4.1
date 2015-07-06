@@ -712,7 +712,6 @@ _GLOBAL(abs)
 	blr
 
 #ifdef CONFIG_SMP
-__CPUINIT
 _ENTRY(start_secondary_resume)
 	/* Reset stack */
 	CURRENT_THREAD_INFO(r1, r1)
@@ -721,7 +720,6 @@ _ENTRY(start_secondary_resume)
 	stw	r3,0(r1)		/* Zero the stack frame pointer	*/
 	bl	start_secondary
 	b	.
-__FINIT
 #endif /* CONFIG_SMP */
 
 /*
