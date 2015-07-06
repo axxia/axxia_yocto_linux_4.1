@@ -199,7 +199,6 @@ static int ci13612_ehci_run(struct usb_hcd *hcd)
 {
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int retval;
-	u32 tmp;
 
 	retval = ci13612_fixup_usbcmd_rs(ehci);
 	if (retval)
