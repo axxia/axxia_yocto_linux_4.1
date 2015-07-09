@@ -121,3 +121,7 @@ config SND_SOC_INTEL_CHT_BSW_RT5645_MACH
 	  This adds support for ASoC machine driver for Intel(R) Cherrytrail & Braswell
 	  platforms with RT5645 audio codec.
 	  If unsure select "N".
+
+config SND_SOC_INTEL_SKYLAKE
+	tristate
+	select SND_HDA_EXT_CORE
