@@ -42,14 +42,6 @@ static void ci13612_usb_setup(struct usb_hcd *hcd)
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	u32 txfulltuning = 0;
 
-	if ((of_find_compatible_node(NULL, NULL, "lsi,acp3500")
-		!= NULL)
-		|| (of_find_compatible_node(NULL, NULL, "lsi,axxia35xx")
-		!= NULL)) {
-		writel(3, USB_SBUSCFG);
-		return;
-	}
-
 	/* Fix for HW errata 0002832: Settings of VUSB_HS_TX_BURST and
 	 * TXFILLTUNING.
 	 * TXFIFOTHRES should satisfy
@@ -141,13 +133,6 @@ static int
 ci13612_fixup_usbcmd_rs(struct ehci_hcd *ehci)
 {
 	u32 port_status;
-	/* This workaround is not applicable to 3500 */
-	if ((of_find_compatible_node(NULL, NULL, "lsi,acp3500")
-		!= NULL)
-		|| (of_find_compatible_node(NULL, NULL, "lsi,axxia35xx")
-		!= NULL)) {
-		return 0;
-	}
 
 	port_status = ehci_readl(ehci, &ehci->regs->port_status[0]);
 	pr_info("ehci-ci13612: port_status = 0x%x\n", port_status);
@@ -178,14 +163,6 @@ static void
 ci13612_fixup_txpburst(struct ehci_hcd *ehci)
 {
 	unsigned burst_size;
-
-	/* This workaround is not applicable to 3500 */
-	if ((of_find_compatible_node(NULL, NULL, "lsi,acp3500")
-		!= NULL)
-		|| (of_find_compatible_node(NULL, NULL, "lsi,axxia35xx")
-		!= NULL)) {
-		return;
-	}
 
 	burst_size = ehci_readl(ehci, &ehci->regs->reserved1[1]);
 	burst_size = (burst_size & 0xffff00ff) | 0x4000;	/* TXPBURST */
