@@ -200,7 +200,7 @@ error_out:
 	return rc;
 }
 
-static int __devinit lsi_msi_probe(struct platform_device *pdev)
+static int lsi_msi_probe(struct platform_device *pdev)
 {
 
 	const u32 *pval;
