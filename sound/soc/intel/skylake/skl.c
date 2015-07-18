@@ -244,6 +244,42 @@ static int skl_free(struct hdac_ext_bus *ebus)
 	return 0;
 }
 
+static int skl_machine_device_register(struct skl *skl)
+{
+	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
+	struct platform_device *pdev;
+	char *mach_name;
+	int ret;
+
+	if (skl->pci->device == 0x9d70)
+			mach_name = "skl_alc286s_i2s";
+	else {
+		dev_err(bus->dev, "invalid pci id %s\n", __func__);
+		return -EINVAL;
+	}
+
+	pdev = platform_device_alloc(mach_name, -1);
+	if (pdev == NULL) {
+		dev_err(bus->dev, "platform device alloc failed\n");
+		return -EIO;
+	}
+
+	ret = platform_device_add(pdev);
+	if (ret) {
+		dev_err(bus->dev, "failed to add machine device\n");
+		platform_device_put(pdev);
+		return -EIO;
+	}
+	skl->i2s_dev = pdev;
+	return 0;
+}
+
+static void skl_machine_device_unregister(struct skl *skl)
+{
+	if (skl->i2s_dev)
+		platform_device_unregister(skl->i2s_dev);
+}
+
 static int skl_dmic_device_register(struct skl *skl)
 {
 	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
@@ -504,6 +540,10 @@ static int skl_probe(struct pci_dev *pci,
 			dev_dbg(bus->dev, "error failed to register dsp\n");
 			goto out_free;
 		}
+		/*TODO  machine name need to be read from DSDT entry*/
+		err = skl_machine_device_register(skl);
+		if (err < 0)
+			goto out_dsp_free;
 	}
 	if (ebus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(ebus);
@@ -511,7 +551,7 @@ static int skl_probe(struct pci_dev *pci,
 	/* create device for soc dmic */
 	err = skl_dmic_device_register(skl);
 	if (err < 0)
-		goto out_dsp_free;
+		goto out_mach_free;
 
 	/* register platform dai and controls */
 	err = skl_platform_register(bus->dev);
@@ -535,6 +575,8 @@ out_unregister:
 	skl_platform_unregister(bus->dev);
 out_dmic_free:
 	skl_dmic_device_unregister(skl);
+out_mach_free:
+	skl_machine_device_unregister(skl);
 out_dsp_free:
 	skl_free_dsp(skl);
 out_free:
@@ -556,6 +598,7 @@ static void skl_remove(struct pci_dev *pci)
 	pci_dev_put(pci);
 	skl_platform_unregister(&pci->dev);
 	skl_free_dsp(skl);
+	skl_machine_device_unregister(skl);
 	skl_dmic_device_unregister(skl);
 	skl_free(ebus);
 	dev_set_drvdata(&pci->dev, NULL);
