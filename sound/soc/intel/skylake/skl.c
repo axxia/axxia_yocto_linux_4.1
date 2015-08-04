@@ -174,8 +174,10 @@ static int skl_runtime_suspend(struct device *dev)
 
 	dev_dbg(bus->dev, "in %s\n", __func__);
 
+#if 0
 	/* enable controller wake up event */
 	snd_hdac_chip_updatew(bus, WAKEEN, 0, STATESTS_INT_MASK);
+#endif
 
 	snd_hdac_ext_bus_link_power_down_all(ebus);
 
@@ -204,9 +206,10 @@ static int skl_runtime_resume(struct device *dev)
 
 	skl_init_pci(skl);
 	snd_hdac_bus_init_chip(bus, true);
+#if 0
 	/* disable controller Wake Up event */
 	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, 0);
-
+#endif
 	return skl_resume_dsp(skl);
 }
 #endif /* CONFIG_PM */
