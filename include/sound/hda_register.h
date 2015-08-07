@@ -163,6 +163,10 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 /* SPIB base */
 #define AZX_SPB_SPIB			0x00
 /* SPIB MAXFIFO base*/
+#define AZX_SPB_MAXFIO			0x04
+/* SPIB base */
+#define AZX_SPB_SPIB			0x00
+/* SPIB MAXFIFO base*/
 #define AZX_SPB_MAXFIFO			0x04
 
 /* registers of Global Time Synchronization Capability Structure */
