@@ -308,6 +308,26 @@ struct hdac_stream *snd_hdac_get_stream(struct hdac_bus *bus,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_get_stream);
 
+/**
+ * snd_hdac_get_hdac_stream - return hdac_stream based on stream_tag and
+ * direction
+ *
+ * @bus: HD-audio core bus
+ */
+struct hdac_stream *snd_hdac_get_hdac_stream(struct hdac_bus *bus,
+						int dir, int stream_tag)
+{
+	struct hdac_stream *s;
+
+	list_for_each_entry(s, &bus->stream_list, list) {
+		if (s->direction == dir && s->stream_tag == stream_tag)
+			return s;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_get_hdac_stream);
+
 /*
  * set up a BDL entry
  */
