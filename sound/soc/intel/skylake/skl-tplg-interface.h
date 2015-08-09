@@ -212,7 +212,8 @@ struct skl_dfw_module {
 
 struct skl_dfw_algo_data {
 	u32 max;
-	char *params;
+	u32 param_id;
+	char params[0];
 } __packed;
 
 #endif

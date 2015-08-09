@@ -788,6 +788,66 @@ static int skl_tplg_pga_event(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
+			unsigned int __user *data, unsigned int size)
+{
+	struct soc_bytes_ext *sb = (void *) kcontrol->private_value;
+	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct skl_algo_data *bc = (struct skl_algo_data *)sb->dobj.private;
+
+	dev_dbg(dapm->dev, "In%s control_name=%s, id=%u\n", __func__, kcontrol->id.name, bc->param_id);
+	dev_dbg(dapm->dev, "size = %u (%#x), max = %#x\n", size, size, bc->max);
+
+	if (bc->params) {
+		int ret;
+		ret = copy_to_user(data, &bc->param_id, sizeof(u32));
+		ret = copy_to_user(((unsigned char *)data) + sizeof(u32), &size, sizeof(u32));
+		ret = copy_to_user(((unsigned char *)data) + 2*sizeof(u32), bc->params, size);
+
+		return  ret;
+	}
+	return 0;
+}
+
+#define SKL_PARAM_VENDOR_ID 0xff
+
+static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
+			const unsigned int __user *data, unsigned int size)
+{
+	struct snd_soc_dapm_context *dapm =
+				snd_soc_dapm_kcontrol_dapm(kcontrol);
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct skl_module_cfg *mconfig = w->priv;
+	struct soc_bytes_ext *sb = (void *) kcontrol->private_value;
+	struct skl_algo_data *ac = (struct skl_algo_data *)sb->dobj.private;
+	struct skl *skl = get_skl_ctx(dapm->dev);
+
+	dev_dbg(dapm->dev, "in %s control=%s\n", __func__, kcontrol->id.name);
+	dev_dbg(dapm->dev, "size = %u, %#x\n", size, size);
+	if (ac->params) {
+		/*
+		 * if the param_is is of type Vendor, firmware expects actual
+		 * parameter id and size from the control.
+		 */
+		if (ac->param_id == SKL_PARAM_VENDOR_ID) {
+			if (copy_from_user(ac->params,
+					   ((unsigned char *)data),
+					   size))
+				return -EIO;
+		} else {
+			if (copy_from_user(ac->params,
+					   ((unsigned char *)data) + 2*sizeof(u32),
+					   size))
+				return -EIO;
+		}
+
+		if (w->power)
+			return skl_set_module_params(skl->skl_sst, (void *)ac->params,
+						ac->max, ac->param_id, mconfig);
+	}
+	return 0;
+}
+
 /*
  * The FE params are passed by hw_params of the DAI.
  * On hw_params, the params are stored in Gateway module of the FE and we

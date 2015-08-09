@@ -283,6 +283,12 @@ struct skl_module_cfg {
 	struct skl_specific_cfg formats_config;
 };
 
+struct skl_algo_data {
+	u32 param_id;
+	u32 max;
+	char *params;
+};
+
 struct skl_pipeline {
 	struct skl_pipe *pipe;
 	struct list_head node;
