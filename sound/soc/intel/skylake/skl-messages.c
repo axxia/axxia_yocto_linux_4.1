@@ -554,7 +554,7 @@ static void skl_clear_module_state(struct skl_module_pin *mpin, int max,
  * invoke the DSP by sending IPC INIT_INSTANCE using ipc helper
  */
 int skl_init_module(struct skl_sst *ctx,
-			struct skl_module_cfg *mconfig, char *param)
+			struct skl_module_cfg *mconfig)
 {
 	u16 module_config_size = 0;
 	void *param_data = NULL;
@@ -852,4 +852,19 @@ int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 	pipe->state = SKL_PIPE_CREATED;
 
 	return 0;
+}
+
+/* Algo parameter set helper function */
+int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
+				u32 param_id, struct skl_module_cfg *mcfg)
+{
+	struct skl_ipc_large_config_msg msg;
+
+	msg.module_id = mcfg->id.module_id;
+	msg.instance_id = mcfg->id.instance_id;
+	msg.param_data_size = size;
+	msg.large_param_id = param_id;
+
+	dev_dbg(ctx->dev, "setting module params size=%d\n", size);
+	return skl_ipc_set_large_config(&ctx->ipc, &msg, params);
 }
