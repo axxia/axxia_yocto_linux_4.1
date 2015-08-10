@@ -160,6 +160,8 @@ struct skl_dfw_module_fmt {
 } __packed;
 
 struct skl_dfw_module_caps {
+	u8 set_params;
+	u32 param_id;
 	u32 caps_size;
 	u32 caps[HDA_SST_CFG_MAX];
 };
