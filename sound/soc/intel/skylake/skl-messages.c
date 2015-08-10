@@ -161,6 +161,22 @@ int skl_resume_dsp(struct skl *skl)
 	return ret;
 }
 
+
+int skl_load_modules(struct skl_sst *ctx, struct skl_module_cfg *mcfg)
+{
+	if (ctx->dsp->fw_ops.load_mod)
+		return ctx->dsp->fw_ops.load_mod(ctx->dsp, mcfg->id.module_id,
+								mcfg->guid);
+	return 0;
+}
+
+int skl_unload_modules(struct skl_sst *ctx, struct skl_module_cfg *mcfg)
+{
+	if (ctx->dsp->fw_ops.unload_mod)
+		return ctx->dsp->fw_ops.unload_mod(ctx->dsp, mcfg->id.module_id);
+
+	return 0;
+}
 enum skl_bitdepth skl_get_bit_depth(int params)
 {
 	switch (params) {

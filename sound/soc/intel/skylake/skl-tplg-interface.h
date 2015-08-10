@@ -26,6 +26,7 @@
 #define HDA_SST_CFG_MAX	900 /* size of copier cfg*/
 #define MAX_IN_QUEUE 8
 #define MAX_OUT_QUEUE 8
+#define SKL_MOD_NAME 40 /* Length of GUID string */
 
 #define SKL_UUID_STR_SZ 40
 /* Event types goes here */
@@ -170,6 +171,7 @@ struct skl_dfw_pipe {
 } __packed;
 
 struct skl_dfw_module {
+	char guid[SKL_MOD_NAME];
 	u16 module_id;
 	u16 instance_id;
 	u32 max_mcps;

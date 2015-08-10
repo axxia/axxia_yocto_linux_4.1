@@ -412,10 +412,13 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (!skl_tplg_alloc_pipe_mcps(skl, mconfig))
 			return -ENOMEM;
 
-		/*
-		 * apply fix/conversion to module params based on
-		 * FE/BE params
-		 */
+		if (mconfig->is_loadable) {
+			ret = skl_load_modules(ctx, mconfig);
+			if (ret < 0)
+				return ret;
+		}
+
+		/* apply fix/conversion to module params based on FE/BE params*/
 		skl_tplg_update_module_params(w, ctx);
 
 		skl_tplg_set_module_init_data(w);
@@ -426,6 +429,24 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		ret = skl_tplg_set_module_params(w, ctx);
 		if (ret < 0)
 			return ret;
+	}
+
+	return 0;
+}
+
+static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
+	 struct skl_pipe *pipe)
+{
+	struct skl_pipe_module *w_module = NULL;
+	struct skl_module_cfg *mconfig = NULL;
+
+	dev_dbg(ctx->dev, "%s: pipe=%d\n", __func__, pipe->ppl_id);
+	list_for_each_entry(w_module, &pipe->w_list, node) {
+		mconfig  = w_module->w->priv;
+		dev_dbg(ctx->dev, "unload module_id=%d\n", mconfig->id.module_id);
+
+		if (mconfig->is_loadable)
+			return skl_unload_modules(ctx, mconfig);
 	}
 
 	return 0;
@@ -750,7 +771,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	ret = skl_delete_pipe(ctx, mconfig->pipe);
 	skl_tplg_free_pipe_mem(skl, mconfig);
 
-	return ret;
+	return skl_tplg_unload_pipe_modules(ctx, s_pipe);
 }
 
 /*
@@ -1324,6 +1345,10 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->hw_conn_type = dfw_config->hw_conn_type;
 	mconfig->time_slot = dfw_config->time_slot;
 	mconfig->formats_config.caps_size = dfw_config->caps.caps_size;
+
+	if (dfw_config->is_loadable)
+		memcpy(mconfig->guid, dfw_config->guid,
+					ARRAY_SIZE(dfw_config->guid));
 
 	mconfig->m_in_pin = devm_kzalloc(bus->dev, (mconfig->max_in_queue) *
 						sizeof(*mconfig->m_in_pin),
