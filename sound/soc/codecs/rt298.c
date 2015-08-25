@@ -230,7 +230,7 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 	if (!rt298->codec)
 		return -EINVAL;
 
-	dapm = snd_soc_codec_get_dapm(rt298->codec);
+	dapm = &rt298->codec->dapm;
 
 	if (rt298->pdata.cbj_en) {
 		regmap_read(rt298->regmap, RT298_GET_HP_SENSE, &buf);
@@ -925,7 +925,7 @@ static int rt298_set_bias_level(struct snd_soc_codec *codec,
 	switch (level) {
 	case SND_SOC_BIAS_PREPARE:
 		if (SND_SOC_BIAS_STANDBY ==
-			snd_soc_codec_get_bias_level(codec)) {
+			codec->dapm.bias_level) {
 			snd_soc_write(codec,
 				RT298_SET_AUDIO_POWER, AC_PWRST_D0);
 			snd_soc_update_bits(codec, 0x0d, 0x200, 0x200);
