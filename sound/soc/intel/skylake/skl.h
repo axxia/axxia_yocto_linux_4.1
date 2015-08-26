@@ -55,6 +55,8 @@ struct skl_dsp_resource {
 	u32 mem;
 };
 
+struct skl_debug;
+
 struct skl {
 	struct hdac_ext_bus ebus;
 	struct pci_dev *pci;
@@ -68,6 +70,8 @@ struct skl {
 
 	struct skl_dsp_resource resource;
 	struct list_head ppl_list;
+
+	struct skl_debug *debugfs;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
@@ -92,4 +96,26 @@ int skl_init_dsp(struct skl *skl);
 void skl_free_dsp(struct skl *skl);
 int skl_suspend_dsp(struct skl *skl);
 int skl_resume_dsp(struct skl *skl);
+
+#ifdef CONFIG_DEBUG_FS
+
+struct skl_debug *skl_debugfs_init(struct skl *skl);
+void skl_debugfs_exit(struct skl_debug *d);
+
+#else
+
+struct skl_debug {
+}
+
+struct skl_debug *skl_debugfs_init(struct skl *skl)
+{
+	return NULL;
+}
+
+void skl_debugfs_exit(struct skl_debug *d)
+{
+}
+
+#endif
+
 #endif /* __SOUND_SOC_SKL_H */
