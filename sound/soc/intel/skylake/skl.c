@@ -608,6 +608,9 @@ static int skl_probe(struct pci_dev *pci,
 	if (err < 0)
 		goto out_unregister;
 
+	/* init debugfs */
+	skl->debugfs = skl_debugfs_init(skl);
+
 	/*configure PM */
 	pm_runtime_set_autosuspend_delay(bus->dev, SKL_SUSPEND_DELAY);
 	pm_runtime_use_autosuspend(bus->dev);
@@ -641,6 +644,9 @@ static void skl_remove(struct pci_dev *pci)
 	if (pci_dev_run_wake(pci))
 		pm_runtime_get_noresume(&pci->dev);
 	pci_dev_put(pci);
+	
+	skl_debugfs_exit(skl->debugfs);
+	skl->debugfs = NULL;
 	skl_platform_unregister(&pci->dev);
 	skl_free_dsp(skl);
 	skl_machine_device_unregister(skl);
