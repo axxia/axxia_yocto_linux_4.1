@@ -141,6 +141,16 @@ static int skylake_rt286_hw_params(struct snd_pcm_substream *substream,
 	return ret;
 }
 
+static int skylake_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
+				struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *channels = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_CHANNELS);
+	channels->min = channels->max = 2;
+
+	return 0;
+}
+
 static struct snd_soc_ops skylake_rt286_ops = {
 	.hw_params = skylake_rt286_hw_params,
 };
@@ -236,6 +246,7 @@ static struct snd_soc_dai_link skylake_rt286_dais[] = {
 		.ignore_suspend = 1,
 		.dpcm_capture = 1,
 		.no_pcm = 1,
+		.be_hw_params_fixup = skylake_dmic_fixup,
 	},
 	{
 		.name = "iDisp",
