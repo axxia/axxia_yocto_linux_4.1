@@ -1404,6 +1404,8 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->formats_config.param_id = dfw_config->caps.param_id;
 	mconfig->formats_config.set_params = dfw_config->caps.set_params;
 
+	skl_debug_init_module(skl->debugfs, w, mconfig);
+
 bind_event:
 	if (tplg_w->event_type == 0) {
 		dev_dbg(bus->dev, "ASoC: No event handler required\n");
