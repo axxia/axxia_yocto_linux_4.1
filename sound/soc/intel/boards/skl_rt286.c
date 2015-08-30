@@ -273,7 +273,7 @@ static struct snd_soc_card skylake_rt286 = {
 	.num_dapm_widgets = ARRAY_SIZE(skylake_widgets),
 	.dapm_routes = skylake_rt286_map,
 	.num_dapm_routes = ARRAY_SIZE(skylake_rt286_map),
-	.fully_routed = true,
+	.fully_routed = false,
 };
 
 static int skylake_audio_probe(struct platform_device *pdev)
