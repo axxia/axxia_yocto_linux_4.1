@@ -72,6 +72,7 @@ struct skl {
 	struct list_head ppl_list;
 
 	struct skl_debug *debugfs;
+	bool nhlt_override;
 };
 
 #define skl_to_ebus(s)	(&(s)->ebus)
