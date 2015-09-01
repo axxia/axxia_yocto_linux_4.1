@@ -666,12 +666,8 @@ int skl_ipc_init_instance(struct sst_generic_ipc *ipc,
 	struct skl_ipc_header header = {0};
 	u64 *ipc_header = (u64 *)(&header);
 	int ret;
-	u32 *buffer = (u32 *)param_data;
 	 /* param_block_size must be in dwords */
 	u16 param_block_size = msg->param_data_size / sizeof(u32);
-
-	print_hex_dump(KERN_DEBUG, NULL, DUMP_PREFIX_NONE,
-		16, 4, buffer, param_block_size, false);
 
 	header.primary = IPC_MSG_TARGET(IPC_MOD_MSG);
 	header.primary |= IPC_MSG_DIR(IPC_MSG_REQUEST);
