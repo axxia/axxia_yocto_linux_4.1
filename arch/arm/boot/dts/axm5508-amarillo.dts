@@ -1,0 +1,233 @@
+/*
+ * arch/arm/boot/dts/axm5508-amarillo.dts
+ *
+ * Copyright (C) 2013 LSI
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ */
+
+/dts-v1/;
+
+/memreserve/ 0x00000000 0x00400000;
+
+/include/ "axm55xx.dtsi"
+/include/ "axm5508-cpus.dtsi"
+
+/ {
+	model = "Amarillo AXM5500";
+	compatible = "lsi,axm5500-amarillo", "lsi,axm5500";
+
+	memory {
+		device_type = "memory";
+		reg = <0 0x00000000 0 0x40000000>;
+	};
+};
+
+&femac {
+	status = "okay";
+	mdio-clock-offset = <0x1c>;
+	mdio-clock-period = <0xf0>;
+};
+
+&ccn {
+	status = "okay";
+};
+
+&perf_platform {
+	status = "okay";
+};
+
+&sm0 {
+	status = "okay";
+};
+
+&sm1 {
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
+};
+
+&rio0 {
+	status = "okay";
+};
+
+&rio1 {
+	status = "okay";
+};
+
+&usb0 {
+	status = "okay";
+};
+
+&mtc {
+	status = "okay";
+};
+
+&trng {
+	status = "okay";
+};
+
+&serial0 {
+	status = "okay";
+};
+
+&serial1 {
+	status = "okay";
+};
+
+&serial2 {
+	status = "okay";
+};
+
+&serial3 {
+	status = "okay";
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&spics {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+
+	flash@0 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "s25fl129p1";
+		reg = <0x0>;
+		spi-max-frequency = <25000000>;
+		pl022,com-mode = <0>;
+
+		partition@0 {
+			label = "spl";
+			reg = <0x0 0x40000>;
+		};
+		partition@40000 {
+			label = "parameters0";
+			reg = <0x40000 0x10000>;
+		};
+		partition@50000 {
+			label = "parameters1";
+			reg = <0x50000 0x10000>;
+		};
+		partition@60000 {
+			label = "env0";
+			reg = <0x60000 0x10000>;
+		};
+		partition@70000 {
+			label = "env1";
+			reg = <0x70000 0x10000>;
+		};
+		partition@100000 {
+			label = "u-boot0";
+			reg = <0x100000 0x200000>;
+		};
+		partition@300000 {
+			label = "u-boot1";
+			reg = <0x300000 0x200000>;
+		};
+	};
+};
+
+&i2c0 {
+	status = "okay";
+
+	sysfpga@40 {
+		reg = <0x40>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+
+	pxa9555@20 {
+		compatible = "pca9555";
+		reg = <0x20>;
+	};
+
+	adt7467@2e {
+		compatible = "adt7473";
+		reg = <0x2e>;
+	};
+
+	temp@18 {
+		compatible = "jc42";
+		reg = <0x18>;
+	};
+
+	temp@1a {
+		compatible = "jc42";
+		reg = <0x1a>;
+	};
+
+	spd@50 {
+		compatible = "spd";
+		reg = <0x50>;
+	};
+
+	spd@52 {
+		compatible = "spd";
+		reg = <0x52>;
+	};
+
+	eeprom@54 {
+		compatible = "24c1024";
+		reg = <0x54>;
+		pagesize = <128>;
+	};
+};
+
+&i2c2 {
+	status = "okay";
+
+	pxa9544@70 {
+		compatible = "pca9544";
+		reg = <0x70>;
+	};
+
+	pxa9544@71 {
+		compatible = "pca9544";
+		reg = <0x71>;
+	};
+
+	pxa9544@72 {
+		compatible = "pca9544";
+		reg = <0x72>;
+	};
+
+	pxa9544@73 {
+		compatible = "pca9544";
+		reg = <0x73>;
+	};
+};
+
+&i2c3 {
+	status = "okay";
+
+	ltc2974@5c {
+		compatible = "ltc2974";
+		reg = <0x5c>;
+	};
+
+	ltc2974@5d {
+		compatible = "ltc2974";
+		reg = <0x5d>;
+	};
+};

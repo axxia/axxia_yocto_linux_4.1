@@ -50,7 +50,7 @@
  * val shifted sb steps to the left.
  */
 #define SSP_WRITE_BITS(reg, val, mask, sb) \
- ((reg) = (((reg) & ~(mask)) | (((val)<<(sb)) & (mask))))
+	((reg) = (((reg) & ~(mask)) | (((val)<<(sb)) & (mask))))
 
 /*
  * This macro is also used to define some default values.
@@ -58,7 +58,7 @@
  * the result with mask.
  */
 #define GEN_MASK_BITS(val, mask, sb) \
- (((val)<<(sb)) & (mask))
+	(((val)<<(sb)) & (mask))
 
 #define DRIVE_TX		0
 #define DO_NOT_DRIVE_TX		1
@@ -382,6 +382,11 @@ struct pl022 {
 	resource_size_t			phybase;
 	void __iomem			*virtbase;
 	struct clk			*clk;
+	/* Two optional pin states - default & sleep */
+	struct pinctrl			*pinctrl;
+	struct pinctrl_state		*pins_default;
+	struct pinctrl_state		*pins_idle;
+	struct pinctrl_state		*pins_sleep;
 	struct spi_master		*master;
 	struct pl022_ssp_controller	*master_info;
 	/* Message per-transfer pump */
@@ -438,7 +443,7 @@ struct chip_data {
 	bool enable_dma;
 	enum ssp_reading read;
 	enum ssp_writing write;
-	void (*cs_control) (u32 command);
+	void (*cs_control)(u32 command);
 	int xfer_type;
 };
 
@@ -494,6 +499,7 @@ static void pl022_cs_control(struct pl022 *pl022, u32 command)
 static void giveback(struct pl022 *pl022)
 {
 	struct spi_transfer *last_transfer;
+
 	pl022->next_msg_cs_active = false;
 
 	last_transfer = list_last_entry(&pl022->cur_msg->transfers,
@@ -1111,7 +1117,7 @@ err_rxdesc:
 		     pl022->sgt_tx.nents, DMA_TO_DEVICE);
 err_tx_sgmap:
 	dma_unmap_sg(rxchan->device->dev, pl022->sgt_rx.sgl,
-		     pl022->sgt_rx.nents, DMA_FROM_DEVICE);
+		     pl022->sgt_tx.nents, DMA_FROM_DEVICE);
 err_rx_sgmap:
 	sg_free_table(&pl022->sgt_tx);
 err_alloc_tx_sg:
@@ -1196,7 +1202,7 @@ err_no_txchan:
 err_no_rxchan:
 	return -ENODEV;
 }
-		
+
 static void terminate_dma(struct pl022 *pl022)
 {
 	struct dma_chan *rxchan = pl022->dma_rx_channel;
@@ -1554,7 +1560,6 @@ out:
 		message->status = -EIO;
 
 	giveback(pl022);
-	return;
 }
 
 static int pl022_transfer_one_message(struct spi_master *master,
@@ -1584,6 +1589,18 @@ static int pl022_transfer_one_message(struct spi_master *master,
 	return 0;
 }
 
+static int pl022_prepare_transfer_hardware(struct spi_master *master)
+{
+	struct pl022 *pl022 = spi_master_get_devdata(master);
+
+	/*
+	 * Just make sure we have all we need to run the transfer by syncing
+	 * with the runtime PM framework.
+	 */
+	pm_runtime_get_sync(&pl022->adev->dev);
+	return 0;
+}
+
 static int pl022_unprepare_transfer_hardware(struct spi_master *master)
 {
 	struct pl022 *pl022 = spi_master_get_devdata(master);
@@ -1591,6 +1608,13 @@ static int pl022_unprepare_transfer_hardware(struct spi_master *master)
 	/* nothing more to do - disable spi/ssp and power off */
 	writew((readw(SSP_CR1(pl022->virtbase)) &
 		(~SSP_CR1_MASK_SSE)), SSP_CR1(pl022->virtbase));
+
+	if (pl022->master_info->autosuspend_delay > 0) {
+		pm_runtime_mark_last_busy(&pl022->adev->dev);
+		pm_runtime_put_autosuspend(&pl022->adev->dev);
+	} else {
+		pm_runtime_put(&pl022->adev->dev);
+	}
 
 	return 0;
 }
@@ -1776,7 +1800,7 @@ static int calculate_effective_freq(struct pl022 *pl022, int freq, struct
 		scr = SCR_MIN;
 	}
 
-	WARN(!best_freq, "pl022: Matching cpsdvsr and scr not found for %d Hz rate \n",
+	WARN(!best_freq, "pl022: Matching cpsdvsr and scr not found for %d Hz rate\n",
 			freq);
 
 	clk_freq->cpsdvsr = (u8) (best_cpsdvsr & 0xFF);
@@ -2081,7 +2105,6 @@ pl022_platform_data_dt_get(struct device *dev)
 		return NULL;
 
 	pd->bus_id = -1;
-	pd->enable_dma = 1;
 	of_property_read_u32(np, "num-cs", &tmp);
 	pd->num_chipselect = tmp;
 	of_property_read_u32(np, "pl022,autosuspend-delay",
@@ -2094,8 +2117,7 @@ pl022_platform_data_dt_get(struct device *dev)
 static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 {
 	struct device *dev = &adev->dev;
-	struct pl022_ssp_controller *platform_info =
-			dev_get_platdata(&adev->dev);
+	struct pl022_ssp_controller *platform_info = adev->dev.platform_data;
 	struct spi_master *master;
 	struct pl022 *pl022 = NULL;	/*Data for this driver */
 	struct device_node *np = adev->dev.of_node;
@@ -2132,10 +2154,33 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	pl022->vendor = id->data;
 	pl022->chipselects = devm_kzalloc(dev, num_cs * sizeof(int),
 					  GFP_KERNEL);
-	if (!pl022->chipselects) {
-		status = -ENOMEM;
-		goto err_no_mem;
+
+	pl022->pinctrl = devm_pinctrl_get(dev);
+	if (IS_ERR(pl022->pinctrl)) {
+		status = PTR_ERR(pl022->pinctrl);
+		goto err_no_pinctrl;
 	}
+
+	pl022->pins_default = pinctrl_lookup_state(pl022->pinctrl,
+						 PINCTRL_STATE_DEFAULT);
+	/* enable pins to be muxed in and configured */
+	if (!IS_ERR(pl022->pins_default)) {
+		status = pinctrl_select_state(pl022->pinctrl,
+				pl022->pins_default);
+		if (status)
+			dev_err(dev, "could not set default pins\n");
+	} else
+		dev_err(dev, "could not get default pinstate\n");
+
+	pl022->pins_idle = pinctrl_lookup_state(pl022->pinctrl,
+					      PINCTRL_STATE_IDLE);
+	if (IS_ERR(pl022->pins_idle))
+		dev_dbg(dev, "could not get idle pinstate\n");
+
+	pl022->pins_sleep = pinctrl_lookup_state(pl022->pinctrl,
+					       PINCTRL_STATE_SLEEP);
+	if (IS_ERR(pl022->pins_sleep))
+		dev_dbg(dev, "could not get sleep pinstate\n");
 
 	/*
 	 * Bus Number Which has been Assigned to this SSP controller
@@ -2145,7 +2190,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	master->num_chipselect = num_cs;
 	master->cleanup = pl022_cleanup;
 	master->setup = pl022_setup;
-	master->auto_runtime_pm = true;
+	master->prepare_transfer_hardware = pl022_prepare_transfer_hardware;
 	master->transfer_one_message = pl022_transfer_one_message;
 	master->unprepare_transfer_hardware = pl022_unprepare_transfer_hardware;
 	master->rt = platform_info->rt;
@@ -2202,8 +2247,8 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		status = -ENOMEM;
 		goto err_no_ioremap;
 	}
-	dev_info(&adev->dev, "mapped registers from %pa to %p\n",
-		&adev->res.start, pl022->virtbase);
+	pr_info("pl022: mapped registers from 0x%08lx to %p\n",
+		(unsigned long)adev->res.start, pl022->virtbase);
 
 	pl022->clk = devm_clk_get(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {
@@ -2248,7 +2293,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	/* Register with the SPI framework */
 	amba_set_drvdata(adev, pl022);
-	status = devm_spi_register_master(&adev->dev, master);
+	status = spi_register_master(master);
 	if (status != 0) {
 		dev_err(&adev->dev,
 			"probe - problem registering spi master\n");
@@ -2280,7 +2325,7 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	amba_release_regions(adev);
  err_no_ioregion:
  err_no_gpio:
- err_no_mem:
+ err_no_pinctrl:
 	spi_master_put(master);
 	return status;
 }
@@ -2306,10 +2351,63 @@ pl022_remove(struct amba_device *adev)
 	clk_disable_unprepare(pl022->clk);
 	amba_release_regions(adev);
 	tasklet_disable(&pl022->pump_transfers);
+	spi_unregister_master(pl022->master);
+	amba_set_drvdata(adev, NULL);
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_PM_RUNTIME)
+/*
+ * These two functions are used from both suspend/resume and
+ * the runtime counterparts to handle external resources like
+ * clocks, pins and regulators when going to sleep.
+ */
+static void pl022_suspend_resources(struct pl022 *pl022, bool runtime)
+{
+	int ret;
+	struct pinctrl_state *pins_state;
+
+	clk_disable(pl022->clk);
+
+	pins_state = runtime ? pl022->pins_idle : pl022->pins_sleep;
+	/* Optionally let pins go into sleep states */
+	if (!IS_ERR(pins_state)) {
+		ret = pinctrl_select_state(pl022->pinctrl, pins_state);
+		if (ret)
+			dev_err(&pl022->adev->dev, "could not set %s pins\n",
+				runtime ? "idle" : "sleep");
+	}
+}
+
+static void pl022_resume_resources(struct pl022 *pl022, bool runtime)
+{
+	int ret;
+
+	/* Optionaly enable pins to be muxed in and configured */
+	/* First go to the default state */
+	if (!IS_ERR(pl022->pins_default)) {
+		ret = pinctrl_select_state(pl022->pinctrl, pl022->pins_default);
+		if (ret)
+			dev_err(&pl022->adev->dev,
+				"could not set default pins\n");
+	}
+
+	if (!runtime) {
+		/* Then let's idle the pins until the next transfer happens */
+		if (!IS_ERR(pl022->pins_idle)) {
+			ret = pinctrl_select_state(pl022->pinctrl,
+					pl022->pins_idle);
+		if (ret)
+			dev_err(&pl022->adev->dev,
+				"could not set idle pins\n");
+		}
+	}
+
+	clk_enable(pl022->clk);
+}
+#endif
+
+#ifdef CONFIG_SUSPEND
 static int pl022_suspend(struct device *dev)
 {
 	struct pl022 *pl022 = dev_get_drvdata(dev);
