@@ -52,6 +52,7 @@ static const struct snd_soc_dapm_widget skylake_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("DMIC2", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
+	SND_SOC_DAPM_SPK("HDMI", NULL),
 };
 
 static const struct snd_soc_dapm_route skylake_rt286_map[] = {
@@ -68,7 +69,7 @@ static const struct snd_soc_dapm_route skylake_rt286_map[] = {
 	/* digital mics */
 	{"DMIC1 Pin", NULL, "DMIC2"},
 	{"DMIC AIF", NULL, "SoC DMIC"},
-
+	{"HDMI", NULL, "hif1 Output"},
 	/* CODEC BE connections */
 	{ "AIF1 Playback", NULL, "ssp0 Tx"},
 	{ "ssp0 Tx", NULL, "codec0_out"},
@@ -186,6 +187,19 @@ static struct snd_soc_dai_link skylake_rt286_dais[] = {
 		.nonatomic = 1,
 		.dynamic = 1,
 	},
+	{
+		.name = "Skl HDMI Port",
+		.stream_name = "Hdmi",
+		.cpu_dai_name = "HDMI Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:1f.3",
+		.dpcm_playback = 1,
+		.init = NULL,
+		.ignore_suspend = 1,
+		.nonatomic = 1,
+		.dynamic = 1,
+	},
 
 	/* Back End DAI links */
 	{
@@ -217,6 +231,17 @@ static struct snd_soc_dai_link skylake_rt286_dais[] = {
 		.platform_name = "0000:00:1f.3",
 		.ignore_suspend = 1,
 		.dpcm_capture = 1,
+		.no_pcm = 1,
+	},
+	{
+		.name = "iDisp",
+		.be_id = 3,
+		.cpu_dai_name = "iDisp Pin",
+		.codec_name = "ehdaudio0D2",
+		.codec_dai_name = "intel-hdmi-hif1",
+		.platform_name = "0000:00:1f.3",
+		.dpcm_playback = 1,
+		.ignore_suspend = 1,
 		.no_pcm = 1,
 	},
 };
