@@ -315,6 +315,10 @@ struct sst_dsp {
 	struct skl_cl_dev cl_dev;
 	u32 intr_status;
 	const struct firmware *fw;
+	struct snd_dma_buffer dmab;
+#if IS_ENABLED(CONFIG_SND_HDA_INTEL_SKL_FPGA)
+        struct snd_dma_buffer dsp_fw_buf;
+#endif
 };
 
 /* Size optimised DRAM/IRAM memcpy */

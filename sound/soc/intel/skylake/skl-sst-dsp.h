@@ -153,6 +153,7 @@ int skl_cldma_prepare(struct sst_dsp *ctx);
 void skl_dsp_set_state_locked(struct sst_dsp *ctx, int state);
 struct sst_dsp *skl_dsp_ctx_init(struct device *dev,
 		struct sst_dsp_device *sst_dev, int irq);
+int skl_dsp_enable_core(struct sst_dsp  *ctx);
 int skl_dsp_disable_core(struct sst_dsp  *ctx);
 bool is_skl_dsp_running(struct sst_dsp *ctx);
 irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id);
@@ -163,6 +164,9 @@ void skl_dsp_free(struct sst_dsp *dsp);
 int skl_dsp_boot(struct sst_dsp *ctx);
 int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
+int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
+		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
+void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
 #endif /*__SKL_SST_DSP_H__*/
