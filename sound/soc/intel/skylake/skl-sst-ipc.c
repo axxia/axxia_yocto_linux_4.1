@@ -13,6 +13,7 @@
  * General Public License for more details.
  */
 #include <linux/device.h>
+#include <linux/delay.h>
 
 #include "../common/sst-dsp.h"
 #include "../common/sst-dsp-priv.h"
@@ -320,6 +321,11 @@ static int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 		case IPC_GLB_NOTIFY_FW_READY:
 			skl->boot_complete = true;
 			wake_up(&skl->boot_wait);
+			break;
+
+		case IPC_GLB_NOTIFY_PHRASE_DETECTED:
+			dev_err(ipc->dev, "*****Pharse Detected **********\n");
+			mdelay(1);
 			break;
 
 		default:
