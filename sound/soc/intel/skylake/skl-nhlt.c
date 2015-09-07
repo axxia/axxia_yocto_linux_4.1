@@ -128,7 +128,12 @@ struct nhlt_specific_cfg
 
 	dump_config(dev, instance, link_type, s_fmt, num_ch, s_rate, dirn, bps);
 
-	epnt = (struct nhlt_endpoint *)nhlt->desc;
+	if (nhlt != NULL)
+		epnt = (struct nhlt_endpoint *)nhlt->desc;
+	else {
+		dev_dbg(dev, "nhlt is NULL\n");
+		return NULL;
+	}
 
 	dev_dbg(dev, "endpoint count =%d\n", nhlt->endpoint_count);
 
