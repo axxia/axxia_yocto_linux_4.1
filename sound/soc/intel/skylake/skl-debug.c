@@ -197,7 +197,7 @@ static ssize_t skl_print_pins(struct skl_module_pin *m_pin, char *buf,
 				i, m_pin[i].id.module_id, m_pin[i].id.instance_id,
 				m_pin[i].in_use ? "Used" : "Unused",
 				m_pin[i].is_dynamic ? "Dynamic" : "Static",
-				m_pin[i].pin_index);
+				i);
 	return ret;
 }
 
