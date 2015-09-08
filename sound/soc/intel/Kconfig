@@ -190,3 +190,16 @@ config SND_SOC_INTEL_SKL_RT5650_MACH
          create an alsa sound card for ALC5650.
          Say Y if you have such a device
          If unsure select "N".
+
+config SND_SOC_INTEL_BXT_RT298_MACH
+        tristate "ASoC Audio driver for BXT with RT298 I2S mode"
+        select SND_SOC_INTEL_SST
+        select SND_SOC_INTEL_SKYLAKE
+        select SND_SOC_RT298
+        select SND_SOC_DMIC
+        default n
+        help
+        This adds support for ASoC machine driver for Broxton platforms
+        with RT298 I2S audio codec.
+        Say Y if you have such a device
+        If unsure select "N".
