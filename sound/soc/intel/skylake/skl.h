@@ -85,6 +85,15 @@ struct skl_dma_params {
 	u8 stream_tag;
 };
 
+struct skl_dsp_ops {
+	int id;
+	struct skl_dsp_loader_ops (*loader_ops)(void);
+
+	int (*init)(struct device *dev, void __iomem *mmio_base,
+			int irq, struct skl_dsp_loader_ops loader_ops,
+						struct skl_sst **skl_sst);
+};
+
 int skl_platform_unregister(struct device *dev);
 int skl_platform_register(struct device *dev);
 

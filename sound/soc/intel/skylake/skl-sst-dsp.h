@@ -120,10 +120,19 @@ struct skl_dsp_fw_ops {
 };
 
 struct skl_dsp_loader_ops {
+	int stream_tag;
+
 	int (*alloc_dma_buf)(struct device *dev,
 		struct snd_dma_buffer *dmab, size_t size);
 	int (*free_dma_buf)(struct device *dev,
 		struct snd_dma_buffer *dmab);
+	int (*prepare)(struct device *dev, unsigned int format,
+				unsigned int byte_size,
+				struct snd_dma_buffer *bufp);
+	int (*trigger)(struct device *dev, bool start, int stream_tag);
+
+	int (*cleanup)(struct device *dev, struct snd_dma_buffer *dmab,
+				 int stream_tag);
 };
 
 struct skl_load_module_info {
