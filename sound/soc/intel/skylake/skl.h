@@ -92,6 +92,7 @@ struct skl_dsp_ops {
 	int (*init)(struct device *dev, void __iomem *mmio_base,
 			int irq, struct skl_dsp_loader_ops loader_ops,
 						struct skl_sst **skl_sst);
+	void (*cleanup)(struct device *dev, struct skl_sst *ctx);
 };
 
 int skl_platform_unregister(struct device *dev);

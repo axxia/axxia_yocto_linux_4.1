@@ -192,7 +192,7 @@ static struct skl_dsp_loader_ops bxt_get_loader_ops(void)
 };
 
 static const struct skl_dsp_ops dsp_ops[] = {
-{.id = 0x9d70, .loader_ops = skl_get_loader_ops, .init = skl_sst_dsp_init}
+{.id = 0x9d70, .loader_ops = skl_get_loader_ops, .init = skl_sst_dsp_init, .cleanup = skl_sst_dsp_cleanup}
 };
 
 static int skl_get_dsp_ops(int pci_id)
@@ -248,11 +248,17 @@ void skl_free_dsp(struct skl *skl)
 	struct hdac_ext_bus *ebus = &skl->ebus;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl_sst *ctx =  skl->skl_sst;
+	int index;
 
 	/* disable  ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, false);
 
-	skl_sst_dsp_cleanup(bus->dev, ctx);
+	index  = skl_get_dsp_ops(skl->pci->device);
+	if (index  < 0)
+		return -EINVAL;
+
+	dsp_ops[index].cleanup(bus->dev, ctx);
+
 	if (ctx->dsp->addr.lpe)
 		iounmap(ctx->dsp->addr.lpe);
 }
