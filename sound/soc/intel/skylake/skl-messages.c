@@ -426,15 +426,16 @@ static void skl_set_algo_format(struct skl_sst *ctx,
 }
 
 /*
- * Mic select module allows input to output channel map. mic select
- * module take base module configuration and out format configuration
+ * Some modules require base and out format configuration like mic
+ * select module. These module take base module configuration and
+ * out format configuration
  */
-static void skl_set_mic_select_format(struct skl_sst *ctx,
+static void skl_set_base_outfmt_format(struct skl_sst *ctx,
 			struct skl_module_cfg *mconfig,
-			struct skl_mic_select_cfg *mic_sel_mcfg)
+			struct skl_base_outfmt_cfg *base_outfmt_mcfg)
 {
-	struct skl_audio_data_format *out_fmt = &mic_sel_mcfg->out_fmt;
-	struct skl_base_cfg *base_cfg = (struct skl_base_cfg *)mic_sel_mcfg;
+	struct skl_audio_data_format *out_fmt = &base_outfmt_mcfg->out_fmt;
+	struct skl_base_cfg *base_cfg = (struct skl_base_cfg *)base_outfmt_mcfg;
 
 	skl_set_base_module_format(ctx, mconfig, base_cfg);
 
@@ -463,8 +464,8 @@ static u16 skl_get_module_param_size(struct skl_sst *ctx,
 		param_size += mconfig->formats_config.caps_size;
 		return param_size;
 
-	case SKL_MODULE_TYPE_MIC_SELECT:
-		return sizeof(struct skl_mic_select_cfg);
+	case SKL_MODULE_TYPE_BASE_OUTFMT:
+		return sizeof(struct skl_base_outfmt_cfg);
 
 	default:
 		/*
@@ -514,9 +515,10 @@ static int skl_set_module_format(struct skl_sst *ctx,
 
 	case SKL_MODULE_TYPE_ALGO:
 		skl_set_algo_format(ctx, module_config, *param_data);
+		break;
 
-	case SKL_MODULE_TYPE_MIC_SELECT:
-		skl_set_mic_select_format(ctx, module_config, *param_data);
+	case SKL_MODULE_TYPE_BASE_OUTFMT:
+		skl_set_base_outfmt_format(ctx, module_config, *param_data);
 		break;
 
 	default:
@@ -525,8 +527,8 @@ static int skl_set_module_format(struct skl_sst *ctx,
 
 	}
 
-	dev_dbg(ctx->dev, "Module type=%d config size: %d bytes\n",
-			module_config->id.module_id, param_size);
+	dev_dbg(ctx->dev, "Module id = %d, type=%d config size: %d bytes\n",
+			module_config->id.module_id, module_config->m_type, param_size);
 	return 0;
 }
 

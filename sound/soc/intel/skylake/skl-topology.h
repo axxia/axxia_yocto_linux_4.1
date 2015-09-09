@@ -145,7 +145,7 @@ struct skl_algo_cfg {
 	char params[0];
 } __packed;
 
-struct skl_mic_select_cfg {
+struct skl_base_outfmt_cfg {
 	struct skl_base_cfg base_cfg;
 	struct skl_audio_data_format out_fmt;
 } __packed;
