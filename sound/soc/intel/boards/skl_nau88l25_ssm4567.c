@@ -93,6 +93,10 @@ static const struct snd_soc_dapm_route skylake_map[] = {
 	{ "Left Playback", NULL, "ssp0 Tx"},
 	{ "Right Playback", NULL, "ssp0 Tx"},
 	{ "ssp0 Tx", NULL, "codec0_out"},
+	/* IV feedback path */
+	{ "codec0_lp_in", NULL, "ssp0 Rx"},
+	{ "ssp0 Rx", NULL, "Left Capture"},
+	{ "ssp0 Rx", NULL, "Right Capture"},
 
 	{ "AIF1 Playback", NULL, "ssp1 Tx"},
 	{ "ssp1 Tx", NULL, "codec1_out"},
@@ -205,6 +209,14 @@ static struct snd_soc_ops skylake_nau8825_ops = {
 	.hw_params = skylake_nau8825_hw_params,
 };
 
+static const struct snd_soc_pcm_stream skl_ssm4567_loop_params = {
+	.formats = SNDRV_PCM_FMTBIT_S24_LE,
+	.rate_min = 48000,
+	.rate_max = 48000,
+	.channels_min = 4,
+	.channels_max = 4,
+};
+
 /* skylake digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link skylake_dais[] = {
 	/* Front End DAI links */
@@ -246,6 +258,17 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.ignore_suspend = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
+	},
+	/* Codec-codec link */
+	{
+		.name = "Skylake IV loop",
+		.stream_name = "SKL IV Loop",
+		.cpu_dai_name = "SSP0 Pin",
+		.platform_name = "0000:00:1f.3",
+		.codecs = ssm4567_codec_components,
+		.num_codecs = ARRAY_SIZE(ssm4567_codec_components),
+		.params = &skl_ssm4567_loop_params,
+		.dsp_loopback = true,
 	},
 	/* Back End DAI links */
 	{
@@ -313,6 +336,7 @@ static struct snd_soc_card skylake_audio_card = {
 	.codec_conf = ssm4567_codec_conf,
 	.num_configs = ARRAY_SIZE(ssm4567_codec_conf),
 	.controls = skylake_controls,
+	.fully_routed = false,
 };
 
 
