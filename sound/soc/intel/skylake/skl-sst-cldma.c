@@ -175,6 +175,21 @@ static void skl_cldma_fill_buffer(struct sst_dsp *ctx, unsigned int size,
 			ctx->cl_dev.dma_buffer_offset, trigger);
 	dev_dbg(ctx->dev, "spib position: %d\n", ctx->cl_dev.curr_spib_pos);
 
+	/*
+	 * Check if the size exceeds buffer boundry. if exceeds max_buffer
+	 * size, then copy till buffer size and then remaining buffer copy
+	 * to the start of ring buffer.
+	 */
+	if (ctx->cl_dev.dma_buffer_offset + size > ctx->cl_dev.bufsize) {
+		unsigned int size_b = ctx->cl_dev.bufsize -
+					ctx->cl_dev.dma_buffer_offset;
+		memcpy(ctx->cl_dev.dmab_data.area + ctx->cl_dev.dma_buffer_offset,
+			curr_pos, size_b);
+		size -= size_b;
+		curr_pos += size_b;
+		ctx->cl_dev.dma_buffer_offset = 0;
+	}
+
 	memcpy(ctx->cl_dev.dmab_data.area + ctx->cl_dev.dma_buffer_offset,
 			curr_pos, size);
 
