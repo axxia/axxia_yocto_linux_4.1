@@ -289,6 +289,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.be_hw_params_fixup = skylake_ssp_fixup,
 		.dpcm_playback = 1,
 	},
+#if 0
 	{
 		/* SSP1 - Codec */
 		.name = "SSP1-Codec",
@@ -308,6 +309,7 @@ static struct snd_soc_dai_link skylake_dais[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 	},
+#endif
 	{
 		.name = "dmic01",
 		.be_id = 1,
