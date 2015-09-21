@@ -3204,7 +3204,14 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 				 latency);
 
 	plane_bytes_per_line = cstate->pipe_src_w * cpp;
-	plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+
+	if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
+	    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
+		plane_blocks_per_line = DIV_ROUND_UP(4 * plane_bytes_per_line, 512);
+		plane_blocks_per_line /= 4;
+	} else {
+		plane_blocks_per_line = DIV_ROUND_UP(plane_bytes_per_line, 512);
+	}
 
 	if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
 	    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED) {
@@ -3238,7 +3245,7 @@ static bool skl_compute_plane_wm(const struct drm_i915_private *dev_priv,
 	res_blocks = selected_result + 1;
 	res_lines = DIV_ROUND_UP(selected_result, plane_blocks_per_line);
 
-	if (level >= 1 && level <= 7) {
+	if (level >= 1 && level <= 7 && !IS_BROXTON(dev_priv->dev)) {
 		if (fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
 		    fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)
 			res_lines += 4;
