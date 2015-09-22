@@ -31,6 +31,11 @@
 #include <sound/hda_i915.h>
 #include "skl.h"
 
+struct sst_machines {
+	char *codec_id;
+	char *machine;
+};
+
 /*
  * initialize the PCI registers
  */
@@ -247,16 +252,45 @@ static int skl_free(struct hdac_ext_bus *ebus)
 	return 0;
 }
 
-static int skl_machine_device_register(struct skl *skl)
+static acpi_status sst_acpi_mach_match(acpi_handle handle, u32 level,
+				       void *context, void **ret)
+{
+	*(bool *)context = true;
+	return AE_OK;
+}
+
+static struct sst_machines *sst_acpi_find_machine(
+	struct sst_machines *machines)
+{
+	struct sst_machines *mach;
+	bool found = false;
+
+	for (mach = machines; mach->codec_id; mach++)
+		if (ACPI_SUCCESS(acpi_get_devices(mach->codec_id,
+						  sst_acpi_mach_match,
+						  &found, NULL)) && found)
+			return mach;
+
+	return NULL;
+}
+
+static int skl_machine_device_register(struct skl *skl, void *driver_data)
 {
 	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
 	struct platform_device *pdev;
+	struct sst_machines *mach = driver_data;
 	char *mach_name;
 	int ret;
 
-	if (skl->pci->device == 0x9d70)
-			mach_name = "skl_alc286s_i2s";
-	else {
+	mach = sst_acpi_find_machine(mach);
+	if (mach == NULL) {
+		dev_err(bus->dev, "No matching machine driver found\n");
+		return -ENODEV;
+	}
+
+	if (skl->pci->device == 0x9d70) {
+		mach_name = mach->machine;
+	} else {
 		dev_err(bus->dev, "invalid pci id %s\n", __func__);
 		return -EINVAL;
 	}
@@ -544,7 +578,8 @@ static int skl_probe(struct pci_dev *pci,
 			goto out_free;
 		}
 		/*TODO  machine name need to be read from DSDT entry*/
-		err = skl_machine_device_register(skl);
+		err = skl_machine_device_register(skl,
+						  (void *)pci_id->driver_data);
 		if (err < 0)
 			goto out_dsp_free;
 	}
@@ -607,10 +642,15 @@ static void skl_remove(struct pci_dev *pci)
 	dev_set_drvdata(&pci->dev, NULL);
 }
 
+static struct sst_machines sst_skl_devdata[] = {
+	{ "INT343A", "skl_alc286s_i2s" },
+};
+
 /* PCI IDs */
 static const struct pci_device_id skl_ids[] = {
 	/* Sunrise Point-LP */
-	{ PCI_DEVICE(0x8086, 0x9d70), 0},
+	{ PCI_DEVICE(0x8086, 0x9d70),
+		.driver_data = (unsigned long)&sst_skl_devdata},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, skl_ids);
