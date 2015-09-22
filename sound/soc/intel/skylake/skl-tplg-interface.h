@@ -140,6 +140,12 @@ enum module_pin_type {
 	SKL_PIN_TYPE_HETEROGENEOUS,
 };
 
+enum skl_module_param_type {
+	SKL_PARAM_DEFAULT = 0,
+	SKL_PARAM_INIT,
+	SKL_PARAM_SET
+};
+
 struct skl_dfw_module_pin {
 	u16 module_id;
 	u16 instance_id;
@@ -157,7 +163,8 @@ struct skl_dfw_module_fmt {
 } __packed;
 
 struct skl_dfw_module_caps {
-	u8 set_params;
+	u32 set_params:2;
+	u32 rsvd:30;
 	u32 param_id;
 	u32 caps_size;
 	u32 caps[HDA_SST_CFG_MAX];
@@ -211,9 +218,10 @@ struct skl_dfw_module {
 } __packed;
 
 struct skl_dfw_algo_data {
-	u32 max;
-	u8 set_params;
+	u32 set_params:2;
+	u32 rsvd:30;
 	u32 param_id;
+	u32 max;
 	char params[0];
 } __packed;
 
