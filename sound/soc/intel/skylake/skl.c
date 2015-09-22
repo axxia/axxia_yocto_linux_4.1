@@ -644,6 +644,7 @@ static void skl_remove(struct pci_dev *pci)
 
 static struct sst_machines sst_skl_devdata[] = {
 	{ "INT343A", "skl_alc286s_i2s" },
+	{ "INT343B", "skl_nau88l25_ssm4567_i2s" },
 };
 
 /* PCI IDs */
