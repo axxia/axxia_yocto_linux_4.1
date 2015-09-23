@@ -895,12 +895,19 @@ static int skl_tplg_pga_event(struct snd_soc_dapm_widget *w,
 static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 			unsigned int __user *data, unsigned int size)
 {
+	struct snd_soc_dapm_widget *w = snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct skl_module_cfg *mconfig = w->priv;
 	struct soc_bytes_ext *sb = (void *) kcontrol->private_value;
 	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct skl_algo_data *bc = (struct skl_algo_data *)sb->dobj.private;
+	struct skl *skl = get_skl_ctx(dapm->dev);
 
 	dev_dbg(dapm->dev, "In%s control_name=%s, id=%u\n", __func__, kcontrol->id.name, bc->param_id);
 	dev_dbg(dapm->dev, "size = %u (%#x), max = %#x\n", size, size, bc->max);
+
+	if (w->power)
+		skl_get_module_params(skl->skl_sst, (void *)bc->params,
+				      bc->max, bc->param_id, mconfig);
 
 	if (bc->params) {
 		int ret;
