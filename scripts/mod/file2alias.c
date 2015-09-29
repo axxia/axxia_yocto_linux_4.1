@@ -1252,6 +1252,22 @@ static bool sym_is(const char *name, unsigned namelen, const char *symbol)
 	return memcmp(name, symbol, namelen) == 0;
 }
 
+static int do_ehda_entry(const char *filename,
+			  void *symval, char *alias)
+{
+	DEF_FIELD(symval, hda_device_id, vendor_id);
+	DEF_FIELD(symval, hda_device_id, rev_id);
+
+	strcpy(alias, "ehdaudio:");
+	ADD(alias, "v", vendor_id != HDA_ID_ANY, vendor_id);
+	ADD(alias, "r", rev_id != HDA_ID_ANY, rev_id);
+
+	add_wildcard(alias);
+	return 1;
+
+}
+ADD_TO_DEVTABLE("ehdaudio", hda_device_id, do_hda_entry);
+
 static void do_table(void *symval, unsigned long size,
 		     unsigned long id_size,
 		     const char *device_id,
