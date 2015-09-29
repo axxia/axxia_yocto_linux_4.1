@@ -1402,6 +1402,155 @@ i915_reset_gen7_sol_offsets(struct drm_i915_gem_request *req)
 	return 0;
 }
 
+static void perfmon_send_config(
+		struct intel_ring *ring,
+		struct drm_i915_perfmon_config *config)
+{
+	int i;
+
+	for (i = 0; i < config->size; i++) {
+		DRM_DEBUG("perfmon config %x reg:%05x val:%08x\n",
+			config->id,
+			config->entries[i].offset,
+			config->entries[i].value);
+		intel_ring_emit(ring, MI_NOOP);
+		intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+		intel_ring_emit(ring, config->entries[i].offset);
+		intel_ring_emit(ring, config->entries[i].value);
+	}
+
+}
+
+static inline struct drm_i915_perfmon_config *get_perfmon_config(
+		struct drm_i915_private *dev_priv,
+		struct i915_gem_context *ctx,
+		struct drm_i915_perfmon_config *config_global,
+		struct drm_i915_perfmon_config *config_context,
+		__u32 ctx_submitted_config_id)
+
+{
+	struct drm_i915_perfmon_config *config  = NULL;
+	enum DRM_I915_PERFMON_CONFIG_TARGET target;
+
+	BUG_ON(!mutex_is_locked(&dev_priv->perfmon.config.lock));
+
+	target = dev_priv->perfmon.config.target;
+	switch (target) {
+	case I915_PERFMON_CONFIG_TARGET_CTX:
+		config = config_context;
+		break;
+	case I915_PERFMON_CONFIG_TARGET_PID:
+		if (pid_vnr(ctx->pid) == dev_priv->perfmon.config.pid)
+			config = config_global;
+		break;
+	case I915_PERFMON_CONFIG_TARGET_ALL:
+		config = config_global;
+		break;
+	default:
+		BUG_ON(1);
+		break;
+	}
+
+	if (config != NULL) {
+		if (config->size == 0 || config->id == 0) {
+			/* configuration is empty or targets other context */
+			DRM_DEBUG("perfmon configuration empty\n");
+			config = NULL;
+		} else if (config->id == ctx_submitted_config_id) {
+			/* configuration is already submitted in this context*/
+			DRM_DEBUG("perfmon configuration %x is submitted\n",
+				config->id);
+			config = NULL;
+		}
+	}
+
+	if (config != NULL)
+		DRM_DEBUG("perfmon configuration TARGET:%u SIZE:%x ID:%x",
+			target,
+			config->size,
+			config->id);
+
+	return config;
+}
+
+static inline int
+i915_program_perfmon(struct drm_i915_private *dev_priv,
+		     struct intel_ring *ring,
+		     struct drm_i915_gem_request* req,
+		     struct i915_gem_context *ctx)
+{
+	struct drm_i915_perfmon_config *config_oa, *config_gp;
+
+	size_t size;
+	int ret = 0;
+
+	if (!atomic_read(&dev_priv->perfmon.config.enable) &&
+		ctx->perfmon.config.oa.submitted_id == 0)
+		return 0;
+
+	ret = mutex_lock_interruptible(&dev_priv->perfmon.config.lock);
+
+	if (ret)
+		return ret;
+
+	if (!atomic_read(&dev_priv->perfmon.config.enable)) {
+		if (ctx->perfmon.config.oa.submitted_id != 0) {
+			/* write 0 to OA_CTX_CONTROL to stop counters */
+			ret = intel_ring_begin(req, 4);
+			if (!ret) {
+				intel_ring_emit(ring, MI_NOOP);
+				intel_ring_emit(ring, MI_LOAD_REGISTER_IMM(1));
+				intel_ring_emit(ring, GEN8_OA_CTX_CONTROL);
+				intel_ring_emit(ring, 0);
+				intel_ring_advance(ring);
+			}
+			ctx->perfmon.config.oa.submitted_id = 0;
+		}
+		goto unlock;
+	}
+
+	/* check for pending OA config */
+	config_oa = get_perfmon_config(dev_priv, ctx,
+				       &dev_priv->perfmon.config.oa,
+				       &ctx->perfmon.config.oa.pending,
+				       ctx->perfmon.config.oa.submitted_id);
+
+	/* check for pending PERFMON config */
+	config_gp = get_perfmon_config(dev_priv, ctx,
+				       &dev_priv->perfmon.config.gp,
+				       &ctx->perfmon.config.gp.pending,
+				       ctx->perfmon.config.gp.submitted_id);
+
+	size = (config_oa ? config_oa->size : 0) +
+		(config_gp ? config_gp->size : 0);
+
+	if (size == 0)
+		goto unlock;
+
+	ret = intel_ring_begin(req, 4 * size);
+	if (ret)
+		goto unlock;
+
+	/* submit pending OA config */
+	if (config_oa) {
+		perfmon_send_config(ring, config_oa);
+		ctx->perfmon.config.oa.submitted_id = config_oa->id;
+
+		i915_perfmon_update_workaround_bb(dev_priv, config_oa);
+	}
+
+	/* submit pending general purpose perfmon counters config */
+	if (config_gp) {
+		perfmon_send_config(ring, config_gp);
+		ctx->perfmon.config.gp.submitted_id = config_gp->id;
+	}
+	intel_ring_advance(ring);
+
+unlock:
+	mutex_unlock(&dev_priv->perfmon.config.lock);
+	return ret;
+}
+
 static struct i915_vma *
 i915_gem_execbuffer_parse(struct intel_engine_cs *engine,
 			  struct drm_i915_gem_exec_object2 *shadow_exec_entry,
@@ -1524,6 +1673,10 @@ execbuf_submit(struct i915_execbuffer_params *params,
 		if (ret)
 			return ret;
 	}
+
+	if (IS_GEN9(dev_priv) && params->engine->id == RCS)
+		i915_program_perfmon(dev_priv, params->request->ring,
+				     params->request, params->ctx);
 
 	exec_len   = args->batch_len;
 	exec_start = params->batch->node.start +

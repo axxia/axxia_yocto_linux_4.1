@@ -237,6 +237,7 @@ static void execlists_init_reg_state(u32 *reg_state,
 				     struct intel_engine_cs *engine,
 				     struct intel_ring *ring);
 
+
 /**
  * intel_sanitize_enable_execlists() - sanitize i915.enable_execlists
  * @dev_priv: i915 device private
