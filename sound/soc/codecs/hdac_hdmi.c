@@ -663,6 +663,8 @@ static const struct hda_device_id hdmi_list[] = {
 	{},
 };
 
+MODULE_DEVICE_TABLE(ehdaudio, hdmi_list);
+
 static struct hdac_ext_driver hdmi_driver = {
 	. hdac = {
 		.driver = {
