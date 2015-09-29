@@ -217,6 +217,8 @@ struct serio_device_id {
 	__u8 proto;
 };
 
+#define HDA_ID_ANY	0xffff
+
 struct hda_device_id {
 	__u32 vendor_id;
 	__u32 rev_id;
