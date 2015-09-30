@@ -53,8 +53,8 @@
 #define BXT_ADSP_W1_SZ  0x1000
 
 static int bxt_load_base_firmware(struct sst_dsp *ctx);
-static int bxt_set_dsp_D0(struct sst_dsp *ctx);
-static int bxt_set_dsp_D3(struct sst_dsp *ctx);
+static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id);
+static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id);
 static int bxt_load_library(struct sst_dsp *ctx,
 		struct skl_dfw_manifest *minfo);
 
@@ -126,6 +126,8 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	ret = skl_ipc_init(dev, skl);
 	if (ret)
 		return ret;
+
+	sst->core_info.cores = 2;
 
 	skl->boot_complete = false;
 	init_waitqueue_head(&skl->boot_wait);
@@ -205,26 +207,36 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 	u32 reg;
 	int stream_tag;
 
-	dev_dbg(ctx->dev, "starting to prepare host dma fwsize=%x\n", fwsize);
+	dev_dbg(ctx->dev, "starting to prepare host dma: fwsize=%d\n", fwsize);
 	stream_tag = ctx->dsp_ops.prepare(ctx->dev, 0x40, fwsize, &ctx->dmab);
-	if (stream_tag < 0) {
-		dev_err(ctx->dev, "Failed to prepare DMA engine for FW loading, err: %x\n", stream_tag);
+	if (stream_tag <= 0) {
+		dev_err(ctx->dev, "Failed to prepare DMA engine for FW loading, err: %d\n", stream_tag);
 		return stream_tag;
 	}
 
 	ctx->dsp_ops.stream_tag = stream_tag;
 	memcpy(ctx->dmab.area, fwdata, fwsize);
-	/* Purge FW request */
+
+	/* Step 1: Power up core0 */
+	ret = skl_dsp_core_power_up(ctx, SKL_DSP_CORE0_MASK);
+	if (ret < 0)
+		goto prepare_fw_load_failed;
+
+	/* Step 2: Purge FW request */
 	sst_dsp_shim_write(ctx, SKL_ADSP_REG_HIPCI, SKL_ADSP_REG_HIPCI_BUSY |
 					 BXT_IPC_PURGE_FW | (stream_tag - 1));
 
-	ret = skl_dsp_enable_core(ctx);
-	if (ret < 0) {
-		dev_err(ctx->dev, "Boot dsp core failed ret: %d\n", ret);
-		ret = -EIO;
-		goto base_fw_load_failed;
-	}
+	/* Step 3: Unset core0 reset state */
+	ret = skl_dsp_core_unset_reset_state(ctx, SKL_DSP_CORE0_MASK);
+	if (ret < 0)
+		goto prepare_fw_load_failed;
 
+	/* Step 4: unstall/run core0 */
+	dev_dbg(ctx->dev, "unstall/run core0...");
+	sst_dsp_shim_update_bits_unlocked(ctx, SKL_ADSP_REG_ADSPCS,
+			SKL_ADSPCS_CSTALL_MASK(SKL_DSP_CORE0_MASK), 0);
+
+	/* Step 5: Wait for DONE Bit */
 	for (i = BXT_ROM_INIT_HIPCIE_TIMEOUT; i > 0; --i) {
 		reg = sst_dsp_shim_read(ctx, SKL_ADSP_REG_HIPCIE);
 
@@ -245,10 +257,12 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 				SKL_ADSP_REG_HIPCIE_DONE);
 	}
 	dev_dbg(ctx->dev, "******HIPCIE reg: 0x%x\n", reg);
-	/*enable Interrupt */
+
+	/* Step 6: enable Interrupt */
 	skl_ipc_int_enable(ctx);
 	skl_ipc_op_int_enable(ctx);
 
+	/* Step 7: Wait for ROM init */
 	for (i = BXT_ROM_INIT_DONE_TIMEOUT; i > 0; --i) {
 		if (FW_ROM_INIT_DONE ==
 			(sst_dsp_shim_read(ctx, BXT_ADSP_REG_FW_STATUS) &
@@ -261,12 +275,14 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 	if (!i) {
 		dev_err(ctx->dev, "Timeout waiting for ROM init done, reg: 0x%x\n", reg);
 		ret = -EIO;
-		goto base_fw_load_failed;
+		goto prepare_fw_load_failed;
 	}
-	return ret;
-base_fw_load_failed:
+
+	return 0;
+
+prepare_fw_load_failed:
 	ctx->dsp_ops.cleanup(ctx->dev, &ctx->dmab, stream_tag);
-	skl_dsp_disable_core(ctx);
+	skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	return ret;
 }
 
@@ -286,69 +302,108 @@ static int sst_transfer_fw_host_dma(struct sst_dsp *ctx)
 	return ret;
 }
 
-int bxt_set_dsp_D0(struct sst_dsp *ctx)
+int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
-	int ret = 0;
-	struct skl_sst *skl = ctx->thread_context;
-
-	dev_dbg(ctx->dev, "In %s:\n", __func__);
-
-	skl->boot_complete = false;
-
-	ret = skl_dsp_enable_core(ctx);
-	if (ret < 0) {
-		dev_err(ctx->dev, "enable dsp core failed ret: %d\n", ret);
-		return ret;
-	}
-
-	/*enable interrupt*/
-	skl_ipc_int_enable(ctx);
-	skl_ipc_op_int_enable(ctx);
-
-	ret = wait_event_timeout(skl->boot_wait, skl->boot_complete,
-					msecs_to_jiffies(SKL_IPC_BOOT_MSECS));
-	if (ret == 0) {
-		dev_err(ctx->dev, "ipc: error DSP boot timeout\n");
-		dev_err(ctx->dev, "Error code=0x%x: FW status=0x%x\n",
-			sst_dsp_shim_read(ctx, BXT_ADSP_ERROR_CODE),
-			sst_dsp_shim_read(ctx, BXT_ADSP_REG_FW_STATUS));
-		return -EIO;
-	}
-
-	skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
-	return 0;
-}
-
-static int bxt_set_dsp_D3(struct sst_dsp *ctx)
-{
-	int ret = 0;
+	int ret;
 	struct skl_ipc_dxstate_info dx;
 	struct skl_sst *skl = ctx->thread_context;
+	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
 
-	dev_dbg(ctx->dev, "In %s:\n", __func__);
 
-	if (!is_skl_dsp_running(ctx))
-		return ret;
+	dev_dbg(ctx->dev, "In %s : core id = %d\n", __func__, core_id);
 
-	dx.core_mask = SKL_DSP_CORE0_MASK;
-	dx.dx_mask = SKL_IPC_D3_MASK;
+	ret = skl_dsp_core_power_up(ctx, core_mask);
+	if (ret < 0)
+		goto err;
+
+	if (core_id == SKL_DSP_CORE0_ID) {
+		dev_dbg(ctx->dev, "Enable Interrupts\n");
+		/* Enable interrupt after SPA is set and before DSP is unstalled */
+		skl_ipc_int_enable(ctx);
+		skl_ipc_op_int_enable(ctx);
+		skl->boot_complete = false;
+	}
+
+	ret = skl_dsp_start_core(ctx, core_mask);
+	if (ret < 0)
+		goto err;
+
+	if (core_id == SKL_DSP_CORE0_ID) {
+		ret = wait_event_timeout(skl->boot_wait,
+				skl->boot_complete,
+				msecs_to_jiffies(SKL_IPC_BOOT_MSECS));
+
+		if (ret == 0) {
+			dev_err(ctx->dev, "%s: error DSP boot timeout\n", __func__);
+			dev_err(ctx->dev, "Error code=0x%x: FW status=0x%x\n",
+					sst_dsp_shim_read(ctx, BXT_ADSP_ERROR_CODE),
+					sst_dsp_shim_read(ctx, BXT_ADSP_REG_FW_STATUS));
+			dev_err(ctx->dev, "Failed to set core0 to D0 state\n");
+			ret = -EIO;
+			goto err;
+		}
+	}
+
+	/*
+	 * If any core other than core 0 is being moved to D0, send the
+	 * set dx IPC for the core.
+	 * NOTE: As per the current BXT FW implementation, set dx can be
+	 * sent for core 0 also though set dx is not necessary for core 0. So
+	 * the following check for other cores is not strictly needed for BXT.
+	 * However, set dx is not being sent for core 0 in the following code
+	 * in order not to make any assumption about set dx support for core 0
+	 * in FW for platforms that may reuse this driver.
+	 */
+	if (core_id != SKL_DSP_CORE0_ID) {
+		dx.core_mask = core_mask;
+		dx.dx_mask = core_mask;
+
+		ret = skl_ipc_set_dx(&skl->ipc, BXT_INSTANCE_ID,
+					BXT_BASE_FW_MODULE_ID, &dx);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Failed to set dsp to D0:core id = %d\n",
+					core_id);
+			goto err;
+		}
+	}
+
+	ctx->core_info.core_state[core_id] = SKL_DSP_RUNNING;
+	return 0;
+err:
+	skl_dsp_disable_core(ctx, core_mask);
+	return ret;
+}
+
+static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
+{
+	int ret;
+	struct skl_ipc_dxstate_info dx;
+	struct skl_sst *skl = ctx->thread_context;
+	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
+
+	dev_dbg(ctx->dev, "In %s : core id = %d\n", __func__, core_id);
+
+	dx.core_mask = core_mask;
+	dx.dx_mask = 0;
 
 	dev_dbg(ctx->dev, "core mask=%x dx_mask=%x\n",
-				 dx.core_mask, dx.dx_mask);
-	ret = skl_ipc_set_dx(&skl->ipc, BXT_INSTANCE_ID, BXT_BASE_FW_MODULE_ID, &dx);
+			dx.core_mask, dx.dx_mask);
 
-	if (ret < 0) {
-		dev_err(ctx->dev, "Failed to set DSP to D3 state\n");
+	ret = skl_ipc_set_dx(&skl->ipc, BXT_INSTANCE_ID,
+				BXT_BASE_FW_MODULE_ID, &dx);
+	if (ret < 0)
+		dev_err(ctx->dev,
+			"Failed to set DSP to D3:core id = %d;Continue reset\n",
+			core_id);
+
+	ret = skl_dsp_disable_core(ctx, core_mask);
+
+	if (ret < 0)
 		return ret;
-	}
 
-	ret = skl_dsp_disable_core(ctx);
-	if (ret < 0) {
-		dev_err(ctx->dev, "disbale dsp core failed ret: %d\n", ret);
-		ret = -EIO;
-	}
-	skl_dsp_set_state_locked(ctx, SKL_DSP_RESET);
+	ctx->core_info.core_state[core_id] = SKL_DSP_RESET;
 	return 0;
+
 }
 
 static int bxt_load_base_firmware(struct sst_dsp *ctx)
@@ -391,17 +446,17 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 
 	if (ret < 0) {
 		dev_err(ctx->dev, "Transfer firmware failed %d\n", ret);
-		skl_dsp_disable_core(ctx);
+		skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	} else {
 		dev_dbg(ctx->dev, "Firmware download successful\n");
 		ret = wait_event_timeout(skl->boot_wait, skl->boot_complete,
 						msecs_to_jiffies(SKL_IPC_BOOT_MSECS));
 		if (ret == 0) {
 			dev_err(ctx->dev, "DSP boot failed, FW Ready timed-out\n");
-			skl_dsp_disable_core(ctx);
+			skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 			ret = -EIO;
 		} else {
-			skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
+			skl_dsp_init_core_state(ctx);
 			ret = 0;
 		}
 	}

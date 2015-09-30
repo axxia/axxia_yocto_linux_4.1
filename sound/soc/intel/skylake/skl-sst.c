@@ -82,7 +82,6 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		ret = request_firmware(&ctx->fw, "dsp_fw_release.bin", ctx->dev);
 		if (ret < 0) {
 			dev_err(ctx->dev, "Request firmware failed %d\n", ret);
-			skl_dsp_disable_core(ctx);
 			return -EIO;
 		}
 	}
@@ -134,66 +133,92 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		}
 
 		dev_dbg(ctx->dev, "Download firmware successful%d\n", ret);
-		skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
+		skl_dsp_init_core_state(ctx);
 	}
 	return 0;
 
 skl_load_base_firmware_failed:
-	skl_dsp_disable_core(ctx);
+	skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	release_firmware(ctx->fw);
 	ctx->fw = NULL;
 	return ret;
 }
 
-static int skl_set_dsp_D0(struct sst_dsp *ctx)
-{
-	int ret;
-
-	ret = skl_load_base_firmware(ctx);
-	if (ret < 0) {
-		dev_err(ctx->dev, "unable to load firmware\n");
-		return ret;
-	}
-
-	skl_dsp_set_state_locked(ctx, SKL_DSP_RUNNING);
-
-	return ret;
-}
-
-static int skl_set_dsp_D3(struct sst_dsp *ctx)
+static int skl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
 	int ret;
 	struct skl_ipc_dxstate_info dx;
 	struct skl_sst *skl = ctx->thread_context;
+	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
 
-	dev_dbg(ctx->dev, "In %s:\n", __func__);
-	mutex_lock(&ctx->mutex);
-	if (!is_skl_dsp_running(ctx)) {
-		mutex_unlock(&ctx->mutex);
-		return 0;
+	dev_dbg(ctx->dev, "In %s : core id = %d\n", __func__, core_id);
+
+	/* If core0 is being turned on, we need to load the FW */
+	if (core_id == SKL_DSP_CORE0_ID) {
+		ret = skl_load_base_firmware(ctx);
+		if (ret < 0) {
+			dev_err(ctx->dev, "unable to load firmware\n");
+			return ret;
+		}
 	}
-	mutex_unlock(&ctx->mutex);
 
-	dx.core_mask = SKL_DSP_CORE0_MASK;
+	/*
+	 * If any core other than core 0 is being moved to D0, enable the core
+	 * and send the set dx IPC for the core.
+	 */
+	if (core_id != SKL_DSP_CORE0_ID) {
+		ret = skl_dsp_enable_core(ctx, core_mask);
+		if (ret < 0)
+			return ret;
+
+		dx.core_mask = core_mask;
+		dx.dx_mask = core_mask;
+
+		ret = skl_ipc_set_dx(&skl->ipc, SKL_INSTANCE_ID,
+					SKL_BASE_FW_MODULE_ID, &dx);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Failed to set dsp to D0:core id= %d\n",
+					core_id);
+			skl_dsp_disable_core(ctx, core_mask);
+		}
+	}
+
+	ctx->core_info.core_state[core_id] = SKL_DSP_RUNNING;
+
+	return ret;
+}
+
+static int skl_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
+{
+	int ret;
+	struct skl_ipc_dxstate_info dx;
+	struct skl_sst *skl = ctx->thread_context;
+	unsigned int core_mask = SKL_DSP_CORE_MASK(core_id);
+
+	dev_dbg(ctx->dev, "In %s : core id = %d\n", __func__, core_id);
+
+	dx.core_mask = core_mask;
 	dx.dx_mask = SKL_IPC_D3_MASK;
+
 	ret = skl_ipc_set_dx(&skl->ipc, SKL_INSTANCE_ID, SKL_BASE_FW_MODULE_ID, &dx);
-	if (ret < 0) {
-		dev_err(ctx->dev, "Failed to set DSP to D3 state\n");
+	if (ret < 0)
+		dev_err(ctx->dev,
+			"Failed to set DSP to D3:core_id = %d\n;Continue reset",
+			core_id);
+
+	if (core_id == SKL_DSP_CORE0_ID) {
+		/* disable Interrupt */
+		ctx->cl_dev.ops.cl_cleanup_controller(ctx);
+		skl_cldma_int_disable(ctx);
+		skl_ipc_op_int_disable(ctx);
+		skl_ipc_int_disable(ctx);
+	}
+
+	ret = skl_dsp_disable_core(ctx, core_mask);
+	if (ret < 0)
 		return ret;
-	}
 
-	ret = skl_dsp_disable_core(ctx);
-	if (ret < 0) {
-		dev_err(ctx->dev, "disable dsp core failed ret: %d\n", ret);
-		ret = -EIO;
-	}
-	skl_dsp_set_state_locked(ctx, SKL_DSP_RESET);
-
-	/* disable Interrupt */
-	ctx->cl_dev.ops.cl_cleanup_controller(ctx);
-	skl_cldma_int_disable(ctx);
-	skl_ipc_op_int_disable(ctx);
-	skl_ipc_int_disable(ctx);
+	ctx->core_info.core_state[core_id] = SKL_DSP_RESET;
 
 	return ret;
 }
@@ -438,6 +463,8 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	ret = skl_ipc_init(dev, skl);
 	if (ret)
 		return ret;
+
+	sst->core_info.cores = 2;
 
 	ret = sst->fw_ops.load_fw(sst);
 	if (ret < 0) {

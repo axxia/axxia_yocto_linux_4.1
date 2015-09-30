@@ -259,6 +259,14 @@ struct sst_mem_block {
 	struct list_head list;		/* Map list of free/used blocks */
 };
 
+#define SKL_DSP_MAX_CORES  4
+
+struct skl_dsp_core_info {
+	unsigned int cores; /* Number of DSP cores on the SoC */
+	int core_state[SKL_DSP_MAX_CORES];
+	int core_usage_count[SKL_DSP_MAX_CORES];
+};
+
 /*
  * Generic SST Shim Interface.
  */
@@ -320,6 +328,7 @@ struct sst_dsp {
 	u32 intr_status;
 	const struct firmware *fw;
 	struct snd_dma_buffer dmab;
+	struct skl_dsp_core_info core_info;
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_CNL_FPGA)
         struct snd_dma_buffer dsp_fw_buf;
 #endif
