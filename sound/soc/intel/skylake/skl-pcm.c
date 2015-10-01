@@ -633,6 +633,17 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
 	},
 },
+{
+	.name = "DMIC Pin",
+	.ops = &skl_pcm_dai_ops,
+	.capture = {
+		.stream_name = "DMIC Capture",
+		.channels_min = HDA_MONO,
+		.channels_max = HDA_QUAD,
+		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
+	},
+},
 
 /* BE CPU  Dais */
 {
