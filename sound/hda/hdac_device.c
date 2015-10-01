@@ -950,3 +950,50 @@ bool snd_hdac_is_supported_format(struct hdac_device *codec, hda_nid_t nid,
 	return true;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_is_supported_format);
+
+static unsigned int codec_read(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm)
+{
+	unsigned int cmd = snd_hdac_make_cmd(hdac, nid, verb, parm);
+	unsigned int res;
+
+	if (snd_hdac_exec_verb(hdac, cmd, flags, &res))
+		return -1;
+
+	return res;
+}
+
+static int codec_write(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm)
+{
+	unsigned int cmd = snd_hdac_make_cmd(hdac, nid, verb, parm);
+
+	return snd_hdac_exec_verb(hdac, cmd, flags, NULL);
+}
+
+int snd_hdac_codec_read(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm)
+{
+	return codec_read(hdac, nid, flags, verb, parm);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_read);
+
+int snd_hdac_codec_write(struct hdac_device *hdac, hda_nid_t nid,
+			int flags, unsigned int verb, unsigned int parm)
+{
+	return codec_write(hdac, nid, flags, verb, parm);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_codec_write);
+
+bool snd_hdac_check_power_state(struct hdac_device *hdac,
+		hda_nid_t nid, unsigned int target_state)
+{
+	unsigned int state = codec_read(hdac, nid, 0,
+				AC_VERB_GET_POWER_STATE, 0);
+
+	if (state & AC_PWRST_ERROR)
+		return true;
+	state = (state >> 4) & 0x0f;
+	return (state == target_state);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_check_power_state);
