@@ -13607,7 +13607,7 @@ intel_check_primary_plane(struct drm_plane *plane,
 			if (IS_BROADWELL(dev))
 				intel_crtc->atomic.wait_vblank = true;
 
-			if (crtc_state)
+			if (crtc_state && !needs_modeset(&crtc_state->base))
 				intel_crtc->atomic.post_enable_primary = true;
 		}
 
