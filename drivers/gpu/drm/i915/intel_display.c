@@ -14301,7 +14301,7 @@ static void intel_setup_outputs(struct drm_device *dev)
 		}
 
 		intel_dsi_init(dev);
-	} else if (SUPPORTS_DIGITAL_OUTPUTS(dev)) {
+	} else if (!IS_GEN2(dev) && !IS_PINEVIEW(dev)) {
 		bool found = false;
 
 		if (I915_READ(GEN3_SDVOB) & SDVO_DETECTED) {
