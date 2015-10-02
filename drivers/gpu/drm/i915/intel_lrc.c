@@ -2250,7 +2250,7 @@ int intel_lr_context_deferred_create(struct intel_context *ctx,
 				goto error;
 			}
 
-			i915_add_request_no_flush(req->ring);
+			i915_add_request_no_flush(req);
 		}
 
 		ctx->rcs_initialized = true;
