@@ -1178,10 +1178,11 @@ static void render_ring_cleanup(struct intel_engine_cs *ring)
 	intel_fini_pipe_control(ring);
 }
 
-static int gen8_rcs_signal(struct intel_engine_cs *signaller,
+static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req,
 			   unsigned int num_dwords)
 {
 #define MBOX_UPDATE_DWORDS 8
+	struct intel_engine_cs *signaller = signaller_req->ring;
 	struct drm_device *dev = signaller->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *waiter;
@@ -1201,8 +1202,7 @@ static int gen8_rcs_signal(struct intel_engine_cs *signaller,
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
 			continue;
 
-		seqno = i915_gem_request_get_seqno(
-					   signaller->outstanding_lazy_request);
+		seqno = i915_gem_request_get_seqno(signaller_req);
 		intel_ring_emit(signaller, GFX_OP_PIPE_CONTROL(6));
 		intel_ring_emit(signaller, PIPE_CONTROL_GLOBAL_GTT_IVB |
 					   PIPE_CONTROL_QW_WRITE |
@@ -1219,10 +1219,11 @@ static int gen8_rcs_signal(struct intel_engine_cs *signaller,
 	return 0;
 }
 
-static int gen8_xcs_signal(struct intel_engine_cs *signaller,
+static int gen8_xcs_signal(struct drm_i915_gem_request *signaller_req,
 			   unsigned int num_dwords)
 {
 #define MBOX_UPDATE_DWORDS 6
+	struct intel_engine_cs *signaller = signaller_req->ring;
 	struct drm_device *dev = signaller->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *waiter;
@@ -1242,8 +1243,7 @@ static int gen8_xcs_signal(struct intel_engine_cs *signaller,
 		if (gtt_offset == MI_SEMAPHORE_SYNC_INVALID)
 			continue;
 
-		seqno = i915_gem_request_get_seqno(
-					   signaller->outstanding_lazy_request);
+		seqno = i915_gem_request_get_seqno(signaller_req);
 		intel_ring_emit(signaller, (MI_FLUSH_DW + 1) |
 					   MI_FLUSH_DW_OP_STOREDW);
 		intel_ring_emit(signaller, lower_32_bits(gtt_offset) |
@@ -1258,9 +1258,10 @@ static int gen8_xcs_signal(struct intel_engine_cs *signaller,
 	return 0;
 }
 
-static int gen6_signal(struct intel_engine_cs *signaller,
+static int gen6_signal(struct drm_i915_gem_request *signaller_req,
 		       unsigned int num_dwords)
 {
+	struct intel_engine_cs *signaller = signaller_req->ring;
 	struct drm_device *dev = signaller->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *useless;
@@ -1278,8 +1279,7 @@ static int gen6_signal(struct intel_engine_cs *signaller,
 	for_each_ring(useless, dev_priv, i) {
 		u32 mbox_reg = signaller->semaphore.mbox.signal[i];
 		if (mbox_reg != GEN6_NOSYNC) {
-			u32 seqno = i915_gem_request_get_seqno(
-					   signaller->outstanding_lazy_request);
+			u32 seqno = i915_gem_request_get_seqno(signaller_req);
 			intel_ring_emit(signaller, MI_LOAD_REGISTER_IMM(1));
 			intel_ring_emit(signaller, mbox_reg);
 			intel_ring_emit(signaller, seqno);
@@ -1308,7 +1308,7 @@ gen6_add_request(struct drm_i915_gem_request *req)
 	int ret;
 
 	if (ring->semaphore.signal)
-		ret = ring->semaphore.signal(ring, 4);
+		ret = ring->semaphore.signal(req, 4);
 	else
 		ret = intel_ring_begin(ring, 4);
 
