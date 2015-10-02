@@ -12922,12 +12922,10 @@ static int __intel_set_mode_checks(struct drm_atomic_state *state)
 	return 0;
 }
 
-static int __intel_set_mode(struct drm_crtc *modeset_crtc,
-			    struct intel_crtc_state *pipe_config)
+static int __intel_set_mode(struct drm_atomic_state *state)
 {
-	struct drm_device *dev = modeset_crtc->dev;
+	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_atomic_state *state = pipe_config->base.state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int ret = 0;
@@ -12988,7 +12986,7 @@ static int intel_set_mode_with_config(struct drm_crtc *crtc,
 {
 	int ret;
 
-	ret = __intel_set_mode(crtc, pipe_config);
+	ret = __intel_set_mode(pipe_config->base.state);
 
 	if (ret == 0 && force_restore) {
 		intel_modeset_update_staged_output_state(crtc->dev);
