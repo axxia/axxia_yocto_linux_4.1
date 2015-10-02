@@ -322,7 +322,6 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 			scaler_id = &scaler_state->scaler_id;
 		} else {
 			name = "PLANE";
-			idx = plane->base.id;
 
 			if (!drm_state)
 				continue;
@@ -356,6 +355,7 @@ int intel_atomic_setup_scalers(struct drm_device *dev,
 			}
 
 			intel_plane = to_intel_plane(plane);
+			idx = plane->base.id;
 
 			/* plane on different crtc cannot be a scaler user of this crtc */
 			if (WARN_ON(intel_plane->pipe != intel_crtc->pipe)) {
