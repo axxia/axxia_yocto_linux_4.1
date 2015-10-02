@@ -13136,8 +13136,6 @@ static int __intel_set_mode(struct drm_atomic_state *state)
 		if (!needs_modeset(crtc->state))
 			continue;
 
-		intel_pre_plane_update(intel_crtc);
-
 		any_ms = true;
 		intel_pre_plane_update(intel_crtc);
 
