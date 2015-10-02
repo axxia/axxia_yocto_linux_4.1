@@ -4806,7 +4806,7 @@ static void intel_pre_plane_update(struct intel_crtc *crtc)
 	if (atomic->disable_fbc)
 		intel_fbc_disable_crtc(crtc);
 
-	if (atomic->disable_ips)
+	if (crtc->atomic.disable_ips)
 		hsw_disable_ips(crtc);
 
 	if (atomic->pre_disable_primary)
@@ -4824,9 +4824,6 @@ static void intel_crtc_disable_planes(struct drm_crtc *crtc, unsigned plane_mask
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct drm_plane *p;
 	int pipe = intel_crtc->pipe;
-
-	if (!intel_crtc->active)
-		return;
 
 	intel_crtc_dpms_overlay_disable(intel_crtc);
 
