@@ -10885,7 +10885,7 @@ static int intel_gen2_queue_flip(struct drm_device *dev,
 	u32 flip_mask;
 	int ret;
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
@@ -10920,7 +10920,7 @@ static int intel_gen3_queue_flip(struct drm_device *dev,
 	u32 flip_mask;
 	int ret;
 
-	ret = intel_ring_begin(ring, 6);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
@@ -10953,7 +10953,7 @@ static int intel_gen4_queue_flip(struct drm_device *dev,
 	uint32_t pf, pipesrc;
 	int ret;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -10992,7 +10992,7 @@ static int intel_gen6_queue_flip(struct drm_device *dev,
 	uint32_t pf, pipesrc;
 	int ret;
 
-	ret = intel_ring_begin(ring, 4);
+	ret = intel_ring_begin(req, 4);
 	if (ret)
 		return ret;
 
@@ -11068,7 +11068,7 @@ static int intel_gen7_queue_flip(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	ret = intel_ring_begin(ring, len);
+	ret = intel_ring_begin(req, len);
 	if (ret)
 		return ret;
 
