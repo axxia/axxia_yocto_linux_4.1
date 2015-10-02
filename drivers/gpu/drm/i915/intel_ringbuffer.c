@@ -1295,16 +1295,16 @@ static int gen6_signal(struct intel_engine_cs *signaller,
 
 /**
  * gen6_add_request - Update the semaphore mailbox registers
- * 
- * @ring - ring that is adding a request
- * @seqno - return seqno stuck into the ring
+ *
+ * @request - request to write to the ring
  *
  * Update the mailbox registers in the *other* rings with the current seqno.
  * This acts like a signal in the canonical semaphore.
  */
 static int
-gen6_add_request(struct intel_engine_cs *ring)
+gen6_add_request(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	if (ring->semaphore.signal)
@@ -1317,8 +1317,7 @@ gen6_add_request(struct intel_engine_cs *ring)
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring,
-		    i915_gem_request_get_seqno(ring->outstanding_lazy_request));
+	intel_ring_emit(ring, i915_gem_request_get_seqno(req));
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	__intel_ring_advance(ring);
 
@@ -1415,8 +1414,9 @@ do {									\
 } while (0)
 
 static int
-pc_render_add_request(struct intel_engine_cs *ring)
+pc_render_add_request(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	u32 scratch_addr = ring->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
@@ -1436,8 +1436,7 @@ pc_render_add_request(struct intel_engine_cs *ring)
 			PIPE_CONTROL_WRITE_FLUSH |
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE);
 	intel_ring_emit(ring, ring->scratch.gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring,
-		    i915_gem_request_get_seqno(ring->outstanding_lazy_request));
+	intel_ring_emit(ring, i915_gem_request_get_seqno(req));
 	intel_ring_emit(ring, 0);
 	PIPE_CONTROL_FLUSH(ring, scratch_addr);
 	scratch_addr += 2 * CACHELINE_BYTES; /* write to separate cachelines */
@@ -1456,8 +1455,7 @@ pc_render_add_request(struct intel_engine_cs *ring)
 			PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE |
 			PIPE_CONTROL_NOTIFY);
 	intel_ring_emit(ring, ring->scratch.gtt_offset | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(ring,
-		    i915_gem_request_get_seqno(ring->outstanding_lazy_request));
+	intel_ring_emit(ring, i915_gem_request_get_seqno(req));
 	intel_ring_emit(ring, 0);
 	__intel_ring_advance(ring);
 
@@ -1626,8 +1624,9 @@ bsd_ring_flush(struct drm_i915_gem_request *req,
 }
 
 static int
-i9xx_add_request(struct intel_engine_cs *ring)
+i9xx_add_request(struct drm_i915_gem_request *req)
 {
+	struct intel_engine_cs *ring = req->ring;
 	int ret;
 
 	ret = intel_ring_begin(ring, 4);
@@ -1636,8 +1635,7 @@ i9xx_add_request(struct intel_engine_cs *ring)
 
 	intel_ring_emit(ring, MI_STORE_DWORD_INDEX);
 	intel_ring_emit(ring, I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT);
-	intel_ring_emit(ring,
-		    i915_gem_request_get_seqno(ring->outstanding_lazy_request));
+	intel_ring_emit(ring, i915_gem_request_get_seqno(req));
 	intel_ring_emit(ring, MI_USER_INTERRUPT);
 	__intel_ring_advance(ring);
 
