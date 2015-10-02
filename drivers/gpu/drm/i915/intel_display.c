@@ -12062,10 +12062,9 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 
 static int
 intel_modeset_pipe_config(struct drm_crtc *crtc,
-			  struct drm_atomic_state *state)
+			  struct intel_crtc_state *pipe_config)
 {
-	struct drm_crtc_state *crtc_state;
-	struct intel_crtc_state *pipe_config;
+	struct drm_atomic_state *state = pipe_config->base.state;
 	struct intel_encoder *encoder;
 	struct drm_connector *connector;
 	struct drm_connector_state *connector_state;
@@ -12077,17 +12076,6 @@ intel_modeset_pipe_config(struct drm_crtc *crtc,
 		DRM_DEBUG_KMS("rejecting invalid cloning configuration\n");
 		return -EINVAL;
 	}
-
-	if (!check_digital_port_conflicts(state)) {
-		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
-		return -EINVAL;
-	}
-
-	crtc_state = drm_atomic_get_existing_crtc_state(state, crtc);
-	if (WARN_ON(!crtc_state))
-		return -EINVAL;
-
-	pipe_config = to_intel_crtc_state(crtc_state);
 
 	clear_intel_crtc_state(pipe_config);
 
@@ -12905,6 +12893,11 @@ static int intel_modeset_checks(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	int ret;
 
+	if (!check_digital_port_conflicts(state)) {
+		DRM_DEBUG_KMS("rejecting conflicting digital port configuration\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * See if the config requires any additional preparation, e.g.
 	 * to adjust global state with pipes off.  We need to do this
@@ -12951,7 +12944,14 @@ intel_modeset_compute_config(struct drm_atomic_state *state)
 		if (!crtc_state->enable)
 			continue;
 
-		ret = intel_modeset_pipe_config(crtc, state);
+		if (!needs_modeset(crtc_state)) {
+			ret = drm_atomic_add_affected_connectors(state, crtc);
+			if (ret)
+				return ret;
+		}
+
+		ret = intel_modeset_pipe_config(crtc,
+					to_intel_crtc_state(crtc_state));
 		if (ret)
 			return ret;
 
