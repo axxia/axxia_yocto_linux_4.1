@@ -145,7 +145,6 @@ int intel_atomic_commit(struct drm_device *dev,
 	/* Point of no return */
 	drm_atomic_helper_swap_state(dev, state);
 
-	/* swap crtc_scaler_state */
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		to_intel_crtc(crtc)->config = to_intel_crtc_state(crtc->state);
 
