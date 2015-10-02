@@ -5068,7 +5068,15 @@ i915_gem_init_hw(struct drm_device *dev)
 
 	/* Now it is safe to go back round and do everything else: */
 	for_each_ring(ring, dev_priv, i) {
+		struct drm_i915_gem_request *req;
+
 		WARN_ON(!ring->default_context);
+
+		ret = i915_gem_request_alloc(ring, ring->default_context, &req);
+		if (ret) {
+			i915_gem_cleanup_ringbuffer(dev);
+			goto out;
+		}
 
 		if (ring->id == RCS) {
 			for (j = 0; j < NUM_L3_SLICES(dev); j++)
@@ -5078,6 +5086,7 @@ i915_gem_init_hw(struct drm_device *dev)
 		ret = i915_ppgtt_init_ring(ring);
 		if (ret && ret != -EIO) {
 			DRM_ERROR("PPGTT enable ring #%d failed %d\n", i, ret);
+			i915_gem_request_cancel(req);
 			i915_gem_cleanup_ringbuffer(dev);
 			goto out;
 		}
@@ -5085,9 +5094,12 @@ i915_gem_init_hw(struct drm_device *dev)
 		ret = i915_gem_context_enable(ring);
 		if (ret && ret != -EIO) {
 			DRM_ERROR("Context enable ring #%d failed %d\n", i, ret);
+			i915_gem_request_cancel(req);
 			i915_gem_cleanup_ringbuffer(dev);
 			goto out;
 		}
+
+		i915_add_request_no_flush(ring);
 	}
 
 out:
