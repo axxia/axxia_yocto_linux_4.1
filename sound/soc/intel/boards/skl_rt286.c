@@ -155,6 +155,26 @@ static struct snd_soc_ops skylake_rt286_ops = {
 	.hw_params = skylake_rt286_hw_params,
 };
 
+static unsigned int rates_48000[] = {
+	48000,
+};
+
+static struct snd_pcm_hw_constraint_list constraints_48000 = {
+	.count = ARRAY_SIZE(rates_48000),
+	.list  = rates_48000,
+};
+
+static int skylake_dmic_startup(struct snd_pcm_substream *substream)
+{
+	return snd_pcm_hw_constraint_list(substream->runtime, 0,
+			SNDRV_PCM_HW_PARAM_RATE,
+			&constraints_48000);
+}
+
+static struct snd_soc_ops skylake_dmic_ops = {
+	.startup = skylake_dmic_startup,
+};
+
 /* skylake digital audio interface glue - connects codec <--> CPU */
 static struct snd_soc_dai_link skylake_rt286_dais[] = {
 	/* Front End DAI links */
@@ -226,6 +246,7 @@ static struct snd_soc_dai_link skylake_rt286_dais[] = {
 		.ignore_suspend = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
+		.ops = &skylake_dmic_ops,
 	},
 
 	/* Back End DAI links */
