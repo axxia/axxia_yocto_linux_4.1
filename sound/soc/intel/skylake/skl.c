@@ -286,7 +286,6 @@ static int skl_machine_device_register(struct skl *skl, void *driver_data)
 	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
 	struct platform_device *pdev;
 	struct sst_machines *mach = driver_data;
-	char *mach_name;
 	int ret;
 
 	mach = sst_acpi_find_machine(mach);
@@ -295,14 +294,8 @@ static int skl_machine_device_register(struct skl *skl, void *driver_data)
 		return -ENODEV;
 	}
 
-	if (skl->pci->device == 0x9d70) {
-		mach_name = mach->machine;
-	} else {
-		dev_err(bus->dev, "invalid pci id %s\n", __func__);
-		return -EINVAL;
-	}
-
-	pdev = platform_device_alloc(mach_name, -1);
+	dev_dbg(bus->dev, "Machine driver found:%s\n", mach->machine);
+	pdev = platform_device_alloc(mach->machine, -1);
 	if (pdev == NULL) {
 		dev_err(bus->dev, "platform device alloc failed\n");
 		return -EIO;
