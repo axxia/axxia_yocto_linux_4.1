@@ -21,7 +21,7 @@
 #include "skl-tplg-interface.h"
 #include "skl-topology.h"
 
-#define MAX_SSP 4
+#define MAX_SSP 6
 
 struct nhlt_blob {
 	size_t size;
