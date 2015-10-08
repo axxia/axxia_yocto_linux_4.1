@@ -1130,8 +1130,13 @@ static const struct i2c_device_id rt298_i2c_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, rt298_i2c_id);
 
+static struct rt298_platform_data rt298_acpi_data = {
+        .cbj_en = true,
+        .gpio2_en = false,
+};
+
 static const struct acpi_device_id rt298_acpi_match[] = {
-	{ "INT343A", 0 },
+	{ "INT343A", (unsigned long)&rt298_acpi_data},
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, rt298_acpi_match);
