@@ -973,6 +973,18 @@ static int codec_write(struct hdac_device *hdac, hda_nid_t nid,
 	return snd_hdac_exec_verb(hdac, cmd, flags, NULL);
 }
 
+/**
+ * snd_hdac_codec_read - send a command and get the response
+ * @hdac: the HDAC device
+ * @nid: NID to send the command
+ * @flags: optional bit flags
+ * @verb: the verb to send
+ * @parm: the parameter for the verb
+ *
+ * Send a single command and read the corresponding response.
+ *
+ * Returns the obtained response value, or -1 for an error.
+ */
 int snd_hdac_codec_read(struct hdac_device *hdac, hda_nid_t nid,
 			int flags, unsigned int verb, unsigned int parm)
 {
@@ -980,6 +992,18 @@ int snd_hdac_codec_read(struct hdac_device *hdac, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_codec_read);
 
+/**
+ * snd_hdac_codec_write - send a single command without waiting for response
+ * @hdac: the HDAC device
+ * @nid: NID to send the command
+ * @flags: optional bit flags
+ * @verb: the verb to send
+ * @parm: the parameter for the verb
+ *
+ * Send a single command without waiting for response.
+ *
+ * Returns 0 if successful, or a negative error code.
+ */
 int snd_hdac_codec_write(struct hdac_device *hdac, hda_nid_t nid,
 			int flags, unsigned int verb, unsigned int parm)
 {
@@ -987,6 +1011,16 @@ int snd_hdac_codec_write(struct hdac_device *hdac, hda_nid_t nid,
 }
 EXPORT_SYMBOL_GPL(snd_hdac_codec_write);
 
+/*
+ * snd_hdac_check_power_state: check whether the actual power state matches
+ * with the target state
+ *
+ * @hdac: the HDAC device
+ * @nid: NID to send the command
+ * @target_state: target state to check for
+ *
+ * Return true if state matches, false if not
+ */
 bool snd_hdac_check_power_state(struct hdac_device *hdac,
 		hda_nid_t nid, unsigned int target_state)
 {
