@@ -889,7 +889,7 @@ struct skl_dsp_notify_ops cb_ops = {
 static struct snd_soc_dai_driver skl_platform_dai[] = {
 {
 	.name = "TraceBuffer0 Pin",
-	.compress_dai = 1,
+	.compress_new = snd_soc_new_compress,
 	.cops = &skl_trace_compr_ops,
 	.capture = {
 		.stream_name = "TraceBuffer0 Capture",
@@ -899,7 +899,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 },
 {
 	.name = "TraceBuffer1 Pin",
-	.compress_dai = 1,
+	.compress_new = snd_soc_new_compress,
 	.cops = &skl_trace_compr_ops,
 	.capture = {
 		.stream_name = "TraceBuffer1 Capture",
@@ -909,7 +909,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 },
 {
 	.name = "TraceBuffer2 Pin",
-	.compress_dai = 1,
+	.compress_new = snd_soc_new_compress,
 	.cops = &skl_trace_compr_ops,
 	.capture = {
 		.stream_name = "TraceBuffer2 Capture",
@@ -919,7 +919,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 },
 {
 	.name = "TraceBuffer3 Pin",
-	.compress_dai = 1,
+	.compress_new = snd_soc_new_compress,
 	.cops = &skl_trace_compr_ops,
 	.capture = {
 		.stream_name = "TraceBuffer3 Capture",
@@ -976,7 +976,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 },
 {
 	.name = "Compress Probe0 Pin",
-	.compress_dai = 1,
+	.compress_new = snd_soc_new_compress,
 	.cops = &skl_probe_compr_ops,
 	.playback = {
 		.stream_name = "Probe Playback",
@@ -985,7 +985,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 },
 {
 	.name = "Compress Probe1 Pin",
-	.compress_dai = 1,
+	.compress_new = snd_soc_new_compress,
 	.cops = &skl_probe_compr_ops,
 	.capture = {
 			.stream_name = "Probe Capture",

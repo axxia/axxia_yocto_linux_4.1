@@ -12,6 +12,7 @@ config SND_MFLD_MACHINE
 
 config SND_SST_MFLD_PLATFORM
 	tristate
+	select SND_SOC_COMPRESS
 
 config SND_SST_IPC
 	tristate
@@ -162,6 +163,7 @@ config SND_SOC_INTEL_BXT_MRGFLD_MACH
 	select SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_DMIC
 	select SND_SOC_HDAC_HDMI
+	select SND_SOC_COMPRESS
         help
         This adds support for ASoC machine driver . This will create an alsa
         sound card.
@@ -172,6 +174,7 @@ config SND_SOC_INTEL_BXTP_IVI_HU_MACH
         tristate "ASoC Audio driver for BXTP IVI HU with Dummy Codec"
         select SND_SOC_INTEL_SST
         select SND_SOC_INTEL_SKYLAKE
+	select SND_SOC_COMPRESS
         default n
         help
         This adds support for ASoC machine driver for Broxton-P platforms
@@ -183,6 +186,7 @@ config SND_SOC_INTEL_BXTP_IVI_RSE_MACH
         tristate "ASoC Audio driver for BXTP IVI RSE with Dummy Codecs"
         select SND_SOC_INTEL_SST
         select SND_SOC_INTEL_SKYLAKE
+	select SND_SOC_COMPRESS
         default n
         help
         This adds support for ASoC machine driver for Broxton-P platforms
@@ -221,6 +225,7 @@ config SND_SOC_INTEL_BXT_RT298_MACH
         select SND_SOC_INTEL_SKYLAKE
         select SND_SOC_RT298
         select SND_SOC_DMIC
+	select SND_SOC_COMPRESS
         default n
         help
         This adds support for ASoC machine driver for Broxton platforms
@@ -242,6 +247,7 @@ config SND_SOC_INTEL_CNL_WM8281_MACH
 	select SND_SOC_INTEL_SST
 	select SND_SOC_INTEL_SKYLAKE
 	select SND_SOC_DMIC
+	select SND_SOC_COMPRESS
         help
         This adds support for ASoC machine driver . This will create an alsa
         sound card.
