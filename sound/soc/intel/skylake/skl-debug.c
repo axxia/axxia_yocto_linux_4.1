@@ -235,8 +235,8 @@ static ssize_t module_read(struct file *file, char __user *user_buf,
 			mconfig->max_out_queue,
 			mconfig->is_loadable ? "loadable" : "inbuilt");
 
-	ret += skl_print_fmt(&mconfig->in_fmt, buf, ret, true);
-	ret += skl_print_fmt(&mconfig->out_fmt, buf, ret, false);
+	ret += skl_print_fmt(mconfig->in_fmt, buf, ret, true);
+	ret += skl_print_fmt(mconfig->out_fmt, buf, ret, false);
 
 	ret += snprintf(buf + ret, MOD_BUF - ret,
 			"Fixup:\n\tParams %x\n\tConverter %x\n",
