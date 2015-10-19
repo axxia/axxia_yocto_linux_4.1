@@ -946,15 +946,11 @@ static int skl_tplg_be_set_src_pipe_params(struct snd_soc_dai *dai,
 		if (p->connect && is_skl_dsp_widget_type(p->source) &&
 						p->source->priv) {
 
-			if (!p->source->power) {
-				ret = skl_tplg_be_fill_pipe_params(
-						dai, p->source->priv,
-						params);
-				if (ret < 0)
-					return ret;
-			} else {
-				return -EBUSY;
-			}
+			ret = skl_tplg_be_fill_pipe_params(
+					dai, p->source->priv,
+					params);
+			if (ret < 0)
+				return ret;
 		} else {
 			ret = skl_tplg_be_set_src_pipe_params(
 						dai, p->source,	params);
@@ -976,15 +972,10 @@ static int skl_tplg_be_set_sink_pipe_params(struct snd_soc_dai *dai,
 		if (p->connect && is_skl_dsp_widget_type(p->sink) &&
 						p->sink->priv) {
 
-			if (!p->sink->power) {
-				ret = skl_tplg_be_fill_pipe_params(
-						dai, p->sink->priv, params);
-				if (ret < 0)
-					return ret;
-			} else {
-				return -EBUSY;
-			}
-
+			ret = skl_tplg_be_fill_pipe_params(
+					dai, p->sink->priv, params);
+			if (ret < 0)
+				return ret;
 		} else {
 			ret = skl_tplg_be_set_sink_pipe_params(
 						dai, p->sink, params);
