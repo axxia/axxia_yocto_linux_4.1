@@ -137,52 +137,12 @@ static int skl_acquire_irq(struct hdac_ext_bus *ebus, int do_disconnect)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-/*
- * power management
- */
-static int skl_suspend(struct device *dev)
-{
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
-
-	snd_hdac_bus_stop_chip(bus);
-	snd_hdac_bus_enter_link_reset(bus);
-
-	return 0;
-}
-
-static int skl_resume(struct device *dev)
-{
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct skl *hda = ebus_to_skl(ebus);
-
-	skl_init_pci(hda);
-
-	snd_hdac_bus_init_chip(bus, 1);
-
-	return 0;
-}
-#endif /* CONFIG_PM_SLEEP */
-
 #ifdef CONFIG_PM
-static int skl_runtime_suspend(struct device *dev)
+static int _skl_suspend(struct hdac_ext_bus *ebus)
 {
-	struct pci_dev *pci = to_pci_dev(dev);
-	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	int ret;
-
-	dev_dbg(bus->dev, "in %s\n", __func__);
-
-#if 0
-	/* enable controller wake up event */
-	snd_hdac_chip_updatew(bus, WAKEEN, 0, STATESTS_INT_MASK);
-#endif
 
 	snd_hdac_ext_bus_link_power_down_all(ebus);
 
@@ -196,12 +156,61 @@ static int skl_runtime_suspend(struct device *dev)
 	return 0;
 }
 
+static int _skl_resume(struct hdac_ext_bus *ebus)
+{
+	struct skl *skl = ebus_to_skl(ebus);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+
+	skl_init_pci(skl);
+	snd_hdac_bus_init_chip(bus, true);
+
+	return skl_resume_dsp(skl);
+}
+#endif
+
+#ifdef CONFIG_PM_SLEEP
+/*
+ * power management
+ */
+static int skl_suspend(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+
+	return _skl_suspend(ebus);
+}
+
+static int skl_resume(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+
+	return _skl_resume(ebus);
+}
+#endif /* CONFIG_PM_SLEEP */
+
+#ifdef CONFIG_PM
+static int skl_runtime_suspend(struct device *dev)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+
+	dev_dbg(bus->dev, "in %s\n", __func__);
+
+#if 0
+	/* enable controller wake up event */
+	snd_hdac_chip_updatew(bus, WAKEEN, 0, STATESTS_INT_MASK);
+#endif
+
+	return _skl_suspend(ebus);
+}
+
 static int skl_runtime_resume(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct skl *skl = ebus_to_skl(ebus);
 	int status;
 
 	dev_dbg(bus->dev, "in %s\n", __func__);
@@ -209,13 +218,11 @@ static int skl_runtime_resume(struct device *dev)
 	/* Read STATESTS before controller reset */
 	status = snd_hdac_chip_readw(bus, STATESTS);
 
-	skl_init_pci(skl);
-	snd_hdac_bus_init_chip(bus, true);
 #if 0
 	/* disable controller Wake Up event */
 	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, 0);
 #endif
-	return skl_resume_dsp(skl);
+	return _skl_resume(ebus);
 }
 #endif /* CONFIG_PM */
 
