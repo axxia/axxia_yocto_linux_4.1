@@ -129,13 +129,13 @@ static int skl_dsp_prepare(struct device *dev, unsigned int format,
 static int skl_dsp_trigger(struct device *dev, bool start, int stream_tag)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
+	struct hdac_stream *stream;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	struct hdac_stream *stream = snd_hdac_get_hdac_stream(bus,
-					SNDRV_PCM_STREAM_PLAYBACK, stream_tag);
-
 	if (!bus)
 		return -ENODEV;
 
+	stream = snd_hdac_get_hdac_stream(bus,
+					SNDRV_PCM_STREAM_PLAYBACK, stream_tag);
 	if (!stream)
 		return -EINVAL;
 
@@ -148,14 +148,14 @@ static int skl_dsp_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
 								int stream_tag)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dev);
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_stream *stream;
 	struct hdac_ext_stream *estream;
-	struct hdac_stream *stream = snd_hdac_get_hdac_stream(bus,
-					SNDRV_PCM_STREAM_PLAYBACK, stream_tag);
-
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	if (!bus)
 		return -ENODEV;
 
+	stream = snd_hdac_get_hdac_stream(bus,
+					SNDRV_PCM_STREAM_PLAYBACK, stream_tag);
 	if (!stream)
 		return -EINVAL;
 
@@ -171,6 +171,7 @@ static int skl_dsp_cleanup(struct device *dev, struct snd_dma_buffer *dmab,
 static struct skl_dsp_loader_ops skl_get_loader_ops(void)
 {
 	struct skl_dsp_loader_ops loader_ops;
+	memset(&loader_ops,0,sizeof(struct skl_dsp_loader_ops));
 
 	loader_ops.alloc_dma_buf = skl_alloc_dma_buf;
 	loader_ops.free_dma_buf = skl_free_dma_buf;
@@ -181,6 +182,7 @@ static struct skl_dsp_loader_ops skl_get_loader_ops(void)
 static struct skl_dsp_loader_ops bxt_get_loader_ops(void)
 {
 	struct skl_dsp_loader_ops loader_ops;
+	memset(&loader_ops,0,sizeof(struct skl_dsp_loader_ops));
 
 	loader_ops.alloc_dma_buf = skl_alloc_dma_buf;
 	loader_ops.free_dma_buf = skl_free_dma_buf;
@@ -246,7 +248,7 @@ int skl_init_dsp(struct skl *skl)
 	return ret;
 }
 
-void skl_free_dsp(struct skl *skl)
+int skl_free_dsp(struct skl *skl)
 {
 	struct hdac_ext_bus *ebus = &skl->ebus;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
@@ -264,6 +266,7 @@ void skl_free_dsp(struct skl *skl)
 
 	if (ctx->dsp->addr.lpe)
 		iounmap(ctx->dsp->addr.lpe);
+	return 0;
 }
 
 int skl_suspend_dsp(struct skl *skl)

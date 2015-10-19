@@ -211,7 +211,7 @@ struct ipc_message *sst_ipc_reply_find_msg(struct sst_generic_ipc *ipc,
 	u64 header)
 {
 	struct ipc_message *msg;
-	u64 mask;
+	u64 mask = 0x0;
 
 	if (ipc->ops.reply_msg_match != NULL)
 		header = ipc->ops.reply_msg_match(header, &mask);

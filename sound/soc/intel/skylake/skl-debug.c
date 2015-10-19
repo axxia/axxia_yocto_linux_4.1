@@ -176,10 +176,10 @@ static int skl_init_nhlt(struct skl_debug *d)
 	}
 
 	for (i = 0; i < MAX_SSP; i++) {
-		sprintf(name, "ssp%dp", i);
+		snprintf(name, (sizeof(name)-1),"ssp%dp", i);
 		if (!debugfs_create_file(name, 0644, d->nhlt, &d->ssp_blob[i], &nhlt_fops))
 			dev_err(d->dev, "%s: debugfs init failed\n", name);
-		sprintf(name, "ssp%dc", i);
+		snprintf(name, (sizeof(name)-1),"ssp%dc", i);
 		if (!debugfs_create_file(name, 0644, d->nhlt, &d->ssp_blob[MAX_SSP + i], &nhlt_fops))
 			dev_err(d->dev, "%s: debugfs init failed\n", name);
 	}
