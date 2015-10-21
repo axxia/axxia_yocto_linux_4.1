@@ -5406,6 +5406,7 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int pipe = intel_crtc->pipe, hsw_workaround_pipe;
 	enum transcoder cpu_transcoder = intel_crtc->config->cpu_transcoder;
+	u32 bottom;
 
 	if (WARN_ON(intel_crtc->active))
 		return;
@@ -5509,6 +5510,11 @@ static void haswell_crtc_enable(struct intel_crtc_state *pipe_config,
 	if (IS_HASWELL(dev) && hsw_workaround_pipe != INVALID_PIPE) {
 		intel_wait_for_vblank(dev, hsw_workaround_pipe);
 		intel_wait_for_vblank(dev, hsw_workaround_pipe);
+	}
+
+	if (INTEL_INFO(dev)->gen >= 9) {
+		bottom = (PIPE_BOTTOM_CSC_ENABLE | PIPE_BOTTOM_GAMMA_ENABLE);
+		I915_WRITE(PIPE_BOTTOM_COLOR(pipe), bottom);
 	}
 }
 
