@@ -44,6 +44,7 @@ struct rt298_priv {
 	struct i2c_client *i2c;
 	struct snd_soc_jack *jack;
 	struct delayed_work jack_detect_work;
+	struct delayed_work rt298_toggle_work;
 	int sys_clk;
 	int clk_id;
 	int is_hp_in;
@@ -83,8 +84,6 @@ static const struct reg_default rt298_reg[] = {
 	{ 0x00370500, 0x00000400 },
 	{ 0x00870500, 0x00000400 },
 	{ 0x00920000, 0x00000031 },
-	{ 0x00935000, 0x000000c3 },
-	{ 0x00936000, 0x000000c3 },
 	{ 0x00970500, 0x00000400 },
 	{ 0x00b37000, 0x00000097 },
 	{ 0x00b37200, 0x00000097 },
@@ -295,6 +294,18 @@ static int rt298_jack_detect(struct rt298_priv *rt298, bool *hp, bool *mic)
 	return 0;
 }
 
+static void do_rt298_toggle_work(struct work_struct *work)
+{
+	struct rt298_priv *rt298 =
+		container_of(work, struct rt298_priv, rt298_toggle_work.work);
+	int i, val;
+
+	for (i = 0; i < 6 ; i++) {
+		regmap_read(rt298->regmap, RT298_POWER_CTRL1, &val);
+		msleep(100);
+	}
+}
+
 static void rt298_jack_detect_work(struct work_struct *work)
 {
 	struct rt298_priv *rt298 =
@@ -473,20 +484,15 @@ static int rt298_adc_event(struct snd_soc_dapm_widget *w,
 			     struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
-	unsigned int nid;
-
-	nid = (w->reg >> 20) & 0xff;
+	struct rt298_priv *rt298 = snd_soc_codec_get_drvdata(codec);
 
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
-		snd_soc_update_bits(codec,
-			VERB_CMD(AC_VERB_SET_AMP_GAIN_MUTE, nid, 0),
-			0x7080, 0x7000);
+		schedule_delayed_work(&rt298->rt298_toggle_work,
+					msecs_to_jiffies(50));
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		snd_soc_update_bits(codec,
-			VERB_CMD(AC_VERB_SET_AMP_GAIN_MUTE, nid, 0),
-			0x7080, 0x7080);
+		cancel_delayed_work_sync(&rt298->rt298_toggle_work);
 		break;
 	default:
 		return 0;
@@ -1002,6 +1008,8 @@ static int rt298_probe(struct snd_soc_codec *codec)
 					msecs_to_jiffies(1250));
 	}
 
+	INIT_DELAYED_WORK(&rt298->rt298_toggle_work, do_rt298_toggle_work);
+
 	return 0;
 }
 
@@ -1183,6 +1191,10 @@ static int rt298_i2c_probe(struct i2c_client *i2c,
 	for (i = 0; i < ARRAY_SIZE(rt298_reg); i++)
 		regmap_write(rt298->regmap, rt298_reg[i].reg,
 				rt298_reg[i].def);
+
+	regmap_update_bits(rt298->regmap,
+			VERB_CMD(AC_VERB_SET_AMP_GAIN_MUTE, RT298_ADC_IN1, 0),
+			0x7080, 0x7000);
 
 	if (pdata)
 		rt298->pdata = *pdata;
