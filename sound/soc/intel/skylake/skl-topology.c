@@ -2025,8 +2025,8 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->formats_config.caps_size = dfw_config->caps.caps_size;
 
 	if (dfw_config->is_loadable)
-		memcpy(mconfig->guid, dfw_config->guid,
-					ARRAY_SIZE(dfw_config->guid));
+		memcpy(mconfig->guid, dfw_config->uuid,
+					ARRAY_SIZE(dfw_config->uuid));
 
 	mconfig->m_in_pin = devm_kzalloc(bus->dev, (mconfig->max_in_queue) *
 						sizeof(*mconfig->m_in_pin),

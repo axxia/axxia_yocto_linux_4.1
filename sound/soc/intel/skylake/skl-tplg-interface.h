@@ -203,7 +203,8 @@ struct skl_dfw_pipe {
 } __packed;
 
 struct skl_dfw_module {
-	char guid[SKL_MOD_NAME];
+	char uuid[SKL_UUID_STR_SZ];
+
 	u16 module_id;
 	u16 instance_id;
 	u32 max_mcps;
