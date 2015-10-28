@@ -52,6 +52,19 @@
 #include <drm/drmP.h>
 #include "i915_drv.h"
 
+struct drm_i915_mocs_entry {
+	u32	control_value;
+	u16	l3cc_value;
+};
+
+struct drm_i915_mocs_table {
+	u32					size;
+	const struct drm_i915_mocs_entry	*table;
+};
+
+bool get_mocs_settings(struct drm_device *dev,
+			struct drm_i915_mocs_table *table);
+
 int intel_rcs_context_init_mocs(struct drm_i915_gem_request *req);
 
 #endif

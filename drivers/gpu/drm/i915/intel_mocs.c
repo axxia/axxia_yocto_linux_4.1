@@ -24,17 +24,6 @@
 #include "intel_lrc.h"
 #include "intel_ringbuffer.h"
 
-/* structures required */
-struct drm_i915_mocs_entry {
-	u32 control_value;
-	u16 l3cc_value;
-};
-
-struct drm_i915_mocs_table {
-	u32 size;
-	const struct drm_i915_mocs_entry *table;
-};
-
 /* Defines for the tables (XXX_MOCS_0 - XXX_MOCS_63) */
 #define LE_CACHEABILITY(value)	((value) << 0)
 #define LE_TGT_CACHE(value)	((value) << 2)
@@ -125,39 +114,6 @@ static const struct drm_i915_mocs_entry broxton_mocs_table[] = {
 	   LE_AOM(0) | LE_RSC(0) | LE_SCC(0) | LE_PFM(0) | LE_SCF(0)),
 	  (L3_ESC(0) | L3_SCC(0) | L3_CACHEABILITY(L3_WB)) }
 };
-
-/**
- * get_mocs_settings()
- * @dev:        DRM device.
- * @table:      Output table that will be made to point at appropriate
- *              MOCS values for the device.
- *
- * This function will return the values of the MOCS table that needs to
- * be programmed for the platform. It will return the values that need
- * to be programmed and if they need to be programmed.
- *
- * Return: true if there are applicable MOCS settings for the device.
- */
-static bool get_mocs_settings(struct drm_device *dev,
-			      struct drm_i915_mocs_table *table)
-{
-	bool result = false;
-
-	if (IS_SKYLAKE(dev) || IS_KABYLAKE(dev)) {
-		table->size  = ARRAY_SIZE(skylake_mocs_table);
-		table->table = skylake_mocs_table;
-		result = true;
-	} else if (IS_BROXTON(dev)) {
-		table->size  = ARRAY_SIZE(broxton_mocs_table);
-		table->table = broxton_mocs_table;
-		result = true;
-	} else {
-		WARN_ONCE(INTEL_INFO(dev)->gen >= 9,
-			  "Platform that should have a MOCS table does not.\n");
-	}
-
-	return result;
-}
 
 static i915_reg_t mocs_register(enum intel_engine_id ring, int index)
 {
