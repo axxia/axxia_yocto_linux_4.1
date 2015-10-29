@@ -118,7 +118,6 @@ static int skylake_ssp0_fixup(struct snd_soc_pcm_runtime *rtd,
 	/* The output is 48KHz, stereo, 16bits */
 	rate->min = rate->max = 48000;
 	channels->min = channels->max = 2;
-	params_set_format(params, SNDRV_PCM_FORMAT_S16_LE);
 
 	/* set SSP0 to 24 bit */
 	snd_mask_none(fmt);
