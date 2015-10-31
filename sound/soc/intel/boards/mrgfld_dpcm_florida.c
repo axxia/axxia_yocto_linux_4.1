@@ -35,6 +35,7 @@
 #include <linux/async.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
+#include <linux/acpi.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -43,6 +44,7 @@
 
 #include <linux/mfd/arizona/registers.h>
 #include "../../codecs/wm5110.h"
+#include "../../codecs/wm8998.h"
 
 
 /* Codec PLL output clk rate */
@@ -60,7 +62,7 @@
 #define CODEC_IN_BCLK				3
 
 #define SLOT_MASK(x) ((1 << x) - 1)
-
+bool is_codec8998;
 struct mrgfld_mc_private {
 	u8		pmic_id;
 	void __iomem    *osc_clk0_reg;
@@ -111,9 +113,15 @@ static inline struct snd_soc_codec *mrgfld_florida_get_codec(struct snd_soc_card
 {
 	bool found = false;
 	struct snd_soc_codec *codec;
+	char *codec_name;
+
+	if (is_codec8998)
+		codec_name = "wm8998-codec";
+	else
+		codec_name = "wm5110-codec";
 
 	list_for_each_entry(codec, &card->codec_dev_list, card_list) {
-		if (!strstr(codec->component.name, "wm5110-codec")) {
+		if (!strstr(codec->component.name, codec_name)) {
 			pr_debug("codec was %s", codec->component.name);
 			continue;
 		} else {
@@ -269,7 +277,7 @@ static const struct snd_soc_dapm_widget mrgfld_widgets[] = {
 
 };
 
-static const struct snd_soc_dapm_route mrgfld_map[] = {
+static const struct snd_soc_dapm_route mrgfld_wm5110_map[] = {
 	/*Headphones*/
 	{ "Headphones", NULL, "HPOUT1L" },
 	{ "Headphones", NULL, "HPOUT1R" },
@@ -308,6 +316,74 @@ static const struct snd_soc_dapm_route mrgfld_map[] = {
 	{"Tone Generator 2", NULL, "Platform Clock" },
 };
 
+
+static const struct snd_soc_dapm_route mrgfld_wm8998_map[] = {
+	/*Headphones*/
+	{ "Headphones", NULL, "HPOUTL" },
+	{ "Headphones", NULL, "HPOUTR" },
+
+	/*Speakers*/
+	{"Ext Spk", NULL, "SPKOUTLP"},
+	{"Ext Spk", NULL, "SPKOUTLN"},
+	{"Ext Spk", NULL, "SPKOUTRP"},
+	{"Ext Spk", NULL, "SPKOUTRN"},
+
+	/*Earpiece*/
+	{ "EP", NULL, "EPOUTN" },
+	{ "EP", NULL, "EPOUTP" },
+
+	{"IN3L", NULL, "DMIC"},
+	{"IN3R", NULL, "DMIC"},
+	{"DMIC", NULL, "MICVDD"},
+
+	{ "AMIC", NULL, "MICBIAS2" },
+	{ "AMIC", NULL, "MICBIAS1" },
+	{ "IN2B", NULL, "AMIC" },
+        { "DMic", NULL, "SoC DMIC"},
+
+	/* SWM map link the SWM outs to codec AIF */
+	{ "AIF1 Playback", NULL, "ssp0 Tx"},
+	{ "ssp0 Tx", NULL, "codec1_out"},
+	{ "ssp0 Tx", NULL, "codec0_out"},
+
+	{ "ssp0 Rx", NULL, "AIF1 Capture" },
+	{ "codec0_in", NULL, "ssp0 Rx" },
+	{ "codec1_in", NULL, "ssp0 Rx" },
+
+	{ "DMIC01 Rx", NULL, "Capture" },
+	{ "DMIC23 Rx", NULL, "Capture" },
+	{ "dmic01_hifi", NULL, "DMIC01 Rx" },
+	{ "dmic23_hifi", NULL, "DMIC23 Rx" },
+
+	/* TODO: map for rest of the ports */
+
+	{ "hif1", NULL, "iDisp Tx"},
+	{ "iDisp Tx", NULL, "idisp_out"},
+
+	/* Modem0 Path */
+	{ "Dummy Playback", NULL, "ssp3 Tx"},
+	{ "ssp3 Tx", NULL, "modem0_out"},
+
+	{ "modem0_in", NULL, "ssp3 Rx" },
+	{ "ssp3 Rx", NULL, "Dummy Capture" },
+
+	/* Bt Path */
+	{ "Dummy Playback", NULL, "ssp1 Tx"},
+	{ "ssp1 Tx", NULL, "bt_out"},
+
+	{ "bt_in", NULL, "ssp1 Rx" },
+	{ "ssp1 Rx", NULL, "Dummy Capture" },
+
+	{"Headphones", NULL, "Platform Clock"},
+	{"AMIC", NULL, "Platform Clock"},
+	{"DMIC", NULL, "Platform Clock"},
+	{"Ext Spk", NULL, "Platform Clock"},
+	{"EP", NULL, "Platform Clock"},
+	{"Tone Generator 1", NULL, "Platform Clock" },
+	{"Tone Generator 2", NULL, "Platform Clock" },
+};
+
+
 static const char * const mrgfld_a2dp_nb_wb_texts[] = {
 	"A2DP profile", "WB Profile", "NB profile",
 };
@@ -330,10 +406,22 @@ static int mrgfld_florida_init(struct snd_soc_pcm_runtime *runtime)
 	int ret;
 	unsigned int fmt;
 	struct snd_soc_card *card = runtime->card;
-	struct snd_soc_dai *florida_dai = mrgfld_florida_get_codec_dai(card, "wm5110-aif1");
-
+	char *dai_name;
+	struct snd_soc_dai *florida_dai;
 
 	pr_info("Entry %s\n", __func__);
+
+	if (is_codec8998)
+		dai_name = "wm8998-aif1";
+	else
+		dai_name = "wm5110-aif1";
+
+	florida_dai = mrgfld_florida_get_codec_dai(card, dai_name);
+
+	if (!florida_dai) {
+		pr_err("%s: florida dai not found\n", __func__);
+		return -EINVAL;
+	}
 
 	ret = snd_soc_dai_set_tdm_slot(florida_dai, 0, 0, 4, 24);
 	/* slot width is set as 25, SNDRV_PCM_FORMAT_S32_LE */
@@ -507,6 +595,74 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 	},
 };
 
+struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
+	{
+		.name = "Bxtn Audio Port",
+		.stream_name = "Audio",
+		.cpu_dai_name = "System Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:0e.0",
+		.init = mrgfld_florida_init,
+		.ignore_suspend = 1,
+		.nonatomic = 1,
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+		.ops = &mrgfld_florida_ops,
+	},
+	{
+		.name = "Bxtn DB Audio Port",
+		.stream_name = "Deep Buffer Audio",
+		.cpu_dai_name = "Deepbuffer Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:0e.0",
+		.dpcm_playback = 1,
+		.ignore_suspend = 1,
+		.nonatomic = 1,
+		.dynamic = 1,
+		.ops = &mrgfld_florida_ops,
+	},
+	/* back ends */
+	{
+		.name = "SSP0-Codec",
+		.be_id = 1,
+		.cpu_dai_name = "SSP0 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_name = "wm8998-codec",
+		.codec_dai_name = "wm8998-aif1",
+		.be_hw_params_fixup = mrgfld_florida_codec_fixup,
+		.ignore_suspend = 1,
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
+	},
+	{
+                .name = "dmic01",
+                .be_id = 2,
+                .cpu_dai_name = "DMIC01 Pin",
+                .codec_name = "dmic-codec",
+                .codec_dai_name = "dmic-hifi",
+                .platform_name = "0000:00:0e.0",
+                .ignore_suspend = 1,
+                .dpcm_capture = 1,
+                .no_pcm = 1,
+        },
+
+        {
+                .name = "dmic23",
+                .be_id = 3,
+                .cpu_dai_name = "DMIC23 Pin",
+                .codec_name = "dmic-codec",
+                .codec_dai_name = "dmic-hifi",
+                .platform_name = "0000:00:0e.0",
+                .ignore_suspend = 1,
+                .dpcm_capture = 1,
+                .no_pcm = 1,
+        },
+};
+
 #ifdef CONFIG_PM_SLEEP
 static int snd_mrgfld_florida_prepare(struct device *dev)
 {
@@ -538,30 +694,84 @@ static struct snd_soc_card snd_soc_card_mrgfld = {
 	.num_links = ARRAY_SIZE(mrgfld_florida_msic_dailink),
 	.dapm_widgets = mrgfld_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(mrgfld_widgets),
-	.dapm_routes = mrgfld_map,
-	.num_dapm_routes = ARRAY_SIZE(mrgfld_map),
+	.dapm_routes =  mrgfld_wm5110_map,
+	.num_dapm_routes = ARRAY_SIZE(mrgfld_wm5110_map),
 };
+
+static struct snd_soc_card snd_soc_card_wm8998_mrgfld = {
+	.name = "wm8998-audio",
+	.dai_link =  mrgfld_wm8998_msic_dailink,
+	.num_links = ARRAY_SIZE(mrgfld_wm8998_msic_dailink),
+	.dapm_widgets = mrgfld_widgets,
+	.num_dapm_widgets = ARRAY_SIZE(mrgfld_widgets),
+	.dapm_routes = mrgfld_wm8998_map,
+	.num_dapm_routes = ARRAY_SIZE(mrgfld_wm8998_map),
+};
+
+static char *bxtn_machines[] = {"INT34C1", "INT34E0"};
+
+static acpi_status sst_acpi_mach_match(void *handle, u32 level,
+						void *context, void **ret)
+{
+	*(bool *)context = true;
+	return AE_OK;
+}
+
+static int  sst_acpi_find_machine(char **machine)
+{
+	char **mach;
+	bool found = false;
+
+	for (mach = bxtn_machines; *mach; mach++)
+		if (!(acpi_get_devices(*mach, sst_acpi_mach_match,
+					&found, NULL)) && found) {
+			*machine = *mach;
+			pr_debug("Found machine ID = %s", *machine);
+			return 0;
+		}
+	return -ENODEV;
+}
 
 static int snd_mrgfld_florida_mc_probe(struct platform_device *pdev)
 {
 	int ret_val = 0;
 	struct mrgfld_mc_private *drv;
+	char *codec_id = NULL;
+	struct snd_soc_card *card_mrgfld = NULL;
+	int codec_found;
 
 	pr_debug("Entry %s\n", __func__);
+
+	codec_found = sst_acpi_find_machine(&codec_id);
+	if (codec_id == NULL) {
+		pr_err("Codec not found\n");
+		return codec_found;
+	}
+
+	if (strncmp(codec_id, "INT34C1", strlen("INT34C1")) == 0) {
+		pr_err("GP:: ========================================CODEC WM8281==================================== \n");
+		is_codec8998 = false;
+		card_mrgfld = &snd_soc_card_mrgfld;
+	} else if (strncmp(codec_id, "INT34E0", strlen("INT34E0")) == 0) {
+		pr_err("GP:: ******************************************CODEC WM8998****************************** \n");
+		is_codec8998 = true;
+		card_mrgfld = &snd_soc_card_wm8998_mrgfld;
+	} else
+		return -ENODEV;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_ATOMIC);
 	if (!drv)
 		return -ENOMEM;
 
-	snd_soc_card_mrgfld.dev = &pdev->dev;
-	snd_soc_card_set_drvdata(&snd_soc_card_mrgfld, drv);
+	card_mrgfld->dev = &pdev->dev;
+	snd_soc_card_set_drvdata(card_mrgfld, drv);
 	/* Register the card */
-	ret_val = snd_soc_register_card(&snd_soc_card_mrgfld);
+	ret_val = snd_soc_register_card(card_mrgfld);
 	if (ret_val) {
 		pr_err("snd_soc_register_card failed %d\n", ret_val);
 		goto unalloc;
 	}
-	platform_set_drvdata(pdev, &snd_soc_card_mrgfld);
+	platform_set_drvdata(pdev, card_mrgfld);
 	pr_info("%s successful\n", __func__);
 	return ret_val;
 

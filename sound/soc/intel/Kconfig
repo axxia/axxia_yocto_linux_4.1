@@ -151,8 +151,10 @@ config SND_SOC_INTEL_BXT_MRGFLD_MACH
         select SND_SOC_WM_ADSP
         select SND_SOC_ARIZONA
         select SND_SOC_WM5110
+	select SND_SOC_WM8998
         select MFD_ARIZONA_I2C
         select MFD_WM5110
+	select MFD_WM8998
         select REGULATOR_ARIZONA
         select GPIO_ARIZONA
 	select SND_SOC_INTEL_SST

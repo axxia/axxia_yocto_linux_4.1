@@ -662,6 +662,7 @@ static struct sst_machines sst_skl_devdata[] = {
 
 static struct sst_machines sst_bxt_devdata[] = {
 	{ "INT34C1", "mrgfld_florida" },
+	{ "INT34E0", "mrgfld_florida" },
 };
 
 /* PCI IDs */
