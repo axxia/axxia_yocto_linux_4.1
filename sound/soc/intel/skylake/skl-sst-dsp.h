@@ -73,7 +73,7 @@ struct sst_dsp_device;
 #define SKL_ADSPIS_IPC			1
 
 /* ADSPCS - Audio DSP Control & Status */
-#define SKL_DSP_CORES		1
+#define SKL_DSP_CORES		2
 #define SKL_DSP_CORE0_MASK	1
 #define SKL_DSP_CORES_MASK	((1 << SKL_DSP_CORES) - 1)
 
