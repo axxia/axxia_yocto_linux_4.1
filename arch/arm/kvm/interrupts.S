@@ -50,7 +50,8 @@ ENTRY(__kvm_tlb_flush_vmid_ipa)
 	push	{r2, r3}
 
 	dsb	ishst
-	add	r0, r0, #KVM_VTTBR
+	ldr	r2, =KVM_VTTBR
+	add	r0, r0, r2
 	ldrd	r2, r3, [r0]
 	mcrr	p15, 6, rr_lo_hi(r2, r3), c2	@ Write VTTBR
 	isb
@@ -144,7 +145,8 @@ ENTRY(__kvm_vcpu_run)
 
 	@ Set up guest memory translation
 	ldr	r1, [vcpu, #VCPU_KVM]
-	add	r1, r1, #KVM_VTTBR
+	ldr	r2, =KVM_VTTBR
+	add	r1, r1, r2
 	ldrd	r2, r3, [r1]
 	mcrr	p15, 6, rr_lo_hi(r2, r3), c2	@ Write VTTBR
 
