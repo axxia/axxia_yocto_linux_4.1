@@ -124,24 +124,78 @@ static struct snd_soc_codec_driver dummy_codec = {
 			SNDRV_PCM_FMTBIT_U32_LE | \
 			SNDRV_PCM_FMTBIT_IEC958_SUBFRAME_LE)
 
-static struct snd_soc_dai_driver dummy_dai = {
-	.name = "snd-soc-dummy-dai",
-	.playback = {
-		.stream_name	= "Dummy Playback",
-		.channels_min	= 1,
-		.channels_max	= 384,
-		.rates		= STUB_RATES,
-		.formats	= STUB_FORMATS,
+static struct snd_soc_dai_driver dummy_dai[] = {
+	{
+		.name = "snd-soc-dummy-dai",
+		.playback = {
+			.stream_name	= "Dummy Playback",
+			.channels_min	= 1,
+			.channels_max	= 384,
+			.rates		= STUB_RATES,
+			.formats	= STUB_FORMATS,
+		},
+		.capture = {
+			.stream_name	= "Dummy Capture",
+			.channels_min	= 1,
+			.channels_max	= 384,
+			.rates = STUB_RATES,
+			.formats = STUB_FORMATS,
+	 	},
 	},
-	.capture = {
-		.stream_name	= "Dummy Capture",
-		.channels_min	= 1,
-		.channels_max	= 384,
-		.rates = STUB_RATES,
-		.formats = STUB_FORMATS,
-	 },
-};
+	{
+		.name = "snd-soc-dummy-dai1",
+		.playback = {
+			.stream_name	= "Dummy Playback1",
+			.channels_min	= 1,
+			.channels_max	= 384,
+			.rates		= STUB_RATES,
+			.formats	= STUB_FORMATS,
+		},
+		.capture = {
+			.stream_name	= "Dummy Capture1",
+			.channels_min	= 1,
+			.channels_max	= 384,
+			.rates = STUB_RATES,
+			.formats = STUB_FORMATS,
+		},
+	},
+        {
+                .name = "snd-soc-dummy-dai2",
+                .playback = {
+                        .stream_name    = "Dummy Playback2",
+                        .channels_min   = 1,
+                        .channels_max   = 384,
+                        .rates          = STUB_RATES,
+                        .formats        = STUB_FORMATS,
+                },
+                .capture = {
+                        .stream_name    = "Dummy Capture2",
+                        .channels_min   = 1,
+                        .channels_max   = 384,
+                        .rates = STUB_RATES,
+                        .formats = STUB_FORMATS,
+                },
+        },
+        {
+                .name = "snd-soc-dummy-dai3",
+                .playback = {
+                        .stream_name    = "Dummy Playback3",
+                        .channels_min   = 1,
+                        .channels_max   = 384,
+                        .rates          = STUB_RATES,
+                        .formats        = STUB_FORMATS,
+                },
+                .capture = {
+                        .stream_name    = "Dummy Capture3",
+                        .channels_min   = 1,
+                        .channels_max   = 384,
+                        .rates = STUB_RATES,
+                        .formats = STUB_FORMATS,
+                },
+        },
 
+
+};
 int snd_soc_dai_is_dummy(struct snd_soc_dai *dai)
 {
 	if (dai->driver == &dummy_dai)
@@ -153,7 +207,10 @@ static int snd_soc_dummy_probe(struct platform_device *pdev)
 {
 	int ret;
 
-	ret = snd_soc_register_codec(&pdev->dev, &dummy_codec, &dummy_dai, 1);
+	ret = snd_soc_register_codec(&pdev->dev,
+				&dummy_codec,
+				dummy_dai,
+				ARRAY_SIZE(dummy_dai));
 	if (ret < 0)
 		return ret;
 
