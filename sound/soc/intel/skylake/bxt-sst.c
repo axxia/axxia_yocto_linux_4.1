@@ -46,7 +46,10 @@
 #define BXT_INSTANCE_ID 0
 #define BXT_BASE_FW_MODULE_ID 0
 
-#define BXT_HDA_ADSP_SRAM0_BASE	0x80000
+#define BXT_ADSP_SRAM1_BASE	0xA0000
+#define BXT_ADSP_W0_STAT_SZ	0x800
+#define BXT_ADSP_W0_UP_SZ	0x800
+#define BXT_ADSP_W1_SZ  0x1000
 
 static int bxt_load_base_firmware(struct sst_dsp *ctx);
 static int bxt_set_dsp_D0(struct sst_dsp *ctx);
@@ -108,8 +111,8 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	sst->addr.lpe = mmio_base;
 	sst->addr.shim = mmio_base;
 
-	sst_dsp_mailbox_init(sst, (BXT_ADSP_SRAM0_BASE + SKL_ADSP_W0_STAT_SZ),
-			SKL_ADSP_W0_UP_SZ, BXT_HDA_ADSP_SRAM0_BASE + SKL_ADSP_W1_SZ, SKL_ADSP_W1_SZ);
+	sst_dsp_mailbox_init(sst, (BXT_ADSP_SRAM0_BASE + BXT_ADSP_W0_STAT_SZ),
+			BXT_ADSP_W0_UP_SZ, BXT_ADSP_SRAM1_BASE, BXT_ADSP_W1_SZ);
 
 	ret = skl_ipc_init(dev, skl);
 	if (ret)
