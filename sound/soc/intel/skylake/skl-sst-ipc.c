@@ -509,7 +509,7 @@ int skl_ipc_init(struct device *dev, struct skl_sst *skl)
 	ipc->dev = dev;
 
 	ipc->tx_data_max_size = SKL_ADSP_W1_SZ;
-	ipc->rx_data_max_size = SKL_ADSP_W0_UP_SZ;
+	ipc->rx_data_max_size = skl->dsp->mailbox.in_size;
 
 	err = sst_ipc_init(ipc);
 	if (err)
