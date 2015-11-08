@@ -1102,5 +1102,5 @@ int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
 	msg.large_param_id = param_id;
 
 	dev_dbg(ctx->dev, "getting module params size=%d\n", size);
-	return skl_ipc_get_large_config(&ctx->ipc, &msg, params);
+	return skl_ipc_get_large_config(&ctx->ipc, &msg, params, NULL, 0);
 }
