@@ -1441,7 +1441,7 @@ intel_dp_compute_config(struct intel_encoder *encoder,
 	struct intel_crtc *intel_crtc = to_intel_crtc(pipe_config->base.crtc);
 	struct intel_connector *intel_connector = intel_dp->attached_connector;
 	int lane_count, clock;
-	int min_lane_count = 1;
+	int min_lane_count = IS_BROXTON(dev) ? 2 : 1;
 	int max_lane_count = intel_dp_max_lane_count(intel_dp);
 	/* Conveniently, the link BW constants become indices with a shift...*/
 	int min_clock = 0;
