@@ -123,27 +123,28 @@ static int skl_load_base_firmware(struct sst_dsp *ctx)
 		dev_err(ctx->dev,
 			"Timeout waiting for ROM init done, reg:0x%x\n", reg);
 		ret = -EIO;
-		goto skl_load_base_firmware_failed;
+		goto transfer_firmware_failed;
 	}
 
 	ret = skl_transfer_firmware(ctx, ctx->fw->data, ctx->fw->size);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Transfer firmware failed%d\n", ret);
-		goto skl_load_base_firmware_failed;
+		goto transfer_firmware_failed;
 	} else {
 		ret = wait_event_timeout(skl->boot_wait, skl->boot_complete,
 					msecs_to_jiffies(SKL_IPC_BOOT_MSECS));
 		if (ret == 0) {
 			dev_err(ctx->dev, "DSP boot failed, FW Ready timed-out\n");
 			ret = -EIO;
-			goto skl_load_base_firmware_failed;
+			goto transfer_firmware_failed;
 		}
 
 		dev_dbg(ctx->dev, "Download firmware successful%d\n", ret);
 		skl_dsp_init_core_state(ctx);
 	}
 	return 0;
-
+transfer_firmware_failed:
+	ctx->cl_dev.ops.cl_cleanup_controller(ctx);
 skl_load_base_firmware_failed:
 	skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	release_firmware(ctx->fw);
@@ -507,7 +508,6 @@ void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {
 	skl_clear_module_table(ctx->dsp);
 	skl_ipc_free(&ctx->ipc);
-	ctx->dsp->cl_dev.ops.cl_cleanup_controller(ctx->dsp);
 	ctx->dsp->ops->free(ctx->dsp);
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_cleanup);
