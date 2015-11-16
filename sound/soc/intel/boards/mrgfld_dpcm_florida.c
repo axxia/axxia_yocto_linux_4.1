@@ -76,11 +76,12 @@ static const struct snd_soc_pcm_stream bxtn_florida_dai_params_codec = {
 	.channels_max = 2,
 };
 static const struct snd_soc_pcm_stream bxtn_florida_dai_params_modem = {
+	.stream_name = "modem-loop mono",
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
 	.rate_min = 48000,
 	.rate_max = 48000,
-	.channels_min = 2,
-	.channels_max = 2,
+	.channels_min = 1,
+	.channels_max = 1,
 };
 static const struct snd_soc_pcm_stream bxtn_florida_dai_params_bt = {
 	.formats = SNDRV_PCM_FMTBIT_S16_LE,
@@ -306,6 +307,13 @@ static const struct snd_soc_dapm_route mrgfld_wm5110_map[] = {
 	{ "DMIC23 Rx", NULL, "Capture" },
 	{ "dmic01_hifi", NULL, "DMIC01 Rx" },
 	{ "dmic23_hifi", NULL, "DMIC23 Rx" },
+
+	/* Modem0 Path */
+	{ "Dummy Playback", NULL, "ssp3 Tx"},
+	{ "ssp3 Tx", NULL, "modem0_out"},
+
+	{ "modem0_in", NULL, "ssp3 Rx" },
+	{ "ssp3 Rx", NULL, "Dummy Capture" },
 
 	{"Headphones", NULL, "Platform Clock"},
 	{"AMIC", NULL, "Platform Clock"},
@@ -555,6 +563,33 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.ops = &mrgfld_florida_ops,
 	},
 
+		/* CODEC<->CODEC link */
+	{
+		.name = "Bxtn Codec-Loop Port",
+		.stream_name = "Bxtn Codec-Loop",
+		.cpu_dai_name = "SSP0 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_name = "wm5110-codec",
+		.codec_dai_name = "wm5110-aif1",
+		.params = &bxtn_florida_dai_params_codec,
+		.dsp_loopback = true,
+		.dai_fmt = SND_SOC_DAIFMT_DSP_A |
+			SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+	},
+
+	{
+		.name = "Bxtn Modem-Loop Port",
+		.stream_name = "Bxtn Modem-Loop",
+		.cpu_dai_name = "SSP3 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.params = &bxtn_florida_dai_params_modem,
+		.dsp_loopback = true,
+		.ops = &mrgfld_florida_ops,
+	},
+
 	/* back ends */
 	{
 		.name = "SSP0-Codec",
@@ -622,6 +657,33 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 		.ignore_suspend = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
+		.ops = &mrgfld_florida_ops,
+	},
+
+		/* CODEC<->CODEC link */
+	{
+		.name = "Bxtn Codec-Loop Port",
+		.stream_name = "Bxtn Codec-Loop",
+		.cpu_dai_name = "SSP0 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_name = "wm8998-codec",
+		.codec_dai_name = "wm8998-aif1",
+		.params = &bxtn_florida_dai_params_codec,
+		.dsp_loopback = true,
+		.dai_fmt = SND_SOC_DAIFMT_DSP_A |
+			SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+	},
+
+	{
+		.name = "Bxtn Modem-Loop Port",
+		.stream_name = "Bxtn Modem-Loop",
+		.cpu_dai_name = "SSP3 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.params = &bxtn_florida_dai_params_modem,
+		.dsp_loopback = true,
 		.ops = &mrgfld_florida_ops,
 	},
 	/* back ends */
@@ -696,6 +758,7 @@ static struct snd_soc_card snd_soc_card_mrgfld = {
 	.num_dapm_widgets = ARRAY_SIZE(mrgfld_widgets),
 	.dapm_routes =  mrgfld_wm5110_map,
 	.num_dapm_routes = ARRAY_SIZE(mrgfld_wm5110_map),
+	.fully_routed = false,
 };
 
 static struct snd_soc_card snd_soc_card_wm8998_mrgfld = {
@@ -706,6 +769,7 @@ static struct snd_soc_card snd_soc_card_wm8998_mrgfld = {
 	.num_dapm_widgets = ARRAY_SIZE(mrgfld_widgets),
 	.dapm_routes = mrgfld_wm8998_map,
 	.num_dapm_routes = ARRAY_SIZE(mrgfld_wm8998_map),
+	.fully_routed = false,
 };
 
 static char *bxtn_machines[] = {"INT34C1", "INT34E0"};
