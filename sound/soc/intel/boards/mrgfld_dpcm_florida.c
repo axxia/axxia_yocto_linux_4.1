@@ -83,12 +83,31 @@ static const struct snd_soc_pcm_stream bxtn_florida_dai_params_modem = {
 	.channels_min = 1,
 	.channels_max = 1,
 };
-static const struct snd_soc_pcm_stream bxtn_florida_dai_params_bt = {
-	.formats = SNDRV_PCM_FMTBIT_S16_LE,
-	.rate_min = 48000,
-	.rate_max = 48000,
-	.channels_min = 2,
-	.channels_max = 2,
+static const struct snd_soc_pcm_stream bxtn_florida_dai_params_bt[] = {
+	{
+		.stream_name = "A2DP",
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		.rate_min = 48000,
+		.rate_max = 48000,
+		.channels_min = 2,
+		.channels_max = 2,
+	},
+	{
+		.stream_name = "Wide Band",
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		.rate_min = 16000,
+		.rate_max = 16000,
+		.channels_min = 1,
+		.channels_max = 1,
+	},
+	{
+		.stream_name = "Narrow Band",
+		.formats = SNDRV_PCM_FMTBIT_S16_LE,
+		.rate_min = 8000,
+		.rate_max = 8000,
+		.channels_min = 1,
+		.channels_max = 1,
+	},
 };
 
 /* set_osc_clk0-	enable/disables the osc clock0
@@ -314,6 +333,13 @@ static const struct snd_soc_dapm_route mrgfld_wm5110_map[] = {
 
 	{ "modem0_in", NULL, "ssp3 Rx" },
 	{ "ssp3 Rx", NULL, "Dummy Capture" },
+
+	/* Bt Path */
+	{ "Dummy Playback", NULL, "ssp1 Tx"},
+	{ "ssp1 Tx", NULL, "bt_out"},
+
+	{ "bt_in", NULL, "ssp1 Rx" },
+	{ "ssp1 Rx", NULL, "Dummy Capture" },
 
 	{"Headphones", NULL, "Platform Clock"},
 	{"AMIC", NULL, "Platform Clock"},
@@ -589,6 +615,19 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.dsp_loopback = true,
 		.ops = &mrgfld_florida_ops,
 	},
+
+	{
+		.name = "Bxtn BTFM-Loop Port",
+		.stream_name = "Bxtn BTFM-Loop",
+		.cpu_dai_name = "SSP1 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.params = &bxtn_florida_dai_params_bt,
+		.num_params = ARRAY_SIZE(bxtn_florida_dai_params_bt),
+		.dsp_loopback = true,
+	},
+
 
 	/* back ends */
 	{
