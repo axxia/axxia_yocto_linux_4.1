@@ -658,6 +658,10 @@ static struct sst_machines sst_bxt_devdata[] = {
 	{ "INT34E0", "mrgfld_florida" },
 };
 
+static struct sst_machines sst_bxtp_devdata[] = {
+	{ "INT343A", "bxt_alc298s_i2s" },
+};
+
 /* PCI IDs */
 static const struct pci_device_id skl_ids[] = {
 	/* Sunrise Point-LP */
@@ -666,6 +670,9 @@ static const struct pci_device_id skl_ids[] = {
 	/* BXT */
 	{ PCI_DEVICE(0x8086, 0x0a98),
 		.driver_data = (unsigned long)&sst_bxt_devdata},
+	/* BXT-P*/
+	{ PCI_DEVICE(0x8086, 0x5a98),
+		.driver_data = (unsigned long)&sst_bxtp_devdata},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, skl_ids);
