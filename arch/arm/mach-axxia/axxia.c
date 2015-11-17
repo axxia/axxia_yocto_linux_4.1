@@ -12,12 +12,12 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307	 USA
  */
 
 #include <linux/amba/bus.h>
@@ -36,37 +36,38 @@
 #include <linux/smsc911x.h>
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
+#include <linux/sizes.h>
+#include <linux/pmu.h>
+#include <linux/kexec.h>
 #ifdef CONFIG_ARM_ARCH_TIMER
 #include <asm/arch_timer.h>
 #endif
-#include <asm/sizes.h>
-#include <asm/pmu.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/kexec.h>
 #include <asm/mach/time.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <mach/hardware.h>
 #include <mach/timers.h>
 #include <mach/axxia-gic.h>
 #include <linux/irqchip/arm-gic.h>
-#include <linux/lsi-ncr.h>
 #include "axxia.h"
 #include "pci.h"
 #ifdef CONFIG_AXXIA_RIO
 #include <mach/rio.h>
 #endif
 
-static const char *const axxia_dt_match[] __initconst = {
+static const char *axxia_dt_match[] __initconst = {
 	"lsi,axm5500",
 	NULL
 };
 
 static void __iomem *base;
+void __iomem *dickens;
 
-#ifdef CONFIG_KEXEC
-
-//static void __iomem *dickens;
+#ifdef AXXIA_NCR_RESET_CHECK
+int ncr_reset_active;
+EXPORT_SYMBOL(ncr_reset_active);
+#endif
 
 static void set_l3_pstate(u32 newstate)
 {
@@ -81,7 +82,6 @@ static void set_l3_pstate(u32 newstate)
 
 	for (i = 0; i < ARRAY_SIZE(hnf); ++i) {
 		int retry;
-
 		for (retry = 10000; retry > 0; --retry) {
 			status = readl(dickens + (hnf[i] << 16) + 0x18);
 			if (((status >> 2) & 3) == newstate)
@@ -92,7 +92,7 @@ static void set_l3_pstate(u32 newstate)
 	}
 }
 
-static void
+void
 flush_l3(void)
 {
 	/* Switch to SFONLY to flush */
@@ -100,8 +100,6 @@ flush_l3(void)
 	/* ...and then back up again */
 	set_l3_pstate(3);
 }
-
-#endif
 
 static struct map_desc axxia_static_mappings[] __initdata = {
 #ifdef CONFIG_DEBUG_LL
@@ -121,7 +119,7 @@ void __init axxia_dt_map_io(void)
 
 void __init axxia_dt_init_early(void)
 {
-	 init_dma_coherent_pool_size(SZ_1M);
+	init_dma_coherent_pool_size(SZ_1M);
 }
 
 static struct of_device_id axxia_irq_match[] __initdata = {
@@ -158,21 +156,21 @@ static struct mmci_platform_data mmc_plat_data = {
 
 static struct of_dev_auxdata axxia_auxdata_lookup[] __initdata = {
 	OF_DEV_AUXDATA("arm,primecell", 0x20101E0000ULL,
-		       "mmci",  &mmc_plat_data),
+		       "mmci",	&mmc_plat_data),
 	{}
 };
 
 static struct resource axxia_pmu_resources[] = {
 	[0] = {
-		.start  = IRQ_PMU,
-		.end    = IRQ_PMU,
-		.flags  = IORESOURCE_IRQ,
+		.start	= IRQ_PMU,
+		.end	= IRQ_PMU,
+		.flags	= IORESOURCE_IRQ,
 	},
 };
 
 static struct platform_device pmu_device = {
 	.name			= "arm-pmu",
-	.id                     = -1,
+	.id			= -1,
 	.num_resources		= ARRAY_SIZE(axxia_pmu_resources),
 	.resource		= axxia_pmu_resources,
 };
@@ -204,11 +202,16 @@ static struct notifier_block axxia_amba_nb = {
 void __init axxia_dt_init(void)
 {
 	base = ioremap(0x2010000000, 0x40000);
-#ifdef CONFIG_KEXEC
 	if (!of_find_compatible_node(NULL, NULL, "lsi,axm5500-sim")) {
-		dickens = ioremap(0x2000000000, SZ_4M);
+		dickens = ioremap(0x2000000000, SZ_16M);
+#ifdef CONFIG_KEXEC
 		kexec_reinit = flush_l3;
+#endif
+		flush_l3();
 	}
+
+#ifdef AXXIA_NCR_RESET_CHECK
+	ncr_reset_active = 0;
 #endif
 
 	bus_register_notifier(&platform_bus_type, &axxia_platform_nb);
@@ -227,7 +230,7 @@ void __init axxia_dt_init(void)
 	platform_device_register(&pmu_device);
 }
 
-static void axxia_restart(enum reboot_mode reboot, const char *cmd)
+static void axxia_restart(char str, const char *cmd)
 {
 	writel(0x000000ab, base + 0x31000); /* Access Key */
 	writel(0x00000040, base + 0x31004); /* Intrnl Boot, 0xffff0000 Target */
@@ -236,7 +239,7 @@ static void axxia_restart(enum reboot_mode reboot, const char *cmd)
 }
 
 DT_MACHINE_START(AXXIA_DT, "LSI Axxia")
-	.dt_compat	= axxia_dt_match,
+.dt_compat	= axxia_dt_match,
 	.smp		= smp_ops(axxia_smp_ops),
 	.map_io		= axxia_dt_map_io,
 	.init_early	= axxia_dt_init_early,
@@ -247,4 +250,4 @@ DT_MACHINE_START(AXXIA_DT, "LSI Axxia")
 #if defined(CONFIG_ZONE_DMA) && defined(CONFIG_ARM_LPAE)
 	.dma_zone_size	= (4ULL * SZ_1G) - 1,
 #endif
-MACHINE_END
+	MACHINE_END
