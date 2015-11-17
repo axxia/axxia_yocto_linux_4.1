@@ -315,8 +315,8 @@ static int skl_machine_device_register(struct skl *skl, void *driver_data)
 				mach = sst_cnl_devdata;
 				goto cnl_continue;
 			}
+			return -ENODEV;
 		}
-		return -ENODEV;
 	}
 cnl_continue:
 	dev_dbg(bus->dev, "Machine driver found:%s\n", mach->machine);
