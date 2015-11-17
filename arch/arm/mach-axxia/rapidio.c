@@ -30,9 +30,9 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/lsi-ncr.h>
 #include <linux/signal.h>
 
-#include "../../drivers/misc/lsi-ncr.h"
 #include <mach/rio.h>
 
 /**
