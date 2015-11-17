@@ -21,8 +21,7 @@
  *
  */
 #include <linux/io.h>
-
-#include <../../../drivers/misc/lsi-ncr.h>
+#include <linux/lsi-ncr.h>
 
 #include "smon.h"
 
