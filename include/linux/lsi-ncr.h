@@ -23,7 +23,7 @@
 
 #ifndef NCP_REGION_ID
 #define NCP_REGION_ID(node, target) \
-(unsigned long) ((((node) & 0xffff) << 16) | ((target) & 0xffff))
+((unsigned long) ((((node) & 0xffff) << 16) | ((target) & 0xffff)))
 #endif
 
 #ifndef NCP_NODE_ID
@@ -40,5 +40,16 @@ int ncr_read(unsigned long, unsigned long, int, void *);
 int ncr_write(unsigned long, unsigned long, int, void *);
 int ncr_read_nolock(unsigned long, unsigned long, int, void *);
 int ncr_write_nolock(unsigned long, unsigned long, int, void *);
+
+
+ /*
+  * when defined, the RTE driver module will set/clear
+  * the ncr_reset_active flag to indicate when Axxia device
+  * reset is in progress. This flag will be checked by the
+  * kernel lsi-ncr driver and ddr_retention code.
+  */
+#ifdef CONFIG_ARCH_AXXIA_NCR_RESET_CHECK
+extern int ncr_reset_active;
+#endif
 
 #endif /*  __DRIVERS_LSI_ACP_NCR_H */
