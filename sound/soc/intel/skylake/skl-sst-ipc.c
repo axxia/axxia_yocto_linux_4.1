@@ -260,7 +260,7 @@ enum skl_ipc_module_msg {
 	IPC_MOD_SET_DX = 7
 };
 
-static void skl_ipc_tx_data_copy(struct ipc_message *msg, char *tx_data,
+void skl_ipc_tx_data_copy(struct ipc_message *msg, char *tx_data,
 		size_t tx_size)
 {
 	if (tx_size)
@@ -306,7 +306,7 @@ out:
 	return msg;
 }
 
-static int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
+int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header)
 {
 	struct skl_sst *skl = container_of(ipc, struct skl_sst, ipc);
@@ -343,7 +343,7 @@ static int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 	return 0;
 }
 
-static void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
+void skl_ipc_process_reply(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header)
 {
 	struct ipc_message *msg;
