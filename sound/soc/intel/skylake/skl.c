@@ -287,6 +287,12 @@ static struct sst_machines *sst_acpi_find_machine(
 	return NULL;
 }
 
+/* TODO fill codec acpi name */
+static struct sst_machines sst_cnl_devdata[] = {
+	{ "dummy", "mrgfld_florida" },
+	{ "dummy", "mrgfld_florida" },
+};
+
 static int skl_machine_device_register(struct skl *skl, void *driver_data)
 {
 	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
@@ -304,11 +310,15 @@ static int skl_machine_device_register(struct skl *skl, void *driver_data)
 		mach = sst_acpi_find_machine(mach);
 		if (mach == NULL) {
 			dev_err(bus->dev, "No matching machine driver found\n");
-			return -ENODEV;
+			if (skl->pci->device == 0x9df0) {
+				dev_warn(bus->dev, "Taking hardcoded machine driver for CNL FPGA platform\n");
+				mach = sst_cnl_devdata;
+				goto cnl_continue;
+			}
 		}
-
+		return -ENODEV;
 	}
-
+cnl_continue:
 	dev_dbg(bus->dev, "Machine driver found:%s\n", mach->machine);
 	pdev = platform_device_alloc(mach->machine, -1);
 	if (pdev == NULL) {
@@ -651,7 +661,7 @@ static void skl_remove(struct pci_dev *pci)
 	if (pci_dev_run_wake(pci))
 		pm_runtime_get_noresume(&pci->dev);
 	pci_dev_put(pci);
-	
+
 	skl_debugfs_exit(skl->debugfs);
 	skl->debugfs = NULL;
 	skl_platform_unregister(&pci->dev);
@@ -687,6 +697,9 @@ static const struct pci_device_id skl_ids[] = {
 	/* BXT-P*/
 	{ PCI_DEVICE(0x8086, 0x5a98),
 		.driver_data = (unsigned long)&sst_bxtp_devdata},
+	/* CNL */
+	{ PCI_DEVICE(0x8086, 0x9df0),
+		.driver_data = (unsigned long)&sst_cnl_devdata},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, skl_ids);
@@ -698,7 +711,9 @@ static struct pci_driver skl_driver = {
 	.probe = skl_probe,
 	.remove = skl_remove,
 	.driver = {
+#if 0
 		.pm = &skl_pm,
+#endif
 	},
 };
 module_pci_driver(skl_driver);
