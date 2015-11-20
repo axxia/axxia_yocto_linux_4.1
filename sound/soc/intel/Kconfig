@@ -247,3 +247,8 @@ config SND_SOC_INTEL_CNL_WM8281_MACH
         sound card.
         Say Y if you have such a device
         If unsure select "N".
+
+config SND_SOC_INTEL_CNL_FPGA
+	bool "Enable CNL FPGA board settings"
+	help
+	  Say Y here to enable the support for CNL audio FPGA Device.
