@@ -660,6 +660,7 @@ static const struct dev_pm_ops hdac_hdmi_pm = {
 
 static const struct hda_device_id hdmi_list[] = {
 	{ .vendor_id =  0x80862809, .rev_id = 0x100000, .name = "Skylake HDMI", 0 },
+	{ .vendor_id =  0x8086280a, .rev_id = 0x100000, .name = "Broxton HDMI", 0 },
 	{},
 };
 
