@@ -291,6 +291,7 @@ static const struct snd_soc_dapm_widget mrgfld_widgets[] = {
 	SND_SOC_DAPM_MIC("AMIC", NULL),
 	SND_SOC_DAPM_MIC("DMIC", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
+	SND_SOC_DAPM_MIC("HDMI", NULL),
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			mrgfld_clock_control, SND_SOC_DAPM_PRE_PMU|
 			SND_SOC_DAPM_POST_PMD),
@@ -326,6 +327,11 @@ static const struct snd_soc_dapm_route mrgfld_wm5110_map[] = {
 	{ "DMIC23 Rx", NULL, "Capture" },
 	{ "dmic01_hifi", NULL, "DMIC01 Rx" },
 	{ "dmic23_hifi", NULL, "DMIC23 Rx" },
+
+	/* HDMI */
+	{"HDMI", NULL, "hif1 Output"},
+	{"hif1", NULL, "iDisp Tx"},
+	{"iDisp Tx", NULL, "iDisp_out"},
 
 	/* Modem0 Path */
 	{ "Dummy Playback", NULL, "ssp3 Tx"},
@@ -391,8 +397,10 @@ static const struct snd_soc_dapm_route mrgfld_wm8998_map[] = {
 
 	/* TODO: map for rest of the ports */
 
-	{ "hif1", NULL, "iDisp Tx"},
-	{ "iDisp Tx", NULL, "idisp_out"},
+	/* HDMI */
+	{"HDMI", NULL, "hif1 Output"},
+	{"hif1", NULL, "iDisp Tx"},
+	{"iDisp Tx", NULL, "iDisp_out"},
 
 	/* Modem0 Path */
 	{ "Dummy Playback", NULL, "ssp3 Tx"},
@@ -628,6 +636,19 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.dsp_loopback = true,
 	},
 
+	{
+		.name = "Bxtn HDMI Port",
+		.stream_name = "Hdmi",
+		.cpu_dai_name = "HDMI Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:0e.0",
+		.dpcm_playback = 1,
+		.init = NULL,
+		.ignore_suspend = 1,
+		.nonatomic = 1,
+		.dynamic = 1,
+	},
 
 	/* back ends */
 	{
@@ -667,6 +688,18 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.dpcm_capture = 1,
 		.no_pcm = 1,
 	},
+
+	{
+		.name = "iDisp",
+		.be_id = 4,
+		.cpu_dai_name = "iDisp Pin",
+		.codec_name = "ehdaudio0D1",
+		.codec_dai_name = "intel-hdmi-hif1",
+		.platform_name = "0000:00:0e.0",
+		.dpcm_playback = 1,
+		.ignore_suspend = 1,
+		.no_pcm = 1,
+        },
 };
 
 struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
@@ -685,6 +718,7 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 		.dpcm_capture = 1,
 		.ops = &mrgfld_florida_ops,
 	},
+
 	{
 		.name = "Bxtn DB Audio Port",
 		.stream_name = "Deep Buffer Audio",
@@ -725,6 +759,21 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 		.dsp_loopback = true,
 		.ops = &mrgfld_florida_ops,
 	},
+
+	{
+		.name = "Bxtn HDMI Port",
+		.stream_name = "Hdmi",
+		.cpu_dai_name = "HDMI Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:0e.0",
+		.dpcm_playback = 1,
+		.init = NULL,
+		.ignore_suspend = 1,
+		.nonatomic = 1,
+		.dynamic = 1,
+	},
+
 	/* back ends */
 	{
 		.name = "SSP0-Codec",
@@ -739,6 +788,7 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 		.dpcm_playback = 1,
 		.dpcm_capture = 1,
 	},
+
 	{
                 .name = "dmic01",
                 .be_id = 2,
@@ -762,6 +812,18 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
                 .dpcm_capture = 1,
                 .no_pcm = 1,
         },
+
+	{
+		.name = "iDisp",
+		.be_id = 4,
+		.cpu_dai_name = "iDisp Pin",
+		.codec_name = "ehdaudio0D1",
+		.codec_dai_name = "intel-hdmi-hif1",
+		.platform_name = "0000:00:0e.0",
+		.dpcm_playback = 1,
+		.ignore_suspend = 1,
+		.no_pcm = 1,
+	},
 };
 
 #ifdef CONFIG_PM_SLEEP
