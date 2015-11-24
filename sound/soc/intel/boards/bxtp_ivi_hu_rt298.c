@@ -45,6 +45,24 @@ static const struct snd_soc_dapm_route broxton_rt298_map[] = {
 	{ "ssp0 Rx", NULL, "Dummy Capture" },
 };
 
+static int bxtp_ssp0_gpio_init(struct snd_soc_pcm_runtime *rtd)
+{
+	int ret = 0;
+	char *gpio_addr;
+	u32 gpio_value1 = 0x40900500;
+	u32 gpio_value2 = 0x44000600;
+
+	gpio_addr = (void *)ioremap_nocache(0xd0c40610, 0x30);
+
+	memcpy_toio(gpio_addr + 0x8, &gpio_value1, sizeof(gpio_value1));
+	memcpy_toio(gpio_addr + 0x10, &gpio_value2, sizeof(gpio_value2));
+	memcpy_toio(gpio_addr + 0x18, &gpio_value2, sizeof(gpio_value2));
+	memcpy_toio(gpio_addr + 0x20, &gpio_value2, sizeof(gpio_value2));
+
+	iounmap(gpio_addr);
+	return 0;
+}
+
 static int broxton_ssp0_fixup(struct snd_soc_pcm_runtime *rtd,
 			struct snd_pcm_hw_params *params)
 {
@@ -92,7 +110,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.no_pcm = 1,
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
-		.init = NULL,
+		.init = bxtp_ssp0_gpio_init,
 		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
 			SND_SOC_DAIFMT_CBS_CFS,
 		.ignore_suspend = 1,
