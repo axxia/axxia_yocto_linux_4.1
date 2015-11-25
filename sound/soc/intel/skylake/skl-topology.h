@@ -314,6 +314,13 @@ static inline struct skl *get_skl_ctx(struct device *dev)
 	return ebus_to_skl(ebus);
 }
 
+struct mod_set_get {
+	u32 size;
+	u32 primary;
+	u32 extension;
+	u32 mailbx[1024];
+};
+
 int skl_tplg_be_update_params(struct snd_soc_dai *dai,
 	struct skl_pipe_params *params);
 void skl_tplg_set_be_dmic_config(struct snd_soc_dai *dai,
