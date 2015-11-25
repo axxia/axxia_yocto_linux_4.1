@@ -309,6 +309,8 @@ static const struct snd_soc_dapm_route mrgfld_wm5110_map[] = {
 	{"Ext Spk", NULL, "SPKOUTRP"},
 	{"Ext Spk", NULL, "SPKOUTRN"},
 
+	{ "AMIC", NULL, "MICBIAS2" },
+	{ "AMIC", NULL, "MICBIAS1" },
 	{ "IN1L", NULL, "AMIC" },
 	{ "IN1R", NULL, "AMIC" },
 
