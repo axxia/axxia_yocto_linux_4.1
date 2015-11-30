@@ -311,8 +311,8 @@ err_out_1:
 }
 
 /* ======================================================================
- * NIC Interface
- * ======================================================================
+   NIC Interface
+   ======================================================================
 */
 
 #define DESCRIPTOR_GRANULARITY 64
@@ -1109,7 +1109,6 @@ static int appnic_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 
 		write_mac(pdata->tx_head.raw, APPNIC_DMA_TX_HEAD_POINTER);
 		dev->trans_start = jiffies;
-
 	} else {
 		pdata->out_of_tx_descriptors++;
 		pr_err("%s: No transmit descriptors available!\n",

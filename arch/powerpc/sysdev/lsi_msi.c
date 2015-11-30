@@ -21,7 +21,7 @@
 #include <asm/dcr-regs.h>
 #include <mm/mmu_decl.h>
 
-#include "../../drivers/misc/lsi-ncr.h"
+#include <linux/lsi-ncr.h>
 #include "lsi_msi.h"
 
 #include <linux/interrupt.h>
