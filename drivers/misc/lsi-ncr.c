@@ -919,6 +919,14 @@ ncr_init(void)
 		apb2ser0 = ioremap(0x8002000000ULL, 0x400000);
 		is_6700 = 1;
 		nca_big_endian = 0; /* The 6700 NCA is LE */
+	} else if (of_find_compatible_node(NULL, NULL, "lsi,acp3500")) {
+		pr_debug("Using ACP3500 Addresses\n");
+		nca = ioremap(0x002000520000ULL, 0x20000);
+		default_io_fn = &ncr_io_fn_nolock;
+	} else if (of_find_compatible_node(NULL, NULL, "lsi,acp3400")) {
+		pr_debug("Using ACP3400 Addresses\n");
+		nca = ioremap(0x002000520000ULL, 0x20000);
+		default_io_fn = &ncr_io_fn_lock;
 	} else {
 		pr_debug("No Valid Compatible String Found for NCR!\n");
 
