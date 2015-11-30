@@ -21,6 +21,7 @@
 
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
+#include <linux/firmware.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "skl.h"
@@ -1071,8 +1072,21 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 
 	return 0;
 }
+
+static int skl_platform_soc_remove(struct snd_soc_platform *platform)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(platform->dev);
+	struct skl *skl = ebus_to_skl(ebus);
+
+	if (skl->fw) {
+		release_firmware(skl->fw);
+		skl->fw = NULL;
+	}
+	return 0;
+}
 static struct snd_soc_platform_driver skl_platform_drv  = {
 	.probe		= skl_platform_soc_probe,
+	.remove         = skl_platform_soc_remove,
 	.ops		= &skl_platform_ops,
 	.pcm_new	= skl_pcm_new,
 	.pcm_free	= skl_pcm_free,
