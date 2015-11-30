@@ -604,6 +604,18 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 
 	dev_set_drvdata(&codec->dev, edev);
 
+	/*
+	 * Turned off in the runtime_suspend during the first explicit
+	 * pm_runtime_suspend call.
+	 */
+	ret = snd_hdac_display_power(edev->hdac.bus, true);
+	if (ret < 0) {
+		dev_err(&codec->dev,
+				"cannot turn on display power on i915 err: %d\n",
+				ret);
+		return ret;
+	}
+
 	ret = hdac_hdmi_parse_and_map_nid(edev);
 	if (ret < 0)
 		return ret;
