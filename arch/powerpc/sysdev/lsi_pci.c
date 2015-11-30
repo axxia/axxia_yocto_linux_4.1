@@ -11,8 +11,10 @@
 #include <linux/bootmem.h>
 #include <linux/delay.h>
 #include <linux/slab.h>
+#include <linux/interrupt.h>
 
 #include <linux/io.h>
+#include <linux/lsi-ncr.h>
 #include <asm/pci-bridge.h>
 #include <asm/machdep.h>
 #include <asm/dcr.h>
@@ -20,40 +22,11 @@
 #include <mm/mmu_decl.h>
 
 #include "ppc4xx_pci.h"
-#include "lsi_msi.h"
-#include "../../../drivers/misc/lsi-ncr.h"
-
-#include <linux/interrupt.h>
-#include <linux/irq.h>
-#include <linux/bitmap.h>
-#include <linux/msi.h>
-#include <linux/of_platform.h>
-#include <asm/prom.h>
-#include <asm/hw_irq.h>
-#include <asm/ppc-pci.h>
 
 static int acp_plx;
 
 #undef PRINT_CONFIG_ACCESSES
 /*#define PRINT_CONFIG_ACCESSES*/
-
-struct pciex_port {
-	struct pci_controller	*hose;
-	struct device_node	*node;
-	unsigned int		index;
-	int			endpoint;
-	int			link;
-	int			has_ibpre;
-	unsigned int		sdr_base;
-	dcr_host_t		dcrs;
-	struct resource		cfg_space;
-	struct resource		utl_regs;
-	void __iomem		*utl_base;
-	int	acpChipType;
-};
-
-static struct pciex_port *acp_pciex_ports;
-static unsigned int acp_pciex_port_count;
 
 static int dma_offset_set;
 static u32 last_mpage;
@@ -210,6 +183,24 @@ out:
 
 
 #define MAX_PCIE_BUS_MAPPED	0x40
+
+struct pciex_port {
+	struct pci_controller	*hose;
+	struct device_node	*node;
+	unsigned int		index;
+	int			endpoint;
+	int			link;
+	int			has_ibpre;
+	unsigned int		sdr_base;
+	dcr_host_t		dcrs;
+	struct resource		cfg_space;
+	struct resource		utl_regs;
+	void __iomem		*utl_base;
+	int	acpChipType;
+};
+
+static struct pciex_port *acp_pciex_ports;
+static unsigned int acp_pciex_port_count;
 
 struct pciex_hwops {
 	bool want_sdr;
@@ -858,14 +849,8 @@ acp_pcie_isr(int irq, void *arg)
 
 	/* read the PEI interrupt status register */
 	intr_status = in_le32(mbase + 0x10c0);
+	in_le32(mbase + 0x10c4);
 
-	if (intr_status & 0x80000000) {
-		printk(KERN_INFO "Received MSI interrupt\n");
-		acp_pci_msi_irq_handle(hose->indirect_type);
-		/* Clear MSI interrupt */
-		out_le32(mbase + 0x10c0, 0x80000000);
-		return IRQ_HANDLED;
-	}
 	/* check if this is a PCIe message from an external device */
 	if (intr_status & 0x00000010) {
 		externalPciIntr = 1;
