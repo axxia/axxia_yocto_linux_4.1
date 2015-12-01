@@ -149,7 +149,6 @@ ncr_register_read(unsigned int *address)
 {
 	unsigned int value;
 
-	AXXIA_NCR_RESET_ACTIVE_CHECK();
 	value = __raw_readl(address);
 
 	if (0 == nca_big_endian)
@@ -161,8 +160,6 @@ ncr_register_read(unsigned int *address)
 void
 ncr_register_write(const unsigned int value, unsigned int *address)
 {
-	AXXIA_NCR_RESET_ACTIVE_CHECK();
-
 	if (0 == nca_big_endian)
 		__raw_writel(value, address);
 
