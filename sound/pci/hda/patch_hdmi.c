@@ -1444,17 +1444,6 @@ static void intel_not_share_assigned_cvt(struct hda_codec *codec,
 	}
 }
 
-/* There is a fixed mapping between audio pin node and display port
- * on current Intel platforms:
- * Pin Widget 5 - PORT B (port = 1 in i915 driver)
- * Pin Widget 6 - PORT C (port = 2 in i915 driver)
- * Pin Widget 7 - PORT D (port = 3 in i915 driver)
- */
-static int intel_pin2port(hda_nid_t pin_nid)
-{
-	return pin_nid - 4;
-}
-
 /*
  * HDA PCM callbacks
  */
@@ -1669,38 +1658,36 @@ static bool hdmi_present_sense_via_verbs(struct hdmi_spec_per_pin *per_pin,
 static void sync_eld_via_acomp(struct hda_codec *codec,
 			       struct hdmi_spec_per_pin *per_pin)
 {
-	struct i915_audio_component *acomp = codec->bus->core.audio_component;
 	struct hdmi_spec *spec = codec->spec;
 	struct hdmi_eld *eld = &spec->temp_eld;
 	int size;
 
-	if (acomp && acomp->ops && acomp->ops->get_eld) {
-		mutex_lock(&per_pin->lock);
-		size = acomp->ops->get_eld(acomp->dev,
-					   intel_pin2port(per_pin->pin_nid),
-					   &eld->monitor_present,
-					   eld->eld_buffer,
-					   ELD_MAX_SIZE);
-		if (size > 0) {
-			size = min(size, ELD_MAX_SIZE);
-			if (snd_hdmi_parse_eld(codec, &eld->info,
-					       eld->eld_buffer, size) < 0)
-				size = -EINVAL;
-		}
-
-		if (size > 0) {
-			eld->eld_valid = true;
-			eld->eld_size = size;
-		} else {
-			eld->eld_valid = false;
-			eld->eld_size = 0;
-		}
-
-		update_eld(codec, per_pin, eld);
-		snd_jack_report(per_pin->acomp_jack,
-				eld->monitor_present ? SND_JACK_AVOUT : 0);
-		mutex_unlock(&per_pin->lock);
+	mutex_lock(&per_pin->lock);
+	size = snd_hdac_acomp_get_eld(&codec->bus->core, per_pin->pin_nid,
+				      &eld->monitor_present, eld->eld_buffer,
+				      ELD_MAX_SIZE);
+	if (size < 0)
+		goto unlock;
+	if (size > 0) {
+		size = min(size, ELD_MAX_SIZE);
+		if (snd_hdmi_parse_eld(codec, &eld->info,
+				       eld->eld_buffer, size) < 0)
+			size = -EINVAL;
 	}
+
+	if (size > 0) {
+		eld->eld_valid = true;
+		eld->eld_size = size;
+	} else {
+		eld->eld_valid = false;
+		eld->eld_size = 0;
+	}
+
+	update_eld(codec, per_pin, eld);
+	snd_jack_report(per_pin->acomp_jack,
+			eld->monitor_present ? SND_JACK_AVOUT : 0);
+ unlock:
+	mutex_unlock(&per_pin->lock);
 }
 
 static bool hdmi_present_sense(struct hdmi_spec_per_pin *per_pin, int repoll)
