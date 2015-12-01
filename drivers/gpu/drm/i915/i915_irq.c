@@ -3500,6 +3500,15 @@ static void bxt_hpd_irq_setup(struct drm_device *dev)
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
 	hotplug |= PORTC_HOTPLUG_ENABLE | PORTB_HOTPLUG_ENABLE |
 		PORTA_HOTPLUG_ENABLE;
+	if(i915.hpd_sense_invert == 1) {
+		hotplug |= PORTC_HOTPLUG_SENSE_INVERT |
+			PORTB_HOTPLUG_SENSE_INVERT |
+			PORTA_HOTPLUG_SENSE_INVERT;
+	} else if(i915.hpd_sense_invert == 0) {
+		hotplug &= ~(PORTC_HOTPLUG_SENSE_INVERT |
+			PORTB_HOTPLUG_SENSE_INVERT |
+			PORTA_HOTPLUG_SENSE_INVERT);
+	}
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 
