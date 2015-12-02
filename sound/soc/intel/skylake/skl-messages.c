@@ -455,7 +455,7 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 
 	default:
 		cpr_mconfig->gtw_cfg.node_id = SKL_NON_GATEWAY_CPR_NODE_ID;
-		cpr_mconfig->cpr_feature_mask = 0;
+		cpr_mconfig->cpr_feature_mask = mconfig->fast_mode;
 		return;
 	}
 
@@ -466,7 +466,7 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 	else
 		cpr_mconfig->gtw_cfg.dma_buffer_size = 2 * mconfig->ibs;
 
-	cpr_mconfig->cpr_feature_mask = 0;
+	cpr_mconfig->cpr_feature_mask = mconfig->fast_mode;
 	cpr_mconfig->gtw_cfg.config_length  = 0;
 
 	skl_copy_copier_caps(mconfig, cpr_mconfig);

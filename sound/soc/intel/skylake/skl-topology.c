@@ -1351,6 +1351,7 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->m_type = dfw_config->module_type;
 	mconfig->vbus_id = dfw_config->vbus_id;
 	mconfig->mem_pages = dfw_config->mem_pages;
+	mconfig->fast_mode = dfw_config->fast_mode;
 
 	pipe = skl_tplg_add_pipe(bus->dev, skl, &dfw_config->pipe);
 	if (pipe)
