@@ -79,6 +79,7 @@ struct skl {
 
 	struct skl_debug *debugfs;
 	bool nhlt_override;
+	int supend_active;
 };
 
 struct platform_info {

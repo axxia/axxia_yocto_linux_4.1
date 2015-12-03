@@ -148,6 +148,30 @@ static struct snd_pcm_hw_constraint_list hw_rates = {
 	.list = rates,
 	.mask = 0,
 };
+/*
+ * check if the stream opened is marked as ignore_suspend by machine, if so
+ * then enable suspend_active refcount
+ *
+ * The count supend_active does not need lock as it is used in open/close
+ * and suspend context
+ */
+static void skl_set_suspend_active(struct snd_pcm_substream *substream,
+					 struct snd_soc_dai *dai, bool enable)
+{
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct snd_soc_dapm_widget *w;
+	struct skl *skl = ebus_to_skl(ebus);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		w = dai->playback_widget;
+	else
+		w = dai->capture_widget;
+
+	if (w->ignore_suspend && enable)
+		skl->supend_active++;
+	else if (w->ignore_suspend && !enable)
+		skl->supend_active--;
+}
 
 static int skl_pcm_open(struct snd_pcm_substream *substream,
 		struct snd_soc_dai *dai)
@@ -190,6 +214,7 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 
 	dev_dbg(dai->dev, "stream tag set in dma params=%d\n",
 				 dma_params->stream_tag);
+	skl_set_suspend_active(substream, dai, true);
 	snd_pcm_set_sync(substream);
 
 	skl_tplg_update_d0i3_stream_count(dai, true);
@@ -310,6 +335,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	 * dma_params
 	 */
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
+	skl_set_suspend_active(substream, dai, false);
 
 	skl_tplg_update_d0i3_stream_count(dai, false);
 
