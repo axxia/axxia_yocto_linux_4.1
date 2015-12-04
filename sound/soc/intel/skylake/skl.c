@@ -684,11 +684,9 @@ static struct pci_driver skl_driver = {
 	.id_table = skl_ids,
 	.probe = skl_probe,
 	.remove = skl_remove,
-#if 0
 	.driver = {
 		.pm = &skl_pm,
 	},
-#endif
 };
 module_pci_driver(skl_driver);
 
