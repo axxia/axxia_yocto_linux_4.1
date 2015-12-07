@@ -50,6 +50,7 @@
 #include <linux/intel-iommu.h>
 #include <linux/kref.h>
 #include <linux/pm_qos.h>
+#include "intel_guc.h"
 
 /* General customization:
  */
@@ -1716,6 +1717,8 @@ struct drm_i915_private {
 
 	struct i915_virtual_gpu vgpu;
 
+	struct intel_guc guc;
+
 	struct intel_csr csr;
 
 	/* Display CSR-related protection */
@@ -1966,6 +1969,11 @@ static inline struct drm_i915_private *to_i915(const struct drm_device *dev)
 static inline struct drm_i915_private *dev_to_i915(struct device *dev)
 {
 	return to_i915(dev_get_drvdata(dev));
+}
+
+static inline struct drm_i915_private *guc_to_i915(struct intel_guc *guc)
+{
+	return container_of(guc, struct drm_i915_private, guc);
 }
 
 /* Iterate over initialised rings */
@@ -2571,6 +2579,9 @@ struct drm_i915_cmd_table {
 #define HAS_RC6p(dev)		(INTEL_INFO(dev)->gen == 6 || IS_IVYBRIDGE(dev))
 
 #define HAS_CSR(dev)	(IS_SKYLAKE(dev))
+
+#define HAS_GUC_UCODE(dev)	(IS_GEN9(dev))
+#define HAS_GUC_SCHED(dev)	(IS_GEN9(dev))
 
 #define HAS_RESOURCE_STREAMER(dev) (IS_HASWELL(dev) || \
 				    INTEL_INFO(dev)->gen >= 8)
