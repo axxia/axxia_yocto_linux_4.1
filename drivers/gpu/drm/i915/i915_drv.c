@@ -682,7 +682,7 @@ static int i915_drm_suspend_late(struct drm_device *drm_dev, bool hibernation)
 	return 0;
 }
 
-int i915_suspend_legacy(struct drm_device *dev, pm_message_t state)
+int i915_suspend_switcheroo(struct drm_device *dev, pm_message_t state)
 {
 	int error;
 
@@ -815,7 +815,7 @@ static int i915_drm_resume_early(struct drm_device *dev)
 	return ret;
 }
 
-int i915_resume_legacy(struct drm_device *dev)
+int i915_resume_switcheroo(struct drm_device *dev)
 {
 	int ret;
 
@@ -1652,7 +1652,7 @@ static struct drm_driver driver = {
 	 */
 	.driver_features =
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
-	    DRIVER_RENDER,
+	    DRIVER_RENDER | DRIVER_MODESET,
 	.load = i915_driver_load,
 	.unload = i915_driver_unload,
 	.open = i915_driver_open,
@@ -1660,10 +1660,6 @@ static struct drm_driver driver = {
 	.preclose = i915_driver_preclose,
 	.postclose = i915_driver_postclose,
 	.set_busid = drm_pci_set_busid,
-
-	/* Used in place of i915_pm_ops for non-DRIVER_MODESET */
-	.suspend = i915_suspend_legacy,
-	.resume = i915_resume_legacy,
 
 #if defined(CONFIG_DEBUG_FS)
 	.debugfs_init = i915_debugfs_init,
@@ -1707,7 +1703,6 @@ static int __init i915_init(void)
 	 * either the i915.modeset prarameter or by the
 	 * vga_text_mode_force boot option.
 	 */
-	driver.driver_features |= DRIVER_MODESET;
 
 	if (i915.modeset == 0)
 		driver.driver_features &= ~DRIVER_MODESET;
@@ -1718,17 +1713,11 @@ static int __init i915_init(void)
 #endif
 
 	if (!(driver.driver_features & DRIVER_MODESET)) {
-		driver.get_vblank_timestamp = NULL;
 		/* Silently fail loading to not upset userspace. */
 		DRM_DEBUG_DRIVER("KMS and UMS disabled.\n");
 		return 0;
 	}
 
-	/*
-	 * FIXME: Note that we're lying to the DRM core here so that we can get access
-	 * to the atomic ioctl and the atomic properties.  Only plane operations on
-	 * a single CRTC will actually work.
-	 */
 	if (i915.nuclear_pageflip)
 		driver.driver_features |= DRIVER_ATOMIC;
 
