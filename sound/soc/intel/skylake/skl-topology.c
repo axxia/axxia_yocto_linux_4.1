@@ -1006,12 +1006,13 @@ int skl_tplg_update_pipe_params(struct device *dev,
 		return -EINVAL;
 	}
 
+	/* take care of fractional rates, round to next integer */
 	if (params->stream == SNDRV_PCM_STREAM_PLAYBACK) {
-		mconfig->ibs = (format->s_freq / 1000) *
+		mconfig->ibs = ((format->s_freq + 999) / 1000) *
 				(format->channels) *
 				(format->bit_depth >> 3);
 	} else {
-		mconfig->obs = (format->s_freq / 1000) *
+		mconfig->obs = ((format->s_freq + 999) / 1000) *
 				(format->channels) *
 				(format->bit_depth >> 3);
 	}
