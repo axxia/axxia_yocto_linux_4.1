@@ -4036,8 +4036,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 	 * SKL < B0: due it's WaDisableHBR2 is the only exception where TP3 is
 	 * supported but still not enabled.
 	 */
-	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x12 &&
-	    intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED &&
+	if (drm_dp_tps3_supported(intel_dp->dpcd) &&
 	    intel_dp_source_supports_hbr2(dev)) {
 		intel_dp->use_tps3 = true;
 		DRM_DEBUG_KMS("Displayport TPS3 supported\n");
