@@ -1726,7 +1726,6 @@ static void i9xx_hpd_irq_handler(struct drm_device *dev)
 			intel_get_hpd_pins(&pin_mask, &long_mask, hotplug_trigger,
 					   hotplug_trigger, hpd_status_i915,
 					   i9xx_port_hotplug_long_detect);
-
 			intel_hpd_irq_handler(dev, pin_mask, long_mask);
 		}
 	}
