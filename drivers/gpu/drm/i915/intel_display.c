@@ -11942,7 +11942,7 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 	bool turn_off, turn_on, visible, was_visible;
 	struct drm_framebuffer *fb = plane_state->fb;
 
-	if (crtc_state && INTEL_INFO(dev)->gen >= 9 &&
+	if (INTEL_INFO(dev)->gen >= 9 &&
 	    plane->type != DRM_PLANE_TYPE_CURSOR) {
 		ret = skl_update_scaler_plane(
 			to_intel_crtc_state(crtc_state),
