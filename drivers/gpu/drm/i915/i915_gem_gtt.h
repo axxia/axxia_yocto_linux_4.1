@@ -153,7 +153,7 @@ struct i915_ggtt_view {
 
 	union {
 		struct {
-			unsigned long offset;
+			u64 offset;
 			unsigned int size;
 		} partial;
 	} params;

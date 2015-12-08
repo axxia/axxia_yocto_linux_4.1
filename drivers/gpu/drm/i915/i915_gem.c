@@ -4116,15 +4116,13 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 			return -EBUSY;
 
 		if (i915_vma_misplaced(vma, alignment, flags)) {
-			unsigned long offset;
-			offset = ggtt_view ? i915_gem_obj_ggtt_offset_view(obj, ggtt_view) :
-					     i915_gem_obj_offset(obj, vm);
 			WARN(vma->pin_count,
 			     "bo is already pinned in %s with incorrect alignment:"
-			     " offset=%lx, req.alignment=%x, req.map_and_fenceable=%d,"
+			     " offset=%08x %08x, req.alignment=%x, req.map_and_fenceable=%d,"
 			     " obj->map_and_fenceable=%d\n",
 			     ggtt_view ? "ggtt" : "ppgtt",
-			     offset,
+			     upper_32_bits(vma->node.start),
+			     lower_32_bits(vma->node.start),
 			     alignment,
 			     !!(flags & PIN_MAPPABLE),
 			     obj->map_and_fenceable);
@@ -5078,9 +5076,8 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 }
 
 /* All the new VM stuff */
-unsigned long
-i915_gem_obj_offset(struct drm_i915_gem_object *o,
-		    struct i915_address_space *vm)
+u64 i915_gem_obj_offset(struct drm_i915_gem_object *o,
+			struct i915_address_space *vm)
 {
 	struct drm_i915_private *dev_priv = o->base.dev->dev_private;
 	struct i915_vma *vma;
@@ -5100,9 +5097,8 @@ i915_gem_obj_offset(struct drm_i915_gem_object *o,
 	return -1;
 }
 
-unsigned long
-i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
-			      const struct i915_ggtt_view *view)
+u64 i915_gem_obj_ggtt_offset_view(struct drm_i915_gem_object *o,
+				  const struct i915_ggtt_view *view)
 {
 	struct i915_address_space *ggtt = i915_obj_to_ggtt(o);
 	struct i915_vma *vma;
