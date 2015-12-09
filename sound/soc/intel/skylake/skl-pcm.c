@@ -667,10 +667,10 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	},
 },
 {
-	.name = "HDMI Capture Pin",
+	.name = "System Pin 5",
 	.ops = &skl_pcm_dai_ops,
 	.capture = {
-		.stream_name = "HDMI PT Capture",
+		.stream_name = "PT Capture",
 		.channels_min = HDA_STEREO,
 		.channels_max = HDA_8_CH,
 		.rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
