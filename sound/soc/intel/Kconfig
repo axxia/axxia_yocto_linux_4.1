@@ -171,8 +171,6 @@ config SND_SOC_INTEL_BXTP_IVI_HU_MACH
         tristate "ASoC Audio driver for BXTP IVI HU with Dummy Codec"
         select SND_SOC_INTEL_SST
         select SND_SOC_INTEL_SKYLAKE
-        select SND_SOC_RT298
-        select SND_SOC_DMIC
         default n
         help
         This adds support for ASoC machine driver for Broxton-P platforms
