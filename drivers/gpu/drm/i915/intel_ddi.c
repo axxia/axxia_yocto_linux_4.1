@@ -1732,8 +1732,15 @@ static void broxton_phy_init(struct drm_i915_private *dev_priv,
 	val |= GT_DISPLAY_POWER_ON(phy);
 	I915_WRITE(BXT_P_CR_GT_DISP_PWRON, val);
 
-	/* Considering 10ms timeout until BSpec is updated */
-	if (wait_for(I915_READ(BXT_PORT_CL1CM_DW0(phy)) & PHY_POWER_GOOD, 10))
+	/*
+	 * HW team confirmed that the time to reach phypowergood status is
+	 * anywhere between 50 us and 100us.
+	 */
+	usleep_range(50, 100);
+	val = I915_READ(BXT_PORT_CL1CM_DW0(phy));
+	if ((val & PHY_RESERVED) == PHY_RESERVED)
+		DRM_ERROR("Bit7 not cleared. Register not accessible\n");
+	if (!(val & PHY_POWER_GOOD))
 		DRM_ERROR("timeout during PHY%d power on\n", phy);
 
 	for (port =  (phy == DPIO_PHY0 ? PORT_B : PORT_A);
