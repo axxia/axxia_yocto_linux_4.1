@@ -31,6 +31,12 @@
 #include <sound/hda_i915.h>
 #include "skl.h"
 
+static char *machine = NULL;
+
+module_param(machine, charp, 0444);
+MODULE_PARM_DESC(machine, "machine driver string for Intel soundcard.");
+
+
 struct sst_machines {
 	char *codec_id;
 	char *machine;
@@ -285,13 +291,22 @@ static int skl_machine_device_register(struct skl *skl, void *driver_data)
 {
 	struct hdac_bus *bus = ebus_to_hbus(&skl->ebus);
 	struct platform_device *pdev;
-	struct sst_machines *mach = driver_data;
+	struct sst_machines *mach = NULL;
 	int ret;
 
-	mach = sst_acpi_find_machine(mach);
-	if (mach == NULL) {
-		dev_err(bus->dev, "No matching machine driver found\n");
-		return -ENODEV;
+	if (machine) {
+		mach = kzalloc(sizeof(*mach), GFP_KERNEL);
+		if (!mach)
+			return -ENOMEM;
+		mach->machine = machine;
+	} else {
+		mach = driver_data;
+		mach = sst_acpi_find_machine(mach);
+		if (mach == NULL) {
+			dev_err(bus->dev, "No matching machine driver found\n");
+			return -ENODEV;
+		}
+
 	}
 
 	dev_dbg(bus->dev, "Machine driver found:%s\n", mach->machine);
@@ -308,6 +323,9 @@ static int skl_machine_device_register(struct skl *skl, void *driver_data)
 		return -EIO;
 	}
 	skl->i2s_dev = pdev;
+	if (machine)
+		kfree(mach);
+
 	return 0;
 }
 
