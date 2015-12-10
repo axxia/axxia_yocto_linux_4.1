@@ -1340,6 +1340,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
 	int ret = 0;
+	unsigned long long start_tm;
+
+	start_tm = sched_clock();
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
@@ -1385,6 +1388,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	intel_runtime_pm_enable(dev_priv);
 
 	intel_runtime_pm_put(dev_priv);
+
+	dev_priv->profile.driver_load = sched_clock() - start_tm;
 
 	printk(KERN_INFO "IOTG i915 forklift 2016-03-25\n");
 

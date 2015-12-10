@@ -729,11 +729,16 @@ static void intel_fbdev_initial_config(void *data, async_cookie_t cookie)
 {
 	struct drm_i915_private *dev_priv = data;
 	struct intel_fbdev *ifbdev = dev_priv->fbdev;
+	unsigned long long start_tm;
+
+	start_tm = sched_clock();
 
 	/* Due to peculiar init order wrt to hpd handling this is separate. */
 	if (drm_fb_helper_initial_config(&ifbdev->helper,
 					 ifbdev->preferred_bpp))
 		intel_fbdev_fini(dev_priv->dev);
+
+	dev_priv->profile.fbdev_load = sched_clock() - start_tm;
 }
 
 void intel_fbdev_initial_config_async(struct drm_device *dev)
