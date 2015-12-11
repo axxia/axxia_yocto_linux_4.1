@@ -1087,7 +1087,10 @@ int try_to_del_timer_sync(struct timer_list *timer)
 EXPORT_SYMBOL(try_to_del_timer_sync);
 
 #if defined(CONFIG_SMP) || defined(CONFIG_PREEMPT_RT_FULL)
+
+#if defined(CONFIG_SMP)
 static DEFINE_PER_CPU(struct tvec_base, __tvec_bases);
+#endif
 
 /**
  * del_timer_sync - deactivate a timer and wait for the handler to finish.
