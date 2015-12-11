@@ -316,6 +316,49 @@ static const struct snd_soc_dapm_widget mrgfld_widgets[] = {
 
 };
 
+static int bxt_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
+				struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *channels = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_CHANNELS);
+	channels->min = channels->max = 2;
+
+	return 0;
+}
+static unsigned int rates[] = {
+	48000,
+};
+static unsigned int channels_dmic[] = {
+	2, 4,
+};
+static struct snd_pcm_hw_constraint_list constraints_rates = {
+	.count = ARRAY_SIZE(rates),
+	.list  = rates,
+	.mask = 0,
+};
+
+static struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
+	.count = ARRAY_SIZE(channels_dmic),
+	.list = channels_dmic,
+	.mask = 0,
+};
+
+static int bxt_dmic_startup(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime = substream->runtime;
+
+	runtime->hw.channels_max = 4;
+	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
+					   &constraints_dmic_channels);
+
+	return snd_pcm_hw_constraint_list(substream->runtime, 0,
+			SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
+}
+
+static struct snd_soc_ops bxt_dmic_ops = {
+	.startup = bxt_dmic_startup,
+};
+
 static const struct snd_soc_dapm_route mrgfld_wm5110_map[] = {
 	/*Headphones*/
 	{ "Headphones", NULL, "HPOUT1L" },
@@ -399,7 +442,7 @@ static const struct snd_soc_dapm_route mrgfld_wm8998_map[] = {
 	{ "AMIC", NULL, "MICBIAS2" },
 	{ "AMIC", NULL, "MICBIAS1" },
 	{ "IN2B", NULL, "AMIC" },
-        { "DMic", NULL, "SoC DMIC"},
+	{ "DMic", NULL, "SoC DMIC"},
 
 	/* SWM map link the SWM outs to codec AIF */
 	{ "AIF1 Playback", NULL, "ssp0 Tx"},
@@ -662,6 +705,19 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.dynamic = 1,
 		.ops = &mrgfld_florida_ops,
 	},
+	{
+                .name = "Bxtn Audio Reference cap",
+                .stream_name = "refcap",
+                .cpu_dai_name = "Reference Pin",
+                .codec_name = "snd-soc-dummy",
+                .codec_dai_name = "snd-soc-dummy-dai",
+                .platform_name = "0000:00:0e.0",
+                .init = NULL,
+                .ignore_suspend = 1,
+                .nonatomic = 1,
+                .dynamic = 1,
+                .dpcm_capture = 1,
+        },
 
 		/* CODEC<->CODEC link */
 	{
@@ -763,6 +819,7 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.ignore_suspend = 1,
 		.dpcm_capture = 1,
 		.no_pcm = 1,
+		.be_hw_params_fixup = bxt_dmic_fixup,
 	},
 
 	{
@@ -772,6 +829,7 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.codec_name = "dmic-codec",
 		.codec_dai_name = "dmic-hifi",
 		.platform_name = "0000:00:0e.0",
+		.be_hw_params_fixup = bxt_dmic_fixup,
 		.ignore_suspend = 1,
 		.dpcm_capture = 1,
 		.no_pcm = 1,
@@ -868,6 +926,19 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 		.dynamic = 1,
 		.ops = &mrgfld_florida_ops,
 	},
+	{
+                .name = "Bxtn Audio Reference cap",
+                .stream_name = "refcap",
+                .cpu_dai_name = "Reference Pin",
+                .codec_name = "snd-soc-dummy",
+                .codec_dai_name = "snd-soc-dummy-dai",
+                .platform_name = "0000:00:0e.0",
+                .init = NULL,
+                .ignore_suspend = 1,
+                .nonatomic = 1,
+                .dynamic = 1,
+                .dpcm_capture = 1,
+        },
 
 		/* CODEC<->CODEC link */
 	{
@@ -960,27 +1031,29 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 	},
 
 	{
-                .name = "dmic01",
-                .be_id = 2,
-                .cpu_dai_name = "DMIC01 Pin",
-                .codec_name = "dmic-codec",
-                .codec_dai_name = "dmic-hifi",
-                .platform_name = "0000:00:0e.0",
-                .ignore_suspend = 1,
-                .dpcm_capture = 1,
-                .no_pcm = 1,
-        },
+		.name = "dmic01",
+		.be_id = 2,
+		.cpu_dai_name = "DMIC01 Pin",
+		.codec_name = "dmic-codec",
+		.codec_dai_name = "dmic-hifi",
+		.platform_name = "0000:00:0e.0",
+		.ignore_suspend = 1,
+		.dpcm_capture = 1,
+		.no_pcm = 1,
+		.be_hw_params_fixup = bxt_dmic_fixup,
+	},
 
-        {
-                .name = "dmic23",
-                .be_id = 3,
-                .cpu_dai_name = "DMIC23 Pin",
-                .codec_name = "dmic-codec",
-                .codec_dai_name = "dmic-hifi",
-                .platform_name = "0000:00:0e.0",
-                .ignore_suspend = 1,
-                .dpcm_capture = 1,
-                .no_pcm = 1,
+	{
+		.name = "dmic23",
+		.be_id = 3,
+		.cpu_dai_name = "DMIC23 Pin",
+		.codec_name = "dmic-codec",
+		.codec_dai_name = "dmic-hifi",
+		.platform_name = "0000:00:0e.0",
+		.ignore_suspend = 1,
+		.dpcm_capture = 1,
+		.no_pcm = 1,
+		.be_hw_params_fixup = bxt_dmic_fixup,
         },
 
 	{
