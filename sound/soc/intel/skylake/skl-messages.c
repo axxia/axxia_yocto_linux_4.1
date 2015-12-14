@@ -238,7 +238,8 @@ int skl_init_dsp(struct skl *skl)
 
 	loader_ops = dsp_ops[index].loader_ops();
 	ret = dsp_ops[index].init(bus->dev, mmio_base, irq,
-					loader_ops, &skl->skl_sst);
+		loader_ops, &skl->skl_sst, &skl->manifest);
+
 	if (ret < 0)
 		return ret;
 

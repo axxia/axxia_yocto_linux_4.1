@@ -242,7 +242,7 @@ static const struct dev_pm_ops skl_pm = {
 /*
  * destructor
  */
-static int skl_free(struct hdac_ext_bus *ebus)
+int skl_free(struct hdac_ext_bus *ebus)
 {
 	struct skl *skl  = ebus_to_skl(ebus);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
@@ -594,11 +594,6 @@ static int skl_probe(struct pci_dev *pci,
 
 	/* check if dsp is there */
 	if (ebus->ppcap) {
-		err = skl_init_dsp(skl);
-		if (err < 0) {
-			dev_dbg(bus->dev, "error failed to register dsp\n");
-			goto out_free;
-		}
 		/*TODO  machine name need to be read from DSDT entry*/
 		err = skl_machine_device_register(skl,
 						  (void *)pci_id->driver_data);

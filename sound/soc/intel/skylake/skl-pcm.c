@@ -1124,11 +1124,29 @@ static int skl_pcm_new(struct snd_soc_pcm_runtime *rtd)
 static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(platform->dev);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	int ret = 0;
+	struct skl *skl = ebus_to_skl(ebus);
 
-	if (ebus->ppcap)
-		return skl_tplg_init(platform, ebus);
+	if (ebus->ppcap) {
+		ret = skl_tplg_init(platform, ebus);
+		if (ret < 0) {
+			dev_dbg(bus->dev, "error failed while initializing topology\n");
+			return ret;
+		}
 
-	return 0;
+		ret = skl_init_dsp(skl);
+		if (ret < 0) {
+			dev_dbg(bus->dev, "error failed to register dsp\n");
+			goto out_free;
+		}
+	}
+
+	return ret;
+out_free:
+	skl->init_failed = 1;
+	skl_free(ebus);
+	return ret;
 }
 
 static int skl_platform_soc_remove(struct snd_soc_platform *platform)

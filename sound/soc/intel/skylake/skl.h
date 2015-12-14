@@ -76,6 +76,7 @@ struct skl {
 	struct skl_debug *debugfs;
 	bool nhlt_override;
 	bool mod_set_get_status;
+	struct skl_dfw_manifest manifest;
 };
 
 struct platform_info {
@@ -104,9 +105,9 @@ struct skl_dsp_ops {
 	int id;
 	struct skl_dsp_loader_ops (*loader_ops)(void);
 
-	int (*init)(struct device *dev, void __iomem *mmio_base,
-			int irq, struct skl_dsp_loader_ops loader_ops,
-						struct skl_sst **skl_sst);
+	int (*init)(struct device *dev, void __iomem *mmio_base, int irq,
+		struct skl_dsp_loader_ops loader_ops, struct skl_sst **skl_sst,
+		struct skl_dfw_manifest *minfo);
 	void (*cleanup)(struct device *dev, struct skl_sst *ctx);
 };
 
@@ -122,6 +123,7 @@ int skl_init_dsp(struct skl *skl);
 int skl_free_dsp(struct skl *skl);
 int skl_suspend_dsp(struct skl *skl);
 int skl_resume_dsp(struct skl *skl);
+int skl_free(struct hdac_ext_bus *ebus);
 
 struct skl_module_cfg;
 
@@ -134,8 +136,7 @@ struct nhlt_specific_cfg
 *skl_nhlt_get_debugfs_blob(struct skl_debug *d, u8 link_type, u32 instance,
 			u8 stream);
 void skl_debug_init_module(struct skl_debug *d,
-			struct snd_soc_dapm_widget *w,
-			struct skl_module_cfg *mconfig);
+	struct snd_soc_dapm_widget *w, struct skl_module_cfg *mconfig);
 #else
 
 struct skl_debug {

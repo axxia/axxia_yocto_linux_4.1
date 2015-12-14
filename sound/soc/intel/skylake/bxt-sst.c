@@ -29,6 +29,7 @@
 #include "../common/sst-dsp-priv.h"
 #include "../common/sst-ipc.h"
 #include "skl-sst-ipc.h"
+#include "skl-tplg-interface.h"
 
 #define FW_ROM_INIT_DONE                0x1
 
@@ -54,6 +55,8 @@
 static int bxt_load_base_firmware(struct sst_dsp *ctx);
 static int bxt_set_dsp_D0(struct sst_dsp *ctx);
 static int bxt_set_dsp_D3(struct sst_dsp *ctx);
+static int bxt_load_library(struct sst_dsp *ctx,
+		struct skl_dfw_manifest *minfo);
 
 static unsigned int bxt_get_errorcode(struct sst_dsp *ctx)
 {
@@ -65,6 +68,7 @@ static struct skl_dsp_fw_ops bxt_fw_ops = {
 	.set_state_D3 = bxt_set_dsp_D3,
 	.load_fw = bxt_load_base_firmware,
 	.get_fw_errcode = bxt_get_errorcode,
+	.load_library = bxt_load_library,
 };
 
 static struct sst_ops skl_ops = {
@@ -82,7 +86,8 @@ static struct sst_dsp_device skl_dev = {
 };
 
 int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
+		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp,
+		struct skl_dfw_manifest *minfo)
 {
 	struct skl_sst *skl;
 	struct sst_dsp *sst;
@@ -131,12 +136,65 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 		return ret;
 	}
 
+	if (minfo->lib_count > 1) {
+		ret = sst->fw_ops.load_library(sst, minfo);
+		if (ret < 0) {
+			dev_err(dev, "Load Library failed : %x", ret);
+			return ret;
+		}
+	}
+
 	if (dsp)
 		*dsp = skl;
 	dev_dbg(dev, "Exit %s\n", __func__);
 	return 0;
 }
 EXPORT_SYMBOL_GPL(bxt_sst_dsp_init);
+
+static int bxt_load_library(struct sst_dsp *ctx, struct skl_dfw_manifest *minfo)
+{
+	struct snd_dma_buffer dmab;
+	struct skl_sst *skl = ctx->thread_context;
+	const struct firmware *fw = NULL;
+	int ret = 0, i, dma_id, stream_tag;
+
+	for (i = 1; i < minfo->lib_count; i++) {
+		fw = NULL;
+		ret = request_firmware(&fw, minfo->lib[i].name, ctx->dev);
+		if (ret < 0) {
+			dev_err(ctx->dev, "Request firmware failed %d for library: %s\n", ret, minfo->lib[i].name);
+			goto load_library_failed;
+		}
+
+		dev_dbg(ctx->dev, "Starting to preapre host dma for library name \
+			: %s of size:%zx\n", minfo->lib[i].name, fw->size);
+		stream_tag = ctx->dsp_ops.prepare(ctx->dev, 0x40, fw->size,
+						&dmab);
+		if (stream_tag <= 0) {
+			dev_err(ctx->dev, "Failed to prepare DMA engine for \
+				FW loading, err: %x\n", stream_tag);
+			ret = stream_tag;
+			goto load_library_failed;
+		}
+		dma_id = stream_tag - 1;
+		memcpy(dmab.area, fw->data, fw->size);
+
+		ctx->dsp_ops.trigger(ctx->dev, true, stream_tag);
+		ret = skl_sst_ipc_load_library(&skl->ipc, dma_id, i);
+		if (ret < 0)
+			dev_err(ctx->dev, "Load Library  IPC failed: %d for library: %s\n", ret, minfo->lib[i].name);
+
+		ctx->dsp_ops.trigger(ctx->dev, false, stream_tag);
+		ctx->dsp_ops.cleanup(ctx->dev, &dmab, stream_tag);
+		release_firmware(fw);
+	}
+
+	return ret;
+
+load_library_failed:
+	release_firmware(fw);
+	return ret;
+}
 
 static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 		u32 fwsize)

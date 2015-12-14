@@ -28,6 +28,9 @@
 #define MAX_OUT_QUEUE 8
 #define SKL_MOD_NAME 40 /* Length of GUID string */
 
+#define LIB_NAME_LENGTH 512
+#define HDA_MAX_LIB    16
+
 #define SKL_UUID_STR_SZ 40
 /* Event types goes here */
 /* Reserve event type 0 for no event handlers */
@@ -226,6 +229,15 @@ struct skl_dfw_algo_data {
 	u32 param_id;
 	u32 max;
 	char params[0];
+} __packed;
+
+struct lib_info {
+	char name[LIB_NAME_LENGTH];
+} __packed;
+
+struct skl_dfw_manifest {
+	u8 lib_count;
+	struct lib_info *lib;
 } __packed;
 
 #endif
