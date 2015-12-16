@@ -230,27 +230,22 @@ static void skl_tplg_update_params_fixup(struct skl_module_cfg *m_cfg,
 static void skl_tplg_update_buffer_size(struct skl_sst *ctx,
 				struct skl_module_cfg *mcfg)
 {
-	int multiplier = 1;
 	struct skl_module_fmt *in_fmt, *out_fmt;
-
 
 	/* Since fixups is applied to pin 0 only, ibs, obs needs
 	 * change for pin 0 only
 	 */
 	in_fmt = &mcfg->in_fmt[0];
 	out_fmt = &mcfg->out_fmt[0];
-
-	if (mcfg->m_type == SKL_MODULE_TYPE_SRCINT)
-		multiplier = 5;
-	mcfg->ibs = (in_fmt->s_freq / 1000) *
+	mcfg->ibs = ((in_fmt->s_freq + 999) / 1000) *
 				(mcfg->in_fmt->channels) *
 				(mcfg->in_fmt->bit_depth >> 3) *
-				multiplier;
+				mcfg->frame_size;
 
-	mcfg->obs = (mcfg->out_fmt->s_freq / 1000) *
+	mcfg->obs = ((mcfg->out_fmt->s_freq + 999) / 1000) *
 				(mcfg->out_fmt->channels) *
 				(mcfg->out_fmt->bit_depth >> 3) *
-				multiplier;
+				mcfg->frame_size;
 }
 
 static void skl_tplg_update_module_params(struct snd_soc_dapm_widget *w,
@@ -1360,6 +1355,7 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->vbus_id = dfw_config->vbus_id;
 	mconfig->mem_pages = dfw_config->mem_pages;
 	mconfig->fast_mode = dfw_config->fast_mode;
+	mconfig->frame_size = dfw_config->frame_size;
 
 	pipe = skl_tplg_add_pipe(bus->dev, skl, &dfw_config->pipe);
 	if (pipe)

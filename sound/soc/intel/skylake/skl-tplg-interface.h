@@ -202,6 +202,7 @@ struct skl_dfw_module {
 
 	u32 params_fixup:8;
 	u32 converter:8;
+	u32 frame_size:8;
 	u32 input_pin_type:1;
 	u32 output_pin_type:1;
 	u32 is_dynamic_in_pin:1;
@@ -209,7 +210,7 @@ struct skl_dfw_module {
 	u32 is_loadable:1;
 	u32 fast_mode:1;
 	u32 proc_domain:1;
-	u32 rsvd3:9;
+	u32 rsvd3:1;
 
 	struct skl_dfw_pipe pipe;
 	struct skl_dfw_module_fmt in_fmt[MAX_IN_QUEUE];
