@@ -1592,6 +1592,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
 		skl->skl_sst->platform = platform;
 		skl->skl_sst->notify_ops = cb_ops;
+		skl->skl_sst->enable_miscbdcge = skl_enable_miscbdcge;
 	}
 
 	skl_get_probe_widget(platform, skl);

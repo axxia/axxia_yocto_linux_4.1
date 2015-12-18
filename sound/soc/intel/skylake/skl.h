@@ -52,6 +52,8 @@
 /* D0I3C Register fields */
 #define AZX_REG_VS_D0I3C_CIP      0x1 /* Command in progress */
 #define AZX_REG_VS_D0I3C_I3       0x4 /* D0i3 enable */
+#define AZX_PCIREG_CGCTL		0x48
+#define AZX_CGCTL_MISCBDCGE_MASK	(1 << 6)
 
 struct skl_dsp_resource {
 	u32 max_mcps;
@@ -129,6 +131,7 @@ int skl_suspend_dsp(struct skl *skl);
 int skl_resume_dsp(struct skl *skl);
 int skl_free(struct hdac_ext_bus *ebus);
 void skl_update_d0i3c(struct device *dev, bool enable);
+void skl_enable_miscbdcge(struct device *dev, bool enable);
 
 struct skl_module_cfg;
 

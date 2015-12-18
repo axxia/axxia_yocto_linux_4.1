@@ -108,6 +108,10 @@ struct skl_sst {
 	struct snd_soc_platform *platform;
 	struct skl_dsp_notify_ops notify_ops;
 	struct skl_dsp_notify_params *params;
+	/* callback for miscbdge */
+	void (*enable_miscbdcge)(struct device *dev, bool enable);
+	/*Is CGCTL.MISCBDCGE disabled*/
+	bool miscbdcg_disabled;
 };
 
 struct skl_ipc_init_instance_msg {
