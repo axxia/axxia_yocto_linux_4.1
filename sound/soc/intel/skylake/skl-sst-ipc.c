@@ -475,6 +475,15 @@ int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 			dev_err(ipc->dev, "*****Pharse Detected **********\n");
 			mdelay(1);
 			skl->notify_ops.notify_cb(skl->params);
+
+			/*
+			 * Per HW recomendation, After phrase detection,
+			 * clear the CGCTL.MISCBDCGE.
+			 *
+			 * This will be set back on stream closure
+			 */
+			skl->enable_miscbdcge(ipc->dev, false);
+			skl->miscbdcg_disabled = true;
 			break;
 
 		case IPC_GLB_NOTIFY_EXCEPTION_CAUGHT:

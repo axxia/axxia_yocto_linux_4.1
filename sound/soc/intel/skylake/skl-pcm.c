@@ -30,6 +30,8 @@
 #include "skl-sst-ipc.h"
 #include "skl-fwlog.h"
 #include "skl-probe.h"
+#include "skl-sst-dsp.h"
+#include "skl-sst-ipc.h"
 
 #define HDA_MONO 1
 #define HDA_STEREO 2
@@ -324,6 +326,7 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	struct hdac_ext_stream *stream = get_hdac_ext_stream(substream);
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct skl_dma_params *dma_params = NULL;
+	struct skl *skl = ebus_to_skl(ebus);
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
 
@@ -338,6 +341,15 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	skl_set_suspend_active(substream, dai, false);
 
 	skl_tplg_update_d0i3_stream_count(dai, false);
+	/*
+	 * check if close is for "Reference Pin" and set back the
+	 * CGCTL.MISCBDCGE if disabled by driver
+	 */
+	if (!strncmp(dai->name, "Reference Pin", 13) &&
+			skl->skl_sst->miscbdcg_disabled) {
+		skl->skl_sst->enable_miscbdcge(dai->dev, true);
+		skl->skl_sst->miscbdcg_disabled = false;
+	}
 
 	kfree(dma_params);
 }
