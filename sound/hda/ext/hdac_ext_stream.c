@@ -61,6 +61,10 @@ void snd_hdac_ext_stream_init(struct hdac_ext_bus *ebus,
 					AZX_SPB_MAXFIFO;
 	}
 
+	if (ebus->drsmcap)
+		stream->dpibr_addr = ebus->drsmcap + AZX_DRSM_BASE +
+					AZX_DRSM_INTERVAL * idx;
+
 	stream->decoupled = false;
 	snd_hdac_stream_init(bus, &stream->hstream, idx, direction, tag);
 }
@@ -561,3 +565,70 @@ hdac_ext_host_stream_compr_assign(struct hdac_ext_bus *ebus,
 	return res;
 }
 EXPORT_SYMBOL_GPL(hdac_ext_host_stream_compr_assign);
+
+/**
+ * snd_hdac_ext_stream_drsm_enable - enable DMA resume for a stream
+ * @ebus: HD-audio ext core bus
+ * @enable: flag to enable/disable DRSM
+ * @index: stream index for which DRSM need to be enabled
+ */
+void snd_hdac_ext_stream_drsm_enable(struct hdac_ext_bus *ebus,
+				bool enable, int index)
+{
+	u32 mask = 0;
+	u32 register_mask = 0;
+	struct hdac_bus *bus = &ebus->bus;
+
+	if (!ebus->drsmcap) {
+		dev_err(bus->dev, "Address of DRSM capability is NULL");
+		return;
+	}
+
+	mask |= (1 << index);
+
+	register_mask = readl(ebus->drsmcap + AZX_REG_SPB_SPBFCCTL);
+
+	mask |= register_mask;
+
+	if (enable)
+		snd_hdac_updatel(ebus->drsmcap, AZX_REG_DRSM_CTL, 0, mask);
+	else
+		snd_hdac_updatel(ebus->drsmcap, AZX_REG_DRSM_CTL, mask, 0);
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_drsm_enable);
+
+/**
+ * snd_hdac_ext_stream_set_dpibr - sets the dpibr value of a stream
+ * @ebus: HD-audio ext core bus
+ * @stream: hdac_ext_stream
+ * @value: dpib value to set
+ */
+int snd_hdac_ext_stream_set_dpibr(struct hdac_ext_bus *ebus,
+				 struct hdac_ext_stream *stream, u32 value)
+{
+	struct hdac_bus *bus = &ebus->bus;
+
+	if (!ebus->drsmcap) {
+		dev_err(bus->dev, "Address of DRSM capability is NULL");
+		return -EINVAL;
+	}
+
+	writel(value, stream->dpibr_addr);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_set_dpibr);
+
+/**
+ * snd_hdac_ext_stream_set_lpib - sets the lpib value of a stream
+ * @ebus: HD-audio ext core bus
+ * @stream: hdac_ext_stream
+ * @value: lpib value to set
+ */
+int snd_hdac_ext_stream_set_lpib(struct hdac_ext_stream *stream, u32 value)
+{
+	snd_hdac_stream_writel(&stream->hstream, SD_LPIB, value);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_stream_set_lpib);
