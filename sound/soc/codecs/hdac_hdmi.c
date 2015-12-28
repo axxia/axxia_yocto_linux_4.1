@@ -67,8 +67,9 @@ struct hdac_hdmi_priv {
 
 static inline struct hdac_ext_device *to_hda_ext_device(struct device *dev)
 {
-	struct hdac_device *hdac = container_of(dev, struct hdac_device, dev);
-	return container_of(hdac, struct hdac_ext_device, hdac);
+	struct hdac_device *hdac = dev_to_hdac_dev(dev);
+
+	return to_ehdac_device(hdac);
 }
 
 static int hdac_hdmi_setup_stream(struct hdac_ext_device *hdac, hda_nid_t cvt_nid,
