@@ -763,6 +763,18 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 	},
 
 	{
+		.name = "Bxtn BTFM-Loop Port",
+		.stream_name = "Bxtn BTFM-Loop",
+		.cpu_dai_name = "SSP1 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.params = &bxtn_florida_dai_params_bt,
+		.num_params = ARRAY_SIZE(bxtn_florida_dai_params_bt),
+		.dsp_loopback = true,
+	},
+
+	{
 		.name = "Bxtn HDMI Port",
 		.stream_name = "Hdmi",
 		.cpu_dai_name = "HDMI Pin",
