@@ -25,6 +25,7 @@
 #include <linux/moduleparam.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
+#include <asm/cacheflush.h>
 #include "skl.h"
 #include "skl-topology.h"
 #include "skl-sst-ipc.h"
@@ -1217,9 +1218,16 @@ static snd_pcm_uframes_t skl_platform_pcm_pointer
 			(struct snd_pcm_substream *substream)
 {
 	struct hdac_ext_stream *hstream = get_hdac_ext_stream(substream);
+	struct snd_dma_buffer *dmab;
+	int ret;
 
-	return bytes_to_frames(substream->runtime,
-			       skl_get_position(hstream, 0));
+	ret = bytes_to_frames(substream->runtime,
+			skl_get_position(hstream, 0));
+
+	dmab = snd_pcm_get_dma_buf(substream);
+	clflush_cache_range(dmab->area, dmab->bytes);
+
+	return ret;
 }
 
 static u64 skl_adjust_codec_delay(struct snd_pcm_substream *substream,
