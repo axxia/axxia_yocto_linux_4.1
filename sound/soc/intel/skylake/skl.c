@@ -748,6 +748,9 @@ static const struct pci_device_id skl_ids[] = {
 	/* CNL */
 	{ PCI_DEVICE(0x8086, 0x9df0),
 		.driver_data = (unsigned long)&sst_cnl_devdata},
+	/* BXT-Bx silicon */
+	{ PCI_DEVICE(0x8086, 0x1a98),
+		.driver_data = (unsigned long)&sst_bxt_devdata},
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, skl_ids);
