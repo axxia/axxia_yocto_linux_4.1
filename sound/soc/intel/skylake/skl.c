@@ -289,8 +289,8 @@ static struct sst_machines *sst_acpi_find_machine(
 
 /* TODO fill codec acpi name */
 static struct sst_machines sst_cnl_devdata[] = {
-	{ "dummy", "mrgfld_florida" },
-	{ "dummy", "mrgfld_florida" },
+	{ "dummy", "cnl_florida" },
+	{ "dummy", "cnl_florida" },
 };
 
 static int skl_machine_device_register(struct skl *skl, void *driver_data)
