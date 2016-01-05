@@ -869,6 +869,9 @@ static void skl_remove(struct pci_dev *pci)
 
 	snd_hdac_display_power(&ebus->bus, false);
 	snd_hdac_i915_exit(&ebus->bus);
+	if (skl->tplg)
+		release_firmware(skl->tplg);
+
 	if (pci_dev_run_wake(pci))
 		pm_runtime_get_noresume(&pci->dev);
 	pci_dev_put(pci);

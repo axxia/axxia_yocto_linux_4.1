@@ -1639,9 +1639,9 @@ static int skl_platform_soc_remove(struct snd_soc_platform *platform)
 	struct hdac_ext_bus *ebus = dev_get_drvdata(platform->dev);
 	struct skl *skl = ebus_to_skl(ebus);
 
-	if (skl->fw) {
-		release_firmware(skl->fw);
-		skl->fw = NULL;
+	if (skl->tplg) {
+		release_firmware(skl->tplg);
+		skl->tplg= NULL;
 	}
 	return 0;
 }

@@ -2202,7 +2202,7 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl *skl = ebus_to_skl(ebus);
 
-	ret = request_firmware(&skl->fw, "dfw_sst.bin", bus->dev);
+	ret = request_firmware(&skl->tplg, "dfw_sst.bin", bus->dev);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg fw %s load failed with %d\n",
 				"dfw_sst.bin", ret);
@@ -2214,15 +2214,16 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	 * any other index
 	 */
 	ret = snd_soc_tplg_component_load(&platform->component,
-					&skl_tplg_ops, skl->fw, 0);
+					&skl_tplg_ops, skl->tplg, 0);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
-		release_firmware(skl->fw);
+		release_firmware(skl->tplg);
 		return -EINVAL;
 	}
 
 	skl->resource.max_mcps = SKL_MAX_MCPS;
 	skl->resource.max_mem = SKL_FW_MAX_MEM;
+
 
 	return 0;
 }

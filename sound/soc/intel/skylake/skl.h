@@ -77,7 +77,7 @@ struct skl {
 
 	struct skl_dsp_resource resource;
 	struct list_head ppl_list;
-	const struct firmware *fw;
+	const struct firmware *tplg;
 
 	struct skl_debug *debugfs;
 	bool nhlt_override;
