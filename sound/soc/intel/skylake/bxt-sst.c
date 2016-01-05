@@ -198,6 +198,14 @@ load_library_failed:
 	return ret;
 }
 
+/* First boot sequence has some extra steps due to a ROM bug on BXT.
+ * Due to the bug core 0 waits for power status on core 1. The work
+ * around is to power up core 1 also momentarily, keep it in reset/stall
+ * and then turn it off
+ */
+
+#define BXT_ROM_BUG_WA
+
 static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 		u32 fwsize)
 {
@@ -217,10 +225,19 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 	ctx->dsp_ops.stream_tag = stream_tag;
 	memcpy(ctx->dmab.area, fwdata, fwsize);
 
+#ifdef BXT_ROM_BUG_WA
+	/* Step 1.a: Power up core 0 and core1 (Extra step due to ROM bug) */
+	ret = skl_dsp_core_power_up(ctx, SKL_DSP_CORE0_MASK | SKL_DSP_CORE_MASK(1));
+	if (ret < 0) {
+		dev_err(ctx->dev, "dsp core0/1 power up failed\n");
+		goto prepare_fw_load_failed;
+	}
+#else
 	/* Step 1: Power up core0 */
 	ret = skl_dsp_core_power_up(ctx, SKL_DSP_CORE0_MASK);
 	if (ret < 0)
 		goto prepare_fw_load_failed;
+#endif
 
 	/* Step 2: Purge FW request */
 	sst_dsp_shim_write(ctx, SKL_ADSP_REG_HIPCI, SKL_ADSP_REG_HIPCI_BUSY |
@@ -258,6 +275,14 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 	}
 	dev_dbg(ctx->dev, "******HIPCIE reg: 0x%x\n", reg);
 
+#ifdef BXT_ROM_BUG_WA
+	/* Step 5.a: power down core1 (Extra step due to ROM bug) */
+	ret = skl_dsp_core_power_down(ctx, SKL_DSP_CORE_MASK(1));
+	if (ret < 0) {
+		dev_err(ctx->dev, "dsp core1 power down failed\n");
+		goto prepare_fw_load_failed;
+	}
+#endif
 	/* Step 6: enable Interrupt */
 	skl_ipc_int_enable(ctx);
 	skl_ipc_op_int_enable(ctx);
@@ -282,6 +307,9 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 
 prepare_fw_load_failed:
 	ctx->dsp_ops.cleanup(ctx->dev, &ctx->dmab, stream_tag);
+#ifdef BXT_ROM_BUG_WA
+	skl_dsp_core_power_down(ctx, SKL_DSP_CORE_MASK(1));
+#endif
 	skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	return ret;
 }
@@ -312,7 +340,15 @@ int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 
 	dev_dbg(ctx->dev, "In %s : core id = %d\n", __func__, core_id);
 
+#ifdef BXT_ROM_BUG_WA
+	/* If core 0 is being turned on, turn on core 1 as well */
+	if (core_id == SKL_DSP_CORE0_ID)
+		ret = skl_dsp_core_power_up(ctx, core_mask | SKL_DSP_CORE_MASK(1));
+	else
+		ret = skl_dsp_core_power_up(ctx, core_mask);
+#else
 	ret = skl_dsp_core_power_up(ctx, core_mask);
+#endif
 	if (ret < 0)
 		goto err;
 
@@ -333,6 +369,10 @@ int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 				skl->boot_complete,
 				msecs_to_jiffies(SKL_IPC_BOOT_MSECS));
 
+#ifdef BXT_ROM_BUG_WA
+		/* If core 1 was turned on to workaround the ROM bug, turn it off */
+		skl_dsp_core_power_down(ctx, SKL_DSP_CORE_MASK(1));
+#endif
 		if (ret == 0) {
 			dev_err(ctx->dev, "%s: error DSP boot timeout\n", __func__);
 			dev_err(ctx->dev, "Error code=0x%x: FW status=0x%x\n",
