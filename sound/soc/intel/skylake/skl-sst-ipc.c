@@ -288,6 +288,38 @@ static void skl_ipc_tx_msg(struct sst_generic_ipc *ipc, struct ipc_message *msg)
 		header->primary | SKL_ADSP_REG_HIPCI_BUSY);
 }
 
+/* Helper function to send IPC */
+static int _skl_ipc_tx_message(struct sst_generic_ipc *ipc, u64 header,
+		void *tx_data, size_t tx_bytes, void *rx_data,
+		size_t rx_bytes, bool wait)
+{
+	if (wait)
+		return	sst_ipc_tx_message_wait(ipc, header, tx_data, tx_bytes,
+				rx_data, rx_bytes);
+	else
+		return sst_ipc_tx_message_nowait(ipc, header, tx_data, tx_bytes);
+}
+
+/*
+ * Wrapper function to send IPC. All IPC APIs except D0ix IPC API will call
+ * this wrapper function since we need to send D0i0 IPC before usual IPCS
+ * and need to schedule D0i3 after sending the usual IPC. D0ix IPC API will
+ * call the helper function given above.
+ */
+static int skl_ipc_tx_message(struct sst_generic_ipc *ipc, u64 header,
+		void *tx_data, size_t tx_bytes,
+		void *rx_data, size_t rx_bytes, bool wait)
+{
+	/* TODO: Bring DSP to D0i0 before sending current IPC */
+	/* D0i0 API (if supported on the platform) to be called here */
+
+	return _skl_ipc_tx_message(ipc, header, tx_data, tx_bytes, rx_data,
+			rx_bytes, wait);
+
+	/* TODO: Attempt D0i3 after sending current IPC */
+	/* D0i3 delayed work (if supported on the platform) to be called here */
+}
+
 static struct ipc_message *skl_ipc_reply_get_msg(struct sst_generic_ipc *ipc,
 				u64 ipc_header)
 {
@@ -551,7 +583,7 @@ int skl_ipc_create_pipeline(struct sst_generic_ipc *ipc,
 	header.primary |= IPC_PPL_MEM_SIZE(ppl_mem_size);
 
 	dev_dbg(ipc->dev, "In %s header=%d\n", __func__, header.primary);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, NULL, 0, NULL, 0, true);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: create pipeline fail, err: %d\n", ret);
 		return ret;
@@ -573,7 +605,7 @@ int skl_ipc_delete_pipeline(struct sst_generic_ipc *ipc, u8 instance_id)
 	header.primary |= IPC_INSTANCE_ID(instance_id);
 
 	dev_dbg(ipc->dev, "In %s header=%d\n", __func__, header.primary);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, NULL, 0, NULL, 0, true);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: delete pipeline failed, err %d\n", ret);
 		return ret;
@@ -597,7 +629,7 @@ int skl_ipc_set_pipeline_state(struct sst_generic_ipc *ipc,
 	header.primary |= IPC_PPL_STATE(state);
 
 	dev_dbg(ipc->dev, "In %s header=%d\n", __func__, header.primary);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, NULL, 0, NULL, 0, true);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: set pipeline state failed, err: %d\n", ret);
 		return ret;
@@ -620,7 +652,7 @@ skl_ipc_save_pipeline(struct sst_generic_ipc *ipc, u8 instance_id, int dma_id)
 
 	header.extension = IPC_DMA_ID(dma_id);
 	dev_dbg(ipc->dev, "In %s header=%d\n", __func__, header.primary);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, NULL, 0, NULL, 0, true);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: save pipeline failed, err: %d\n", ret);
 		return ret;
@@ -642,7 +674,7 @@ int skl_ipc_restore_pipeline(struct sst_generic_ipc *ipc, u8 instance_id)
 	header.primary |= IPC_INSTANCE_ID(instance_id);
 
 	dev_dbg(ipc->dev, "In %s header=%d\n", __func__, header.primary);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, NULL, 0, NULL, 0, true);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: restore  pipeline failed, err: %d\n", ret);
 		return ret;
@@ -667,8 +699,8 @@ int skl_ipc_set_dx(struct sst_generic_ipc *ipc, u8 instance_id,
 
 	dev_dbg(ipc->dev, "In %s primary =%x ext=%x\n", __func__,
 			 header.primary, header.extension);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header,
-				dx, sizeof(*dx), NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header,
+				dx, sizeof(*dx), NULL, 0, true);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: set dx failed, err %d\n", ret);
 		return ret;
@@ -700,8 +732,8 @@ int skl_ipc_init_instance(struct sst_generic_ipc *ipc,
 
 	dev_dbg(ipc->dev, "In %s primary =%x ext=%x\n", __func__,
 			 header.primary, header.extension);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, param_data,
-			msg->param_data_size, NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, param_data,
+			msg->param_data_size, NULL, 0, true);
 
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: init instance failed\n");
@@ -733,7 +765,7 @@ int skl_ipc_bind_unbind(struct sst_generic_ipc *ipc,
 
 	dev_dbg(ipc->dev, "In %s hdr=%x ext=%x\n", __func__, header.primary,
 			 header.extension);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, NULL, 0, NULL, 0, true);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: bind/unbind faileden");
 		return ret;
@@ -756,8 +788,8 @@ int skl_ipc_load_modules(struct sst_generic_ipc *ipc, u8 module_cnt,
 	header.primary |= IPC_LOAD_MODULE_CNT(module_cnt);
 
 	dev_dbg(ipc->dev, "In %s hdr=%x\n", __func__, header.primary);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, data,
-				(sizeof(u16) * module_cnt), NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, data,
+				(sizeof(u16) * module_cnt), NULL, 0, true);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: load modules failed err=%d\n", ret);
 		return ret;
@@ -780,8 +812,8 @@ int skl_ipc_unload_modules(struct sst_generic_ipc *ipc, u8 module_cnt,
 	header.primary |= IPC_LOAD_MODULE_CNT(module_cnt);
 
 	dev_dbg(ipc->dev, "In %s hdr=%x\n", __func__, header.primary);
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, data,
-				(sizeof(u16) * module_cnt), NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, data,
+				(sizeof(u16) * module_cnt), NULL, 0, true);
 	if (ret < 0) {
 		dev_err(ipc->dev, "ipc: unload modules failed err=%d\n", ret);
 		return ret;
@@ -822,9 +854,9 @@ int skl_ipc_set_large_config(struct sst_generic_ipc *ipc,
 			header.primary, header.extension);
 		dev_dbg(ipc->dev, "transmitting offset: %#x, size: %#x\n",
 			(unsigned)data_offset, (unsigned)tx_size);
-		ret = sst_ipc_tx_message_wait(ipc, *ipc_header,
+		ret = skl_ipc_tx_message(ipc, *ipc_header,
 					  ((char *)param) + data_offset,
-					  tx_size, NULL, 0);
+					  tx_size, NULL, 0, true);
 		if (ret < 0) {
 			dev_err(ipc->dev,
 				"ipc: set large config fail, err: %d\n", ret);
@@ -883,9 +915,9 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 		dev_dbg(ipc->dev, "receiving offset: %#x, size: %#x\n",
 			(unsigned)data_offset, (unsigned)rx_size);
 
-		ret = sst_ipc_tx_message_wait(ipc, *ipc_header,
+		ret = skl_ipc_tx_message(ipc, *ipc_header,
 			((char *)txparam), size, ((char *)param) + data_offset,
-					      rx_size);
+					      rx_size, true);
 
 		if (ret < 0) {
 			dev_err(ipc->dev,
