@@ -49,6 +49,10 @@
 #define AZX_REG_VS_SDXEFIFOS_XBASE	0x1094
 #define AZX_REG_VS_SDXEFIFOS_XINTERVAL	0x20
 
+/* D0I3C Register fields */
+#define AZX_REG_VS_D0I3C_CIP      0x1 /* Command in progress */
+#define AZX_REG_VS_D0I3C_I3       0x4 /* D0i3 enable */
+
 struct skl_dsp_resource {
 	u32 max_mcps;
 	u32 max_mem;
@@ -124,6 +128,7 @@ int skl_free_dsp(struct skl *skl);
 int skl_suspend_dsp(struct skl *skl);
 int skl_resume_dsp(struct skl *skl);
 int skl_free(struct hdac_ext_bus *ebus);
+void skl_update_d0i3c(struct device *dev, bool enable);
 
 struct skl_module_cfg;
 

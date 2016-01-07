@@ -1169,6 +1169,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 			dev_dbg(bus->dev, "error failed to register dsp\n");
 			goto out_free;
 		}
+		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
 	}
 
 	dbg_info = kzalloc(sizeof(struct platform_info), GFP_KERNEL);

@@ -25,6 +25,7 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
+#include <linux/delay.h>
 #include <sound/pcm.h>
 #include <sound/hda_register.h>
 #include <sound/hdaudio.h>
@@ -69,6 +70,52 @@ static void skl_init_pci(struct skl *skl)
 	 */
 	dev_dbg(ebus_to_hbus(ebus)->dev, "Clearing TCSEL\n");
 	skl_update_pci_byte(skl->pci, AZX_PCIREG_TCSEL, 0x07, 0);
+}
+
+void skl_update_d0i3c(struct device *dev, bool enable)
+{
+	struct pci_dev *pci = to_pci_dev(dev);
+	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	u8 reg;
+	int timeout = 50;
+
+	reg = snd_hdac_chip_readb(bus, VS_D0I3C);
+	/* Do not write to D0I3C until command in progress bit is cleared */
+	while ((reg & AZX_REG_VS_D0I3C_CIP) && --timeout) {
+		udelay(10);
+		reg = snd_hdac_chip_readb(bus, VS_D0I3C);
+	}
+
+	/* Highly unlikely. But if it happens, panic to flag error explicitly */
+	if (!timeout) {
+		dev_err(bus->dev, "Before D0I3C update: D0I3C CIP timeout\n");
+		BUG();
+	}
+
+	if (enable)
+		reg = reg | AZX_REG_VS_D0I3C_I3;
+	else
+		reg = reg & (~AZX_REG_VS_D0I3C_I3);
+
+	snd_hdac_chip_writeb(bus, VS_D0I3C, reg);
+
+	timeout = 50;
+	/* Wait for cmd in progress to be cleared before exiting the function */
+	reg = snd_hdac_chip_readb(bus, VS_D0I3C);
+	while ((reg & AZX_REG_VS_D0I3C_CIP) && --timeout) {
+		udelay(10);
+		reg = snd_hdac_chip_readb(bus, VS_D0I3C);
+	}
+
+	/* Highly unlikely. But if it happens, panic to flag error explicitly */
+	if (!timeout) {
+		dev_err(bus->dev, "After D0I3C update: D0I3C CIP timeout\n");
+		BUG();
+	}
+
+	dev_dbg(bus->dev, "D0I3C register = 0x%x\n",
+			snd_hdac_chip_readb(bus, VS_D0I3C));
 }
 
 /* called from IRQ */
@@ -606,6 +653,7 @@ static int skl_probe(struct pci_dev *pci,
 						  (void *)pci_id->driver_data);
 		if (err < 0)
 			goto out_dsp_free;
+
 	}
 	if (ebus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(ebus);

@@ -55,6 +55,9 @@ struct skl_sst {
 
 	/* IPC messaging */
 	struct sst_generic_ipc ipc;
+
+	/* Callback to update D0i3C register */
+	void (*update_d0i3c)(struct device *dev,  bool enable);
 };
 
 struct skl_ipc_init_instance_msg {
