@@ -26,6 +26,8 @@
 #include <sound/soc.h>
 #include "skl.h"
 #include "skl-topology.h"
+#include "../common/sst-dsp-priv.h"
+#include "skl-sst-ipc.h"
 
 #define HDA_MONO 1
 #define HDA_STEREO 2
@@ -1127,7 +1129,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	int ret = 0;
 	struct skl *skl = ebus_to_skl(ebus);
-
+	struct platform_info *dbg_info;
 	if (ebus->ppcap) {
 		ret = skl_tplg_init(platform, ebus);
 		if (ret < 0) {
@@ -1141,6 +1143,24 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 			goto out_free;
 		}
 	}
+
+	dbg_info = kzalloc(sizeof(struct platform_info), GFP_KERNEL);
+	if (!dbg_info)
+		return -ENOMEM;
+
+	dbg_info->sram0_base = skl->skl_sst->dsp->addr.sram0_base;
+	dbg_info->sram1_base = skl->skl_sst->dsp->addr.sram1_base;
+	dbg_info->lpe = skl->skl_sst->dsp->addr.lpe;
+	dbg_info->w0_stat_sz = skl->skl_sst->dsp->addr.w0_stat_sz;
+	dbg_info->w0_up_sz = skl->skl_sst->dsp->addr.w0_up_sz;
+
+	dbg_info->in_base = skl->skl_sst->dsp->mailbox.in_base;
+	dbg_info->in_size = skl->skl_sst->dsp->mailbox.in_size;
+	dbg_info->out_base = skl->skl_sst->dsp->mailbox.out_base;
+	dbg_info->out_size = skl->skl_sst->dsp->mailbox.out_size;
+
+	skl_update_dsp_debug_info(skl->debugfs, dbg_info);
+	kfree(dbg_info);
 
 	return ret;
 out_free:
