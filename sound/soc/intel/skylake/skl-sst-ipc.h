@@ -45,6 +45,11 @@ struct skl_ipc_header {
 	u32 extension;
 };
 
+struct skl_d0i3_data {
+	int d0i3_stream_count;
+	int non_d0i3_stream_count;
+};
+
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;
@@ -55,6 +60,8 @@ struct skl_sst {
 
 	/* IPC messaging */
 	struct sst_generic_ipc ipc;
+
+	struct skl_d0i3_data d0i3_data;
 
 	/* Callback to update D0i3C register */
 	void (*update_d0i3c)(struct device *dev,  bool enable);

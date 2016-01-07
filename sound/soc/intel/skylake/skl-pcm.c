@@ -185,6 +185,8 @@ static int skl_pcm_open(struct snd_pcm_substream *substream,
 				 dma_params->stream_tag);
 	snd_pcm_set_sync(substream);
 
+	skl_tplg_update_d0i3_stream_count(dai, true);
+
 	return 0;
 }
 
@@ -298,6 +300,8 @@ static void skl_pcm_close(struct snd_pcm_substream *substream,
 	 * dma_params
 	 */
 	snd_soc_dai_set_dma_data(dai, substream, NULL);
+
+	skl_tplg_update_d0i3_stream_count(dai, false);
 
 	kfree(dma_params);
 }

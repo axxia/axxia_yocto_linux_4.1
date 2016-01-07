@@ -31,6 +31,31 @@
 #define SKL_RATE_FIXUP_MASK		(1 << 1)
 #define SKL_FMT_FIXUP_MASK		(1 << 2)
 
+/* Update the count of streams for which D0i3 can be attempted and that of
+ * streams for which D0i3 can not be attempted. In the streaming case
+ * D0i3 can be attempted for streams that can afford large latency/large
+ * DMA FIFO */
+void skl_tplg_update_d0i3_stream_count(struct snd_soc_dai *dai, bool open)
+{
+
+	struct skl *skl = get_skl_ctx(dai->dev);
+	struct skl_d0i3_data *d0i3_data =  &skl->skl_sst->d0i3_data;
+
+	if (open) {
+		if (!strncmp(dai->name, "Deepbuffer Pin", 14))
+			d0i3_data->d0i3_stream_count++;
+		else
+			d0i3_data->non_d0i3_stream_count++;
+	} else {
+		if (!strncmp(dai->name, "Deepbuffer Pin", 14))
+			d0i3_data->d0i3_stream_count--;
+		else
+			d0i3_data->non_d0i3_stream_count--;
+	}
+	dev_dbg(dai->dev, "%s:d0i3_count= %d ; non_d0i3_count= %d\n", __func__,
+			d0i3_data->d0i3_stream_count, d0i3_data->non_d0i3_stream_count);
+}
+
 /*
  * SKL DSP driver modelling uses only few DAPM widgets so for rest we will
  * ignore. This helpers checks if the SKL driver handles this widget type
