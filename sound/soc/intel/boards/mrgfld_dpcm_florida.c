@@ -516,6 +516,31 @@ static struct snd_soc_ops mrgfld_florida_ops = {
 	.startup = mrgfld_florida_startup,
 };
 
+static int mrgfld_florida_btfm_fixup(struct snd_soc_pcm_runtime *rtd,
+			    struct snd_pcm_hw_params *params)
+{
+	int slot_width = 16;
+	struct snd_interval *rate = hw_param_interval(params,
+			SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	pr_debug("Invoked %s for dailink %s\n", __func__, rtd->dai_link->name);
+	slot_width = 16;
+	rate->min  = 8000;
+	rate->max  = 48000;
+	channels->min = 1;
+	channels->max = 2;
+	snd_mask_none(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT));
+	snd_mask_set(hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT),
+						SNDRV_PCM_FORMAT_S16_LE);
+
+	pr_info("Slot width = %d\n", slot_width);
+	pr_info("param width set to:0x%x\n",
+				snd_pcm_format_width(params_format(params)));
+
+	return 0;
+}
 static int mrgfld_florida_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 			    struct snd_pcm_hw_params *params)
 {
@@ -702,6 +727,20 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.ignore_suspend = 1,
 		.no_pcm = 1,
         },
+	{
+                .name = "SSP1-BTFM",
+                .be_id = 5,
+                .cpu_dai_name = "SSP1 Pin",
+                .platform_name = "0000:00:0e.0",
+                .codec_name = "snd-soc-dummy",
+                .codec_dai_name = "snd-soc-dummy-dai",
+                .ignore_suspend = 1,
+                .be_hw_params_fixup = mrgfld_florida_btfm_fixup,
+                .no_pcm = 1,
+                .dpcm_playback = 1,
+                .dpcm_capture = 1,
+        },
+
 };
 
 struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
@@ -837,6 +876,19 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 		.dpcm_playback = 1,
 		.ignore_suspend = 1,
 		.no_pcm = 1,
+	},
+	{
+		.name = "SSP1-BTFM",
+		.be_id = 5,
+		.cpu_dai_name = "SSP1 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.ignore_suspend = 1,
+		.be_hw_params_fixup = mrgfld_florida_btfm_fixup,
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.dpcm_capture = 1,
 	},
 };
 
