@@ -213,11 +213,24 @@ static int _skl_resume(struct hdac_ext_bus *ebus)
 {
 	struct skl *skl = ebus_to_skl(ebus);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	struct hdac_ext_link *hlink = NULL;
+	int ret;
 
 	skl_init_pci(skl);
 	snd_hdac_bus_init_chip(bus, true);
 
-	return skl_resume_dsp(skl);
+	ret = skl_resume_dsp(skl);
+
+	/* turn off the links which are off before suspend */
+	list_for_each_entry(hlink, &ebus->hlink_list, list) {
+		if (!hlink->ref_count)
+			snd_hdac_ext_bus_link_power_down(hlink);
+	}
+
+	if (!ebus->cmd_io)
+		snd_hdac_bus_stop_cmd_io(&ebus->bus);
+
+	return ret;
 }
 #endif
 
@@ -624,6 +637,8 @@ static int skl_probe(struct pci_dev *pci,
 	struct skl *skl;
 	struct hdac_ext_bus *ebus = NULL;
 	struct hdac_bus *bus = NULL;
+	struct hdac_ext_link *hlink = NULL;
+	const struct firmware *fw = NULL;
 	int err;
 
 	/* we use ext core ops, so provide NULL for ops here */
@@ -675,6 +690,12 @@ static int skl_probe(struct pci_dev *pci,
 
 	/* init debugfs */
 	skl->debugfs = skl_debugfs_init(skl);
+
+	/*
+	 * we are done probing so decrement link counts
+	 */
+	list_for_each_entry(hlink, &ebus->hlink_list, list)
+		snd_hdac_ext_bus_link_put(ebus, hlink);
 
 	/*configure PM */
 	pm_runtime_set_autosuspend_delay(bus->dev, SKL_SUSPEND_DELAY);
