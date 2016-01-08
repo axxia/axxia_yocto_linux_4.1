@@ -180,6 +180,9 @@ int snd_hdac_ext_bus_get_ml_capabilities(struct hdac_ext_bus *ebus)
 		hlink->lcaps  = readl(hlink->ml_addr + AZX_REG_ML_LCAP);
 		hlink->lsdiid = readw(hlink->ml_addr + AZX_REG_ML_LSDIID);
 
+		/* since link in On, update the ref */
+		hlink->ref_count = 1;
+
 		list_add_tail(&hlink->list, &ebus->hlink_list);
 	}
 
@@ -300,3 +303,62 @@ int snd_hdac_ext_bus_link_power_down_all(struct hdac_ext_bus *ebus)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_power_down_all);
+
+int snd_hdac_ext_bus_link_get(struct hdac_ext_bus *ebus,
+				struct hdac_ext_link *link)
+{
+	int ret = 0;
+
+	spin_lock(&ebus->lock);
+
+	/*
+	 * if we move from 0 to 1, count will be 1 so power up this link
+	 * as well, also check the dma status and trigger that
+	 */
+	if (++link->ref_count == 1) {
+		if (!ebus->cmd_io) {
+			snd_hdac_bus_init_cmd_io(&ebus->bus);
+			ebus->cmd_io = 1;
+		}
+
+		ret = snd_hdac_ext_bus_link_power_up(link);
+	}
+
+	spin_unlock(&ebus->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_get);
+
+int snd_hdac_ext_bus_link_put(struct hdac_ext_bus *ebus,
+				struct hdac_ext_link *link)
+{
+	int ret = 0, state = 0;
+	struct hdac_ext_link *hlink = NULL;
+
+	spin_lock(&ebus->lock);
+
+	/*
+	 * if we move from 1 to 0, count will be 0
+	 * so power down this link as well
+	 */
+	if (--link->ref_count == 0) {
+		ret = snd_hdac_ext_bus_link_power_down(link);
+
+		/*
+		 * now check if all links are off, if so turn off
+		 * cmd dma as well
+		 */
+		list_for_each_entry(hlink, &ebus->hlink_list, list) {
+			if (hlink->ref_count)
+				state++;
+		}
+		if (!state) {
+			snd_hdac_bus_stop_cmd_io(&ebus->bus);
+			ebus->cmd_io = 0;
+		}
+	}
+
+	spin_unlock(&ebus->lock);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_link_put);
