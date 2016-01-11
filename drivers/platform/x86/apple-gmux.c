@@ -18,6 +18,7 @@
 #include <linux/acpi.h>
 #include <linux/pnp.h>
 #include <linux/apple_bl.h>
+#include <linux/apple-gmux.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/pci.h>
@@ -655,7 +656,7 @@ static void gmux_remove(struct pnp_dev *pnp)
 }
 
 static const struct pnp_device_id gmux_device_ids[] = {
-	{"APP000B", 0},
+	{GMUX_ACPI_HID, 0},
 	{"", 0}
 };
 
