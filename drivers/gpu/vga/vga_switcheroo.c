@@ -30,6 +30,49 @@
 #include <linux/pm_runtime.h>
 
 #include <linux/vgaarb.h>
+/**
+ * DOC: Overview
+ *
+ * vga_switcheroo is the Linux subsystem for laptop hybrid graphics.
+ * These come in two flavors:
+ *
+ * * muxed: Dual GPUs with a multiplexer chip to switch outputs between GPUs.
+ * * muxless: Dual GPUs but only one of them is connected to outputs.
+ * 	The other one is merely used to offload rendering, its results
+ * 	are copied over PCIe into the framebuffer. On Linux this is
+ * 	supported with DRI PRIME.
+ *
+ * Hybrid graphics started to appear in the late Naughties and were initially
+ * all muxed. Newer laptops moved to a muxless architecture for cost reasons.
+ * A notable exception is the MacBook Pro which continues to use a mux.
+ * Muxes come with varying capabilities: Some switch only the panel, others
+ * can also switch external displays. Some switch all display pins at once
+ * while others can switch just the DDC lines. (To allow EDID probing
+ * for the inactive GPU.) Also, muxes are often used to cut power to the
+ * discrete GPU while it is not used.
+ *
+ * DRM drivers register GPUs with vga_switcheroo, these are henceforth called
+ * clients. The mux is called the handler. Muxless machines also register a
+ * handler to control the power state of the discrete GPU, its ->switchto
+ * callback is a no-op for obvious reasons. The discrete GPU is often equipped
+ * with an HDA controller for the HDMI/DP audio signal, this will also
+ * register as a client so that vga_switcheroo can take care of the correct
+ * suspend/resume order when changing the discrete GPU's power state. In total
+ * there can thus be up to three clients: Two vga clients (GPUs) and one audio
+ * client (on the discrete GPU). The code is mostly prepared to support
+ * machines with more than two GPUs should they become available.
+ *
+ * The GPU to which the outputs are currently switched is called the
+ * active client in vga_switcheroo parlance. The GPU not in use is the
+ * inactive client. When the inactive client's DRM driver is loaded,
+ * it will be unable to probe the panel's EDID and hence depends on
+ * VBIOS to provide its display modes. If the VBIOS modes are bogus or
+ * if there is no VBIOS at all (which is common on the MacBook Pro),
+ * a client may alternatively request that the DDC lines are temporarily
+ * switched to it, provided that the handler supports this. Switching
+ * only the DDC lines and not the entire output avoids unnecessary
+ * flickering.
+ */
 
 struct vga_switcheroo_client {
 	struct pci_dev *pdev;
@@ -57,6 +100,9 @@ static DEFINE_MUTEX(vgasr_mutex);
  * @clients: list of registered clients
  * @handler: registered handler
  * @handler_flags: flags of registered handler
+ * @mux_hw_lock: protects mux state
+ *	(in particular while DDC lines are temporarily switched)
+ * @old_ddc_owner: client to which DDC lines will be switched back on unlock
  *
  * vga_switcheroo private data. Currently only one vga_switcheroo instance
  * per system is supported.
@@ -75,6 +121,8 @@ struct vgasr_priv {
 
 	const struct vga_switcheroo_handler *handler;
 	enum vga_switcheroo_handler_flags_t handler_flags;
+	struct mutex mux_hw_lock;
+	int old_ddc_owner;
 };
 
 #define ID_BIT_AUDIO		0x100
@@ -88,6 +136,7 @@ static void vga_switcheroo_debugfs_fini(struct vgasr_priv *priv);
 /* only one switcheroo per system */
 static struct vgasr_priv vgasr_priv = {
 	.clients = LIST_HEAD_INIT(vgasr_priv.clients),
+	.mux_hw_lock = __MUTEX_INITIALIZER(vgasr_priv.mux_hw_lock),
 };
 
 static bool vga_switcheroo_ready(void)
@@ -152,6 +201,7 @@ EXPORT_SYMBOL(vga_switcheroo_register_handler);
 void vga_switcheroo_unregister_handler(void)
 {
 	mutex_lock(&vgasr_mutex);
+	mutex_lock(&vgasr_priv.mux_hw_lock);
 	vgasr_priv.handler_flags = 0;
 	vgasr_priv.handler = NULL;
 	if (vgasr_priv.active) {
@@ -159,6 +209,7 @@ void vga_switcheroo_unregister_handler(void)
 		vga_switcheroo_debugfs_fini(&vgasr_priv);
 		vgasr_priv.active = false;
 	}
+	mutex_unlock(&vgasr_priv.mux_hw_lock);
 	mutex_unlock(&vgasr_mutex);
 }
 EXPORT_SYMBOL(vga_switcheroo_unregister_handler);
@@ -301,6 +352,112 @@ void vga_switcheroo_client_fb_set(struct pci_dev *pdev,
 }
 EXPORT_SYMBOL(vga_switcheroo_client_fb_set);
 
+/**
+ * vga_switcheroo_lock_ddc() - temporarily switch DDC lines to a given client
+ * @pdev: client pci device
+ *
+ * Temporarily switch DDC lines to the client identified by @pdev
+ * (but leave the outputs otherwise switched to where they are).
+ * This allows the inactive client to probe EDID. The DDC lines must
+ * afterwards be switched back by calling vga_switcheroo_unlock_ddc(),
+ * even if this function returns an error.
+ *
+ * Return: Previous DDC owner on success or a negative int on error.
+ * Specifically, %-ENODEV if no handler has registered or if the handler
+ * does not support switching the DDC lines. Also, a negative value
+ * returned by the handler is propagated back to the caller.
+ * The return value has merely an informational purpose for any caller
+ * which might be interested in it. It is acceptable to ignore the return
+ * value and simply rely on the result of the subsequent EDID probe,
+ * which will be %NULL if DDC switching failed.
+ */
+int vga_switcheroo_lock_ddc(struct pci_dev *pdev)
+{
+	enum vga_switcheroo_client_id id;
+
+	mutex_lock(&vgasr_priv.mux_hw_lock);
+	if (!vgasr_priv.handler || !vgasr_priv.handler->switch_ddc) {
+		vgasr_priv.old_ddc_owner = -ENODEV;
+		return -ENODEV;
+	}
+
+	id = vgasr_priv.handler->get_client_id(pdev);
+	vgasr_priv.old_ddc_owner = vgasr_priv.handler->switch_ddc(id);
+	return vgasr_priv.old_ddc_owner;
+}
+EXPORT_SYMBOL(vga_switcheroo_lock_ddc);
+
+/**
+ * vga_switcheroo_unlock_ddc() - switch DDC lines back to previous owner
+ * @pdev: client pci device
+ *
+ * Switch DDC lines back to the previous owner after calling
+ * vga_switcheroo_lock_ddc(). This must be called even if
+ * vga_switcheroo_lock_ddc() returned an error.
+ *
+ * Return: Previous DDC owner on success (i.e. the client identifier of @pdev)
+ * or a negative int on error.
+ * Specifically, %-ENODEV if no handler has registered or if the handler
+ * does not support switching the DDC lines. Also, a negative value
+ * returned by the handler is propagated back to the caller.
+ * Finally, invoking this function without calling vga_switcheroo_lock_ddc()
+ * first is not allowed and will result in %-EINVAL.
+ */
+int vga_switcheroo_unlock_ddc(struct pci_dev *pdev)
+{
+	enum vga_switcheroo_client_id id;
+	int ret = vgasr_priv.old_ddc_owner;
+
+	if (WARN_ON_ONCE(!mutex_is_locked(&vgasr_priv.mux_hw_lock)))
+		return -EINVAL;
+
+	if (vgasr_priv.old_ddc_owner >= 0) {
+		id = vgasr_priv.handler->get_client_id(pdev);
+		if (vgasr_priv.old_ddc_owner != id)
+			ret = vgasr_priv.handler->switch_ddc(
+						     vgasr_priv.old_ddc_owner);
+	}
+	mutex_unlock(&vgasr_priv.mux_hw_lock);
+	return ret;
+}
+EXPORT_SYMBOL(vga_switcheroo_unlock_ddc);
+
+/**
+ * DOC: Manual switching and manual power control
+ *
+ * In this mode of use, the file /sys/kernel/debug/vgaswitcheroo/switch
+ * can be read to retrieve the current vga_switcheroo state and commands
+ * can be written to it to change the state. The file appears as soon as
+ * two GPU drivers and one handler have registered with vga_switcheroo.
+ * The following commands are understood:
+ *
+ * * OFF: Power off the device not in use.
+ * * ON: Power on the device not in use.
+ * * IGD: Switch to the integrated graphics device.
+ * 	Power on the integrated GPU if necessary, power off the discrete GPU.
+ * 	Prerequisite is that no user space processes (e.g. Xorg, alsactl)
+ * 	have opened device files of the GPUs or the audio client. If the
+ * 	switch fails, the user may invoke lsof(8) or fuser(1) on /dev/dri/
+ * 	and /dev/snd/controlC1 to identify processes blocking the switch.
+ * * DIS: Switch to the discrete graphics device.
+ * * DIGD: Delayed switch to the integrated graphics device.
+ * 	This will perform the switch once the last user space process has
+ * 	closed the device files of the GPUs and the audio client.
+ * * DDIS: Delayed switch to the discrete graphics device.
+ * * MIGD: Mux-only switch to the integrated graphics device.
+ * 	Does not remap console or change the power state of either gpu.
+ * 	If the integrated GPU is currently off, the screen will turn black.
+ * 	If it is on, the screen will show whatever happens to be in VRAM.
+ * 	Either way, the user has to blindly enter the command to switch back.
+ * * MDIS: Mux-only switch to the discrete graphics device.
+ *
+ * For GPUs whose power state is controlled by the driver's runtime pm,
+ * the ON and OFF commands are a no-op (see next section).
+ *
+ * For muxless machines, the IGD/DIS, DIGD/DDIS and MIGD/MDIS commands
+ * should not be used.
+ */
+
 static int vga_switcheroo_show(struct seq_file *m, void *v)
 {
 	struct vga_switcheroo_client *client;
@@ -398,7 +555,9 @@ static int vga_switchto_stage2(struct vga_switcheroo_client *new_client)
 		console_unlock();
 	}
 
+	mutex_lock(&vgasr_priv.mux_hw_lock);
 	ret = vgasr_priv.handler->switchto(new_client->id);
+	mutex_unlock(&vgasr_priv.mux_hw_lock);
 	if (ret)
 		return ret;
 
@@ -513,7 +672,9 @@ vga_switcheroo_debugfs_write(struct file *filp, const char __user *ubuf,
 	vgasr_priv.delayed_switch_active = false;
 
 	if (just_mux) {
+		mutex_lock(&vgasr_priv.mux_hw_lock);
 		ret = vgasr_priv.handler->switchto(client_id);
+		mutex_unlock(&vgasr_priv.mux_hw_lock);
 		goto out;
 	}
 
@@ -668,8 +829,12 @@ static int vga_switcheroo_runtime_suspend(struct device *dev)
 	ret = dev->bus->pm->runtime_suspend(dev);
 	if (ret)
 		return ret;
-	if (vgasr_priv.handler->switchto)
+	mutex_lock(&vgasr_mutex);
+	if (vgasr_priv.handler->switchto) {
+		mutex_lock(&vgasr_priv.mux_hw_lock);
 		vgasr_priv.handler->switchto(VGA_SWITCHEROO_IGD);
+		mutex_unlock(&vgasr_priv.mux_hw_lock);
+	}
 	vga_switcheroo_power_switch(pdev, VGA_SWITCHEROO_OFF);
 	return 0;
 }

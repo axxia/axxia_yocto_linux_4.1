@@ -58,8 +58,32 @@ enum vga_switcheroo_client_id {
 	VGA_SWITCHEROO_MAX_CLIENTS,
 };
 
+/**
+ * struct vga_switcheroo_handler - handler callbacks
+ * @init: initialize handler.
+ * 	Optional. This gets called when vga_switcheroo is enabled, i.e. when
+ * 	two vga clients have registered. It allows the handler to perform
+ * 	some delayed initialization that depends on the existence of the
+ * 	vga clients. Currently only the radeon and amdgpu drivers use this.
+ * 	The return value is ignored
+ * @switchto: switch outputs to given client.
+ * 	Mandatory. For muxless machines this should be a no-op. Returning 0
+ * 	denotes success, anything else failure (in which case the switch is
+ * 	aborted)
+ * @switch_ddc: switch DDC lines to given client.
+ * 	Optional. Should return the previous DDC owner on success or a
+ * 	negative int on failure
+ * @power_state: cut or reinstate power of given client.
+ * 	Optional. The return value is ignored
+ * @get_client_id: determine if given pci device is integrated or discrete GPU.
+ * 	Mandatory
+ *
+ * Handler callbacks. The multiplexer itself. The @switchto and @get_client_id
+ * methods are mandatory, all others may be set to NULL.
+ */
 struct vga_switcheroo_handler {
 	int (*switchto)(enum vga_switcheroo_client_id id);
+	int (*switch_ddc)(enum vga_switcheroo_client_id id);
 	int (*power_state)(enum vga_switcheroo_client_id id,
 			   enum vga_switcheroo_state state);
 	int (*init)(void);
@@ -88,6 +112,8 @@ int vga_switcheroo_register_handler(const struct vga_switcheroo_handler *handler
 				    enum vga_switcheroo_handler_flags_t handler_flags);
 void vga_switcheroo_unregister_handler(void);
 enum vga_switcheroo_handler_flags_t vga_switcheroo_handler_flags(void);
+int vga_switcheroo_lock_ddc(struct pci_dev *pdev);
+int vga_switcheroo_unlock_ddc(struct pci_dev *pdev);
 
 int vga_switcheroo_process_delayed_switch(void);
 
@@ -111,6 +137,8 @@ static inline int vga_switcheroo_register_audio_client(struct pci_dev *pdev,
 	int id, bool active) { return 0; }
 static inline void vga_switcheroo_unregister_handler(void) {}
 static inline enum vga_switcheroo_handler_flags_t vga_switcheroo_handler_flags(void) { return 0; }
+static inline int vga_switcheroo_lock_ddc(struct pci_dev *pdev) { return -ENODEV; }
+static inline int vga_switcheroo_unlock_ddc(struct pci_dev *pdev) { return -ENODEV; }
 static inline int vga_switcheroo_process_delayed_switch(void) { return 0; }
 static inline int vga_switcheroo_get_client_state(struct pci_dev *dev) { return VGA_SWITCHEROO_ON; }
 
