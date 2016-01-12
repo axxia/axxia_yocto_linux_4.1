@@ -125,6 +125,7 @@ struct skl_dfw_manifest;
 
 enum skl_dsp_states {
 	SKL_DSP_RUNNING = 1,
+	SKL_DSP_RUNNING_D0I3, /* Running in D0i3 state*/
 	SKL_DSP_RESET,
 };
 
@@ -136,6 +137,8 @@ struct skl_dsp_fw_ops {
 	int (*parse_fw)(struct sst_dsp *ctx);
 	int (*set_state_D0)(struct sst_dsp *ctx, unsigned int core_id);
 	int (*set_state_D3)(struct sst_dsp *ctx, unsigned int core_id);
+	int (*set_state_D0i3)(struct sst_dsp *ctx);
+	int (*set_state_D0i0)(struct sst_dsp *ctx);
 	unsigned int (*get_fw_errcode)(struct sst_dsp *ctx);
 	int (*load_mod)(struct sst_dsp *ctx, u16 mod_id, char *mod_name);
 	int (*unload_mod)(struct sst_dsp *ctx, u16 mod_id);

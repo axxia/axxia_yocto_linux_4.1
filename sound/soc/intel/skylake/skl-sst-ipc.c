@@ -321,14 +321,26 @@ static int skl_ipc_tx_message(struct sst_generic_ipc *ipc, u64 header,
 		void *tx_data, size_t tx_bytes,
 		void *rx_data, size_t rx_bytes, bool wait)
 {
-	/* TODO: Bring DSP to D0i0 before sending current IPC */
-	/* D0i0 API (if supported on the platform) to be called here */
+	int ret;
+	struct sst_dsp *dsp = ipc->dsp;
 
-	return _skl_ipc_tx_message(ipc, header, tx_data, tx_bytes, rx_data,
+	/* Bring DSP to D0i0 before sending current IPC */
+	if (dsp->fw_ops.set_state_D0i0) {
+		ret = dsp->fw_ops.set_state_D0i0(dsp);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = _skl_ipc_tx_message(ipc, header, tx_data, tx_bytes, rx_data,
 			rx_bytes, wait);
+	if (ret < 0)
+		return ret;
 
-	/* TODO: Attempt D0i3 after sending current IPC */
-	/* D0i3 delayed work (if supported on the platform) to be called here */
+	/* Attempt D0i3 after sending current IPC */
+	if (dsp->fw_ops.set_state_D0i3)
+		ret = dsp->fw_ops.set_state_D0i3(dsp);
+
+	return ret;
 }
 
 static struct ipc_message *skl_ipc_reply_get_msg(struct sst_generic_ipc *ipc,

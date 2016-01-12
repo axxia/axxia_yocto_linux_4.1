@@ -48,6 +48,7 @@ struct skl_ipc_header {
 struct skl_d0i3_data {
 	int d0i3_stream_count;
 	int non_d0i3_stream_count;
+	struct delayed_work d0i3_work;
 };
 
 struct skl_sst {
