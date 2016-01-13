@@ -25,6 +25,10 @@
  *
  */
 
+/* IOTG forklift workarounds */
+#define memremap(offset, size, flags) acpi_os_ioremap(offset, size)
+#define memunmap(offset) iounmap(offset)
+
 #include <linux/acpi.h>
 #include <acpi/video.h>
 
