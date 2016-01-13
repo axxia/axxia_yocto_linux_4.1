@@ -22,6 +22,7 @@
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/firmware.h>
+#include <linux/moduleparam.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
 #include "skl.h"
@@ -33,6 +34,10 @@
 #define HDA_STEREO 2
 #define HDA_QUAD 4
 #define HDA_8_CH 8
+
+/* FIFO size in ms for Deepbuffer */
+static int dpb_fifo_ms = 30;
+module_param(dpb_fifo_ms, int, 0644);
 
 static struct snd_pcm_hardware azx_pcm_hw = {
 	.info =			(SNDRV_PCM_INFO_MMAP |
@@ -247,6 +252,18 @@ static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 	return err;
 }
 
+static void skl_set_cpr_gtw_dma_fifo_size(struct snd_soc_dai *dai,
+		struct skl_module_cfg *m_cfg)
+{
+	if (!strncmp(dai->name, "Deepbuffer Pin", 14))
+		m_cfg->dma_buf_dur_ms = dpb_fifo_ms;
+	else
+		m_cfg->dma_buf_dur_ms = 2;
+
+	dev_dbg(dai->dev, "Setting copier FIFO size =%d for Dai %s\n",
+			m_cfg->dma_buf_dur_ms, dai->name);
+}
+
 static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
 				struct snd_pcm_hw_params *params,
 				struct snd_soc_dai *dai)
@@ -277,8 +294,10 @@ static int skl_pcm_hw_params(struct snd_pcm_substream *substream,
 	p_params.stream = substream->stream;
 
 	m_cfg = skl_tplg_fe_get_cpr_module(dai, p_params.stream);
-	if (m_cfg)
+	if (m_cfg) {
+		skl_set_cpr_gtw_dma_fifo_size(dai, m_cfg);
 		skl_tplg_update_pipe_params(dai->dev, m_cfg, &p_params);
+	}
 
 	return 0;
 }
