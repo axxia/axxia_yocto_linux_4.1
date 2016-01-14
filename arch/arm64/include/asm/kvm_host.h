@@ -254,12 +254,6 @@ static inline void __cpu_reset_hyp_mode(phys_addr_t boot_pgd_ptr,
 	kvm_call_reset(boot_pgd_ptr, phys_idmap_start);
 }
 
-struct vgic_sr_vectors
-{
-	void *save_vgic;
-	void *restore_vgic;
-};
-
 static inline void kvm_arch_hardware_unsetup(void) {}
 static inline void kvm_arch_sync_events(struct kvm *kvm) {}
 static inline void kvm_arch_vcpu_uninit(struct kvm_vcpu *vcpu) {}

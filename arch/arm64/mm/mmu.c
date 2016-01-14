@@ -473,6 +473,7 @@ void setup_mm_for_reboot(void)
 	cpu_switch_mm(idmap_pg_dir, &init_mm);
 }
 
+#if 0
 /*
  * Enable the identity mapping to allow the MMU disabling.
  */
@@ -483,7 +484,7 @@ void setup_mm_for_reboot(void)
 	cpu_set_idmap_tcr_t0sz();
 	cpu_switch_mm(idmap_pg_dir, &init_mm);
 }
-
+#endif
 /*
  * Check whether a kernel address is valid (derived from arch/x86/).
  */
