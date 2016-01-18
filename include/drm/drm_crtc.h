@@ -105,16 +105,16 @@ enum drm_blend_factor {
 	DRM_BLEND_FACTOR_ONE,
 	DRM_BLEND_FACTOR_SRC_ALPHA,
 	DRM_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+	DRM_BLEND_FACTOR_CONSTANT_ALPHA,
+	DRM_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA,
+	DRM_BLEND_FACTOR_CONSTANT_ALPHA_TIMES_SRC_ALPHA,
+	DRM_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA_TIMES_SRC_ALPHA,
 };
 
 #define DRM_BLEND_FUNC(src_factor, dst_factor)		\
 	(DRM_BLEND_FACTOR_##src_factor << 16 | DRM_BLEND_FACTOR_##dst_factor)
 #define DRM_BLEND_FUNC_SRC_FACTOR(val)	(((val) >> 16) & 0xffff)
 #define DRM_BLEND_FUNC_DST_FACTOR(val)	((val) & 0xffff)
-
-struct drm_blend_mode {
-	uint64_t func;
-};
 
 enum drm_connector_force {
 	DRM_FORCE_UNSPECIFIED,
@@ -396,6 +396,11 @@ drm_rgba_bits(struct drm_rgba c, unsigned compshift, unsigned bits) {
 #define DRM_RGBA_GREENBITS(c, bits) drm_rgba_bits(c, 32, bits)
 #define DRM_RGBA_BLUEBITS(c, bits)  drm_rgba_bits(c, 16, bits)
 #define DRM_RGBA_ALPHABITS(c, bits) drm_rgba_bits(c, 0, bits)
+
+struct drm_blend_mode {
+	struct drm_rgba color;
+	uint64_t func;
+};
 
 /**
  * struct drm_crtc_state - mutable CRTC state
@@ -2236,6 +2241,7 @@ struct drm_mode_config {
 	struct drm_property *prop_mode_id;
 	struct drm_property *prop_background_color;
 	struct drm_property *prop_blend_func;
+	struct drm_property *prop_blend_color;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
