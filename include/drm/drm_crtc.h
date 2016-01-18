@@ -1188,9 +1188,10 @@ struct drm_mode_config {
 	struct drm_property *prop_background_color;
 
 	/**
-	 * @prop_blend_func: GL-style plane blending factors
+	 * @prop_blend_func: GL-style plane blending factors and color
 	 */
 	struct drm_property *prop_blend_func;
+	struct drm_property *prop_blend_color;
 
 	/**
 	 * @dvi_i_subconnector_property: Optional DVI-I property to

@@ -25,11 +25,13 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_mode_object.h>
 
 struct drm_crtc;
 
 struct drm_blend_mode {
+	struct drm_rgba color;
 	uint64_t func;
 };
 
