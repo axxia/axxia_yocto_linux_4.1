@@ -3392,6 +3392,8 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc_state->base.crtc);
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	const struct skl_wm_values *wm = &dev_priv->wm.skl_results;
+	const struct drm_intel_sprite_colorkey *key =
+		&to_intel_plane_state(plane->state)->ckey;
 	int pipe = intel_crtc->pipe;
 	u32 plane_ctl;
 	unsigned int rotation = plane_state->base.rotation;
@@ -3435,6 +3437,15 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	I915_WRITE(PLANE_OFFSET(pipe, 0), (src_y << 16) | src_x);
 	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
 	I915_WRITE(PLANE_SIZE(pipe, 0), (src_h << 16) | src_w);
+
+	I915_WRITE(PLANE_KEYMAX(pipe, 0),
+		   (DRM_RGBA_ALPHABITS(plane_state->base.blend_mode.color, 8)
+				<< PLANE_KEY_MAX_ALPHA_SHIFT) |
+		   (key->max_value & PLANE_KEYMAX_ALPHA_MASK));
+	I915_WRITE(PLANE_KEYMSK(pipe, 0),
+			(plane_state->use_plane_alpha
+				<< PLANE_KEY_MASK_ALPHA_EN) |
+			(key->channel_mask & GENMASK(0, 26)));
 
 	if (scaler_id >= 0) {
 		uint32_t ps_ctrl = 0;
@@ -12503,15 +12514,35 @@ static int intel_plane_state_check_blend(struct drm_plane_state *plane_state)
 	case DRM_BLEND_FUNC(ONE, ONE_MINUS_SRC_ALPHA):
 		state->alpha = has_per_pixel_blending ?
 			I915_ALPHA_PREMUL : I915_ALPHA_NONE;
+		state->use_plane_alpha = false;
 		break;
 	/* fbs without an alpha channel, or dropping the alpha channel */
 	case DRM_BLEND_FUNC(ONE, ZERO):
 		state->alpha = I915_ALPHA_NONE;
+		state->use_plane_alpha = false;
 		break;
 	/* non pre-multiplied alpha */
 	case DRM_BLEND_FUNC(SRC_ALPHA, ONE_MINUS_SRC_ALPHA):
 		state->alpha = has_per_pixel_blending ?
 			I915_ALPHA_NON_PREMUL : I915_ALPHA_NONE;
+		state->use_plane_alpha = false;
+		break;
+	/* plane alpha */
+	case DRM_BLEND_FUNC(CONSTANT_ALPHA, ONE_MINUS_CONSTANT_ALPHA):
+		state->alpha = I915_ALPHA_NONE;
+		state->use_plane_alpha = true;
+		break;
+	/* plane alpha, pre-multiplied fb */
+	case DRM_BLEND_FUNC(CONSTANT_ALPHA,
+			    ONE_MINUS_CONSTANT_ALPHA_TIMES_SRC_ALPHA):
+		state->alpha = I915_ALPHA_PREMUL;
+		state->use_plane_alpha = true;
+		break;
+	/* plane alpha, non pre-multiplied fb */
+	case DRM_BLEND_FUNC(CONSTANT_ALPHA_TIMES_SRC_ALPHA,
+			    ONE_MINUS_CONSTANT_ALPHA_TIMES_SRC_ALPHA):
+		state->alpha = I915_ALPHA_NON_PREMUL;
+		state->use_plane_alpha = true;
 		break;
 	default:
 		return -EINVAL;
@@ -15136,6 +15167,11 @@ void intel_plane_add_blend_properties(struct intel_plane *plane)
 	if (prop)
 		drm_object_attach_property(&plane->base.base, prop,
 					   DRM_BLEND_FUNC(AUTO, AUTO));
+
+	prop = dev->mode_config.prop_blend_color;
+	if (prop)
+		drm_object_attach_property(&plane->base.base, prop,
+					   plane->base.state->blend_mode.color.v);
 }
 
 static int
