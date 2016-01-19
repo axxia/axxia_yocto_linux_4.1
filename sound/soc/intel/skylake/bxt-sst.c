@@ -353,8 +353,11 @@ static int bxt_set_dsp_D3(struct sst_dsp *ctx)
 
 static int bxt_load_base_firmware(struct sst_dsp *ctx)
 {
+	struct skl_ext_manifest_header *hdr;
+	u32 size;
+	const void *data;
 	int ret = 0;
-	const struct firmware *fw = NULL;
+	struct firmware *fw = NULL;
 	struct skl_sst *skl = ctx->thread_context;
 
 	dev_dbg(ctx->dev, "In %s\n", __func__);
@@ -365,11 +368,20 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 		goto sst_load_base_firmware_failed;
 	}
 
-	ret = sst_bxt_prepare_fw(ctx, fw->data, fw->size);
+	size = fw->size;
+	data = fw->data;
+	hdr = (struct skl_ext_manifest_header *)fw->data;
+	if (hdr->ext_manifest_id == SKL_EXT_MANIFEST_MAGIC_HEADER_ID) {
+		dev_dbg(ctx->dev, "Found Extended manifest in FW Binary\n");
+		size = fw->size - hdr->ext_manifest_len;
+		data = (u8 *)fw->data + hdr->ext_manifest_len;
+	}
+
+	ret = sst_bxt_prepare_fw(ctx, data, size);
 	/* FIXME: Retry Enabling core and ROM load. Retry seemed to help during
 	   A0 Power On.So retain it for now. */
 	if (ret < 0) {
-		ret = sst_bxt_prepare_fw(ctx, fw->data, fw->size);
+		ret = sst_bxt_prepare_fw(ctx, data, size);
 		if (ret < 0) {
 			dev_err(ctx->dev, "Core En/ROM load fail:%d\n", ret);
 			goto sst_load_base_firmware_failed;

@@ -103,6 +103,9 @@ struct skl_dfw_manifest;
 #define SST_DSP_POWER_D0	0x0  /* full On */
 #define SST_DSP_POWER_D3	0x3  /* Off */
 
+/** FW Extended Manifest Header id = $AE1 */
+#define SKL_EXT_MANIFEST_MAGIC_HEADER_ID   0x31454124
+
 enum skl_dsp_states {
 	SKL_DSP_RUNNING = 1,
 	SKL_DSP_RESET,
@@ -148,6 +151,14 @@ struct skl_module_table {
 	unsigned int usage_cnt;
 	struct list_head list;
 };
+
+struct skl_ext_manifest_header {
+    u32  ext_manifest_id;
+    u32  ext_manifest_len;
+    u16  ext_manifest_version_major;
+    u16  ext_manifest_version_minor;
+    u32  ext_manifest_entries;
+} __packed;
 
 void skl_cldma_process_intr(struct sst_dsp *ctx);
 void skl_cldma_int_disable(struct sst_dsp *ctx);
