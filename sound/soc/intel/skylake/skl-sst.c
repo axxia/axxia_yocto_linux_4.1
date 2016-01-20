@@ -20,15 +20,22 @@
 #include <linux/delay.h>
 #include <linux/device.h>
 #include "../common/sst-dsp.h"
-#include "../common/sst-dsp-priv.h"
 #include "../common/sst-ipc.h"
 #include "skl-sst-ipc.h"
+#include "skl-fwlog.h"
 
 #define SKL_BASEFW_TIMEOUT	300
 #define SKL_INIT_TIMEOUT	1000
 
 /* Intel HD Audio SRAM Window 0*/
 #define SKL_ADSP_SRAM0_BASE	0x8000
+
+/* Trace Buffer Window */
+#define SKL_ADSP_SRAM2_BASE     0x0C000
+#define SKL_ADSP_W2_SIZE        0x2000
+#define SKL_ADSP_WP_DSP0        (SKL_ADSP_SRAM0_BASE+0x30)
+#define SKL_ADSP_WP_DSP1        (SKL_ADSP_SRAM0_BASE+0x34)
+#define SKL_ADSP_NR_DSP         2
 
 /* Firmware status window */
 #define SKL_ADSP_FW_STATUS	SKL_ADSP_SRAM0_BASE
@@ -434,6 +441,7 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 {
 	struct skl_sst *skl;
 	struct sst_dsp *sst;
+	u32 dsp_wp[] = {SKL_ADSP_WP_DSP0, SKL_ADSP_WP_DSP1};
 	int ret;
 
 	skl = devm_kzalloc(dev, sizeof(*skl), GFP_KERNEL);
@@ -455,6 +463,13 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	sst->addr.shim = mmio_base;
 	sst_dsp_mailbox_init(sst, (SKL_ADSP_SRAM0_BASE + SKL_ADSP_W0_STAT_SZ),
 			SKL_ADSP_W0_UP_SZ, SKL_ADSP_SRAM1_BASE, SKL_ADSP_W1_SZ);
+
+	ret = skl_dsp_init_trace_window(sst, dsp_wp, SKL_ADSP_SRAM2_BASE,
+				SKL_ADSP_W2_SIZE, SKL_ADSP_NR_DSP);
+	if (ret) {
+		dev_err(dev, "Fw tracing init failed : %x", ret);
+		return ret;
+	}
 
 	INIT_LIST_HEAD(&sst->module_list);
 	sst->dsp_ops = dsp_ops;
