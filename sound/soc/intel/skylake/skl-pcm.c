@@ -27,8 +27,8 @@
 #include <sound/soc.h>
 #include "skl.h"
 #include "skl-topology.h"
-#include "../common/sst-dsp-priv.h"
 #include "skl-sst-ipc.h"
+#include "skl-fwlog.h"
 
 #define HDA_MONO 1
 #define HDA_STEREO 2
@@ -579,6 +579,132 @@ static int skl_link_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static bool skl_is_core_valid(int core)
+{
+	if (core != INT_MIN)
+		return true;
+	else
+		return false;
+}
+
+static int skl_get_compr_core(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+
+	if (!strcmp(dai->name, "TraceBuffer0 Pin"))
+		return 0;
+	else if (!strcmp(dai->name, "TraceBuffer1 Pin"))
+		return 1;
+	else
+		return INT_MIN;
+}
+
+static struct skl_sst *skl_get_sst_compr(struct snd_compr_stream *stream)
+{
+	struct snd_soc_pcm_runtime *rtd = stream->private_data;
+	struct snd_soc_dai *dai = rtd->cpu_dai;
+	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
+	struct skl *skl = ebus_to_skl(ebus);
+	struct skl_sst *sst = skl->skl_sst;
+
+	return sst;
+}
+
+static int skl_trace_compr_set_params(struct snd_compr_stream *stream,
+					struct snd_compr_params *params)
+{
+	int ret;
+	struct skl_sst *skl_sst = skl_get_sst_compr(stream);
+	struct sst_dsp *sst = skl_sst->dsp;
+	struct sst_generic_ipc *ipc = &skl_sst->ipc;
+	int size = params->buffer.fragment_size * params->buffer.fragments;
+	int core = skl_get_compr_core(stream);
+
+	if (!skl_is_core_valid(core))
+		return -EINVAL;
+
+	if (size & (size - 1)) {
+		dev_err(sst->dev, "Buffer size must be a power of 2\n");
+		return -EINVAL;
+	}
+
+	ret = skl_dsp_init_log_buffer(sst, size, core, stream);
+	if (ret) {
+		dev_err(sst->dev, "set params failed for dsp %d\n", core);
+		return ret;
+	}
+
+	skl_dsp_get_log_buff(sst, core);
+	sst->trace_wind.flags |= BIT(core);
+	ret = skl_dsp_enable_logging(ipc, core, 1);
+	if (ret < 0) {
+		dev_err(sst->dev, "enable logs failed for dsp %d\n", core);
+		sst->trace_wind.flags &= ~BIT(core);
+		skl_dsp_put_log_buff(sst, core);
+		return ret;
+	}
+	return 0;
+}
+
+static int skl_trace_compr_tstamp(struct snd_compr_stream *stream,
+					struct snd_compr_tstamp *tstamp)
+{
+	struct skl_sst *skl_sst = skl_get_sst_compr(stream);
+	struct sst_dsp *sst = skl_sst->dsp;
+	int core = skl_get_compr_core(stream);
+
+	if (!skl_is_core_valid(core))
+		return -EINVAL;
+
+	tstamp->copied_total = skl_dsp_log_avail(sst, core);
+
+	if (tstamp->copied_total)
+		stream->runtime->state = SNDRV_PCM_STATE_RUNNING;
+
+	return 0;
+}
+
+static int skl_trace_compr_copy(struct snd_compr_stream *stream,
+				char __user *dest, size_t count)
+{
+	struct skl_sst *skl_sst = skl_get_sst_compr(stream);
+	struct sst_dsp *sst = skl_sst->dsp;
+	int core = skl_get_compr_core(stream);
+
+	if (!skl_is_core_valid(core))
+		return -EINVAL;
+
+	return skl_dsp_copy_log_user(sst, core, dest, count);
+}
+
+static int skl_trace_compr_free(struct snd_compr_stream *stream)
+{
+	struct skl_sst *skl_sst = skl_get_sst_compr(stream);
+	struct sst_dsp *sst = skl_sst->dsp;
+	struct sst_generic_ipc *ipc = &skl_sst->ipc;
+	int core = skl_get_compr_core(stream);
+	int is_enabled = sst->trace_wind.flags & BIT(core);
+	int ret;
+
+	if (!skl_is_core_valid(core))
+		return -EINVAL;
+	if (is_enabled) {
+		sst->trace_wind.flags &= ~BIT(core);
+		skl_dsp_enable_logging(ipc, core, 0);
+		skl_dsp_put_log_buff(sst, core);
+		skl_dsp_done_log_buffer(sst, core);
+	}
+	return 0;
+}
+
+static struct snd_compr_ops skl_trace_compr_ops = {
+	.free = skl_trace_compr_free,
+	.copy = skl_trace_compr_copy,
+	.pointer = skl_trace_compr_tstamp,
+	.set_params = skl_trace_compr_set_params,
+};
+
 static struct snd_soc_dai_ops skl_pcm_dai_ops = {
 	.startup = skl_pcm_open,
 	.shutdown = skl_pcm_close,
@@ -604,6 +730,24 @@ static struct snd_soc_dai_ops skl_link_dai_ops = {
 };
 
 static struct snd_soc_dai_driver skl_platform_dai[] = {
+{
+	.name = "TraceBuffer0 Pin",
+	.compress_dai = 1,
+	.capture = {
+		.stream_name = "TraceBuffer Capture",
+		.channels_min = HDA_MONO,
+		.channels_max = HDA_MONO,
+	},
+},
+{
+	.name = "TraceBuffer1 Pin",
+	.compress_dai = 1,
+	.capture = {
+		.stream_name = "TraceBuffer1 Capture",
+		.channels_min = HDA_MONO,
+		.channels_max = HDA_MONO,
+	},
+},
 {
 	.name = "System Pin",
 	.ops = &skl_pcm_dai_ops,
@@ -1235,6 +1379,7 @@ static struct snd_soc_platform_driver skl_platform_drv  = {
 	.probe		= skl_platform_soc_probe,
 	.remove         = skl_platform_soc_remove,
 	.ops		= &skl_platform_ops,
+	.compr_ops	= &skl_trace_compr_ops,
 	.pcm_new	= skl_pcm_new,
 	.pcm_free	= skl_pcm_free,
 };
