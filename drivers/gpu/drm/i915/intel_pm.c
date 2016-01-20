@@ -4659,6 +4659,14 @@ void intel_update_watermarks(struct drm_crtc *crtc)
 
 	if (dev_priv->display.update_wm)
 		dev_priv->display.update_wm(crtc);
+
+	/*
+	 * BXT: IPC can be enabled optionally for test purpose
+	 * now to address display flickering and/or corruption.
+	 */
+	if (IS_BROXTON(dev_priv) && i915.enable_ipc)
+		I915_WRITE(DISP_ARB_CTL2,
+			I915_READ(DISP_ARB_CTL2) | DISP_ENABLE_IPC);
 }
 
 /*
