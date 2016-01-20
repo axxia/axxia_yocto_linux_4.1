@@ -677,7 +677,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.playback = {
 		.stream_name = "System Playback 3",
 		.channels_min = HDA_MONO,
-		.channels_max = HDA_STEREO,
+		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000 |
 			SNDRV_PCM_RATE_8000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
@@ -689,7 +689,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.playback = {
 		.stream_name = "System Playback 4",
 		.channels_min = HDA_MONO,
-		.channels_max = HDA_STEREO,
+		.channels_max = HDA_QUAD,
 		.rates = SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_16000 |
 			SNDRV_PCM_RATE_8000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S24_LE,
@@ -700,7 +700,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 	.ops = &skl_pcm_dai_ops,
 	.capture = {
 		.stream_name = "PT Capture",
-		.channels_min = HDA_STEREO,
+		.channels_min = HDA_MONO,
 		.channels_max = HDA_8_CH,
 		.rates = SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
 			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
