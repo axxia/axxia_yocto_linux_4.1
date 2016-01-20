@@ -59,6 +59,7 @@ struct i915_params i915 __read_mostly = {
 	.enable_dp_mst = true,
 	.inject_load_failure = 0,
 	.hpd_sense_invert = -1,
+	.enable_ipc = 0,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -214,3 +215,7 @@ MODULE_PARM_DESC(inject_load_failure,
 module_param_named_unsafe(hpd_sense_invert, i915.hpd_sense_invert, int, 0400);
 MODULE_PARM_DESC(hpd_sense_invert,
 		 "Invert HPD sense (-1=auto [default], 1=Invert, 0=Do not invert)");
+
+module_param_named_unsafe(enable_ipc, i915.enable_ipc, bool, 0400);
+MODULE_PARM_DESC(enable_ipc,
+		 "Enable Isochronous Priority Control (default: false)");
