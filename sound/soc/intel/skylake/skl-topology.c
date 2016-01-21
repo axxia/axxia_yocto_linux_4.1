@@ -2510,11 +2510,12 @@ static void skl_tplg_set_pipe_type(struct skl *skl, struct skl_pipe *pipe)
 int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 {
 	int ret;
+	const struct firmware *fw;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct skl *skl = ebus_to_skl(ebus);
 	struct skl_pipeline *ppl;
 
-	ret = request_firmware(&skl->tplg, "dfw_sst.bin", bus->dev);
+	ret = request_firmware(&fw, "dfw_sst.bin", bus->dev);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg fw %s load failed with %d\n",
 				"dfw_sst.bin", ret);
@@ -2526,17 +2527,17 @@ int skl_tplg_init(struct snd_soc_platform *platform, struct hdac_ext_bus *ebus)
 	 * any other index
 	 */
 	ret = snd_soc_tplg_component_load(&platform->component,
-					&skl_tplg_ops, skl->tplg, 0);
+					&skl_tplg_ops, fw, 0);
 	if (ret < 0) {
 		dev_err(bus->dev, "tplg component load failed%d\n", ret);
-		release_firmware(skl->tplg);
+		release_firmware(fw);
 		return -EINVAL;
 	}
 
 	skl->resource.max_mcps = SKL_MAX_MCPS;
 	skl->resource.max_mem = SKL_FW_MAX_MEM;
 
-
+	skl->tplg = fw;
 	list_for_each_entry(ppl, &skl->ppl_list, node)
 		skl_tplg_set_pipe_type(skl, ppl->pipe);
 
