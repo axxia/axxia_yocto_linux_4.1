@@ -294,6 +294,20 @@ static const struct snd_soc_dapm_route mrgfld_map[] = {
 	{"dmic01_hifi", NULL, "DMIC01 Rx"},
 	{"dmic01_16k", NULL, "DMIC01 Rx"},
 
+	/* ssp2 path */
+	{"Dummy Playback", NULL, "ssp2 Tx"},
+	{"ssp2 Tx", NULL, "ssp2_out"},
+
+	{"ssp2_in", NULL, "ssp2 Rx"},
+	{"ssp2 Rx", NULL, "Dummy Capture"},
+
+	/* ssp1 path */
+	{"Dummy Playback", NULL, "ssp1 Tx"},
+	{"ssp1 Tx", NULL, "ssp1_out"},
+
+	{"ssp1_in", NULL, "ssp1 Rx"},
+	{"ssp1 Rx", NULL, "Dummy Capture"},
+
 	/* SWM map link the SWM outs to codec AIF */
 	{"AIF1 Playback", NULL, "ssp0 Tx"},
 	{"ssp0 Tx", NULL, "codec1_out"},
@@ -463,8 +477,20 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.dpcm_capture = 1,
 	},
 	{
-		.name = "dmic01",
+		.name = "SSP1-Codec",
 		.be_id = 2,
+		.cpu_dai_name = "SSP1 Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:02:18.0",
+		.be_hw_params_fixup = mrgfld_florida_codec_fixup,
+		.ignore_suspend = 1,
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+	},
+	{
+		.name = "dmic01",
+		.be_id = 3,
 		.cpu_dai_name = "DMIC01 Pin",
 		.codec_name = "dmic-codec",
 		.codec_dai_name = "dmic-hifi",
@@ -472,9 +498,41 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.ignore_suspend = 1,
 		.no_pcm = 1,
 		.dpcm_capture = 1,
-        },
-
-
+	},
+	/* codec-codec link */
+	{
+		.name = "CNL Codec-Loop Port",
+		.stream_name = "CNL Codec-Loop",
+		.cpu_dai_name = "SSP0 Pin",
+		.platform_name = "0000:02:18.0",
+		.codec_name = "wm5110-codec",
+		.codec_dai_name	= "wm5110-aif1",
+		.params = &dai_params_codec,
+		.dsp_loopback = true,
+		.dai_fmt = SND_SOC_DAIFMT_DSP_A | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+	},
+	{
+		.name = "CNL SSP2-Loop Port",
+		.stream_name = "CNL SSP2-Loop",
+		.cpu_dai_name = "SSP2 Pin",
+		.platform_name = "0000:02:18.0",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.params	= &dai_params_modem,
+		.dsp_loopback = true,
+		.ops = &mrgfld_florida_ops,
+	},
+	{
+		.name = "CNL SSP1-Loop Port",
+		.stream_name = "CNL SSP1-Loop",
+		.cpu_dai_name = "SSP1 Pin",
+		.platform_name = "0000:02:18.0",
+		.codec_dai_name	= "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+		.params = &dai_params_bt,
+		.dsp_loopback = true,
+	}
 };
 
 #ifdef CONFIG_PM_SLEEP
