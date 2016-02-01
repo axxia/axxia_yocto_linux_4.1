@@ -184,8 +184,11 @@ static const struct stepping_info skl_stepping_info[] = {
 };
 
 static const struct stepping_info bxt_stepping_info[] = {
-	{'A', '0'}, {'A', '1'}, {'A', '2'},
-	{'B', '0'}, {'B', '1'}, {'B', '2'}
+	{'A', '0'}, {'A', '0'}, {'A', 'x'},
+	{'B', '0'}, {'B', '1'}, {'B', '2'},
+	{'B', '0'}, {'B', '0'}, {'B', 'x'},
+	{'C', '0'}, {'C', '0'}, {'C', 'x'},
+	{'D', '0'}, {'D', 'x'},
 };
 
 static const struct stepping_info no_stepping_info = { '*', '*' };
