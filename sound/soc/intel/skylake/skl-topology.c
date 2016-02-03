@@ -1397,10 +1397,17 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 		skl_get_module_params(skl->skl_sst, (void *)bc->params,
 				      bc->max, bc->param_id, mconfig);
 
+	/* decrement size for TLV header */
+	size -= 2 * sizeof(u32);
+
+	/* check size as we don't want to send kernel data */
+	if (size > bc->max)
+		size = bc->max;
+
 	if (bc->params) {
 		ret = copy_to_user(data, &bc->param_id, sizeof(u32));
 		ret = copy_to_user(((unsigned char *)data) + sizeof(u32), &bc->max, sizeof(u32));
-		ret = copy_to_user(((unsigned char *)data) + 2*sizeof(u32), bc->params, size - 2*sizeof(u32));
+		ret = copy_to_user(((unsigned char *)data) + 2*sizeof(u32), bc->params, size);
 
 	}
 
