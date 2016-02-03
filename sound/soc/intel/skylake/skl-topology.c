@@ -882,6 +882,7 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 
 static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 				struct skl *skl,
+				struct snd_soc_dapm_widget *src_w,
 				struct skl_module_cfg *src_mconfig)
 {
 	struct snd_soc_dapm_path *p;
@@ -898,6 +899,10 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 		dev_dbg(ctx->dev, "%s: sink widget=%s\n", __func__, p->sink->name);
 
 		next_sink = p->sink;
+
+		if (!is_skl_dsp_widget_type(p->sink))
+			return skl_tplg_bind_sinks(p->sink, skl, src_w, src_mconfig);
+
 		/*
 		 * here we will check widgets in sink pipelines, so that
 		 * can be any widgets type and we are only interested if
@@ -923,7 +928,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 	}
 
 	if ((!sink) && (next_sink))
-		return skl_tplg_bind_sinks(next_sink, skl, src_mconfig);
+		return skl_tplg_bind_sinks(next_sink, skl, src_w, src_mconfig);
 
 	return 0;
 }
@@ -954,7 +959,7 @@ static int skl_tplg_pga_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	 * if sink is not started, start sink pipe first, then start
 	 * this pipe
 	 */
-	ret = skl_tplg_bind_sinks(w, skl, src_mconfig);
+	ret = skl_tplg_bind_sinks(w, skl, w, src_mconfig);
 	if (ret)
 		return ret;
 
