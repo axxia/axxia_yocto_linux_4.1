@@ -48,9 +48,9 @@
 #define BXT_BASE_FW_MODULE_ID 0
 
 #define BXT_ADSP_SRAM1_BASE	0xA0000
-#define BXT_ADSP_W0_STAT_SZ	0x800
-#define BXT_ADSP_W0_UP_SZ	0x800
-#define BXT_ADSP_W1_SZ  0x1000
+#define BXT_ADSP_W0_STAT_SZ	0x1000
+#define BXT_ADSP_W0_UP_SZ	0x1000
+#define BXT_ADSP_W1_SZ  	0x1000
 
 /* Delay before scheduling D0i3 entry */
 #define BXT_D0I3_DELAY 5000
