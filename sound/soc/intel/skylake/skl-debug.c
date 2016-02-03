@@ -177,7 +177,7 @@ static ssize_t mod_control_read(struct file *file,
 
 	for (ofs = 0 ; ofs < d->ipc_data[0] ; ofs += 16) {
 		ret += snprintf(buf1 + ret, MOD_BUF1 - ret, "0x%.4x : ", ofs);
-		hex_dump_to_buffer(&(d->ipc_data[1]) + ofs, 16, 16, 4,
+		hex_dump_to_buffer((u8 *)(&(d->ipc_data[1])) + ofs, 16, 16, 4,
 					buf1 + ret, MOD_BUF1 - ret, 0);
 		ret += strlen(buf1 + ret);
 		if (MOD_BUF1 - ret > 0)
@@ -503,7 +503,7 @@ static ssize_t adsp_control_read(struct file *file,
 	for (ofs = 0 ; ofs < replysz ; ofs += 16) {
 		ret += snprintf(buf1 + ret, MOD_BUF1 - ret,
 			"0x%.4x : ", ofs);
-		hex_dump_to_buffer(&(d->fw_ipc_data.mailbx[0]) + ofs, 16, 16, 4,
+		hex_dump_to_buffer((u8 *)(&(d->fw_ipc_data.mailbx[0])) + ofs, 16, 16, 4,
 				buf1 + ret, MOD_BUF1 - ret, 0);
 		ret += strlen(buf1 + ret);
 		if (MOD_BUF1 - ret > 0)
