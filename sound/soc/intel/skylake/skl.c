@@ -840,8 +840,6 @@ static int skl_probe(struct pci_dev *pci,
 		snd_hdac_ext_bus_link_put(ebus, hlink);
 
 	/*configure PM */
-	pm_runtime_set_autosuspend_delay(bus->dev, SKL_SUSPEND_DELAY);
-	pm_runtime_use_autosuspend(bus->dev);
 	pm_runtime_put_noidle(bus->dev);
 	pm_runtime_allow(bus->dev);
 
