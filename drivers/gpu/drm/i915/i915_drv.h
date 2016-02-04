@@ -273,6 +273,7 @@ struct i915_hotplug {
 	struct intel_digital_port *irq_port[I915_MAX_PORTS];
 	u32 long_port_mask;
 	u32 short_port_mask;
+	u32 invert_bits;
 	struct work_struct dig_port_work;
 
 	/*

@@ -3500,6 +3500,7 @@ static void bxt_hpd_irq_setup(struct drm_device *dev)
 	hotplug = I915_READ(PCH_PORT_HOTPLUG);
 	hotplug |= PORTC_HOTPLUG_ENABLE | PORTB_HOTPLUG_ENABLE |
 		PORTA_HOTPLUG_ENABLE;
+
 	if(i915.hpd_sense_invert == 1) {
 		hotplug |= PORTC_HOTPLUG_SENSE_INVERT |
 			PORTB_HOTPLUG_SENSE_INVERT |
@@ -3508,7 +3509,12 @@ static void bxt_hpd_irq_setup(struct drm_device *dev)
 		hotplug &= ~(PORTC_HOTPLUG_SENSE_INVERT |
 			PORTB_HOTPLUG_SENSE_INVERT |
 			PORTA_HOTPLUG_SENSE_INVERT);
+	} else {
+		/* use the value set by the BIOS */
+		hotplug &= ~BXT_DDI_HPD_INVERT_MASK;
+		hotplug |= dev_priv->hotplug.invert_bits;
 	}
+
 	I915_WRITE(PCH_PORT_HOTPLUG, hotplug);
 }
 

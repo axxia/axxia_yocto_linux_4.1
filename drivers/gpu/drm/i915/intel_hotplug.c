@@ -479,6 +479,11 @@ void intel_hpd_init(struct drm_i915_private *dev_priv)
 			connector->polled = DRM_CONNECTOR_POLL_HPD;
 	}
 
+	/* Save sense invert bits as set by the BIOS */
+	if (IS_BROXTON(dev))
+		dev_priv->hotplug.invert_bits =
+			I915_READ(PCH_PORT_HOTPLUG) & BXT_DDI_HPD_INVERT_MASK;
+
 	/*
 	 * Interrupt setup is already guaranteed to be single-threaded, this is
 	 * just to make the assert_spin_locked checks happy.
