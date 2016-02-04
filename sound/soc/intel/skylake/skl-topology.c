@@ -411,7 +411,7 @@ static int skl_tplg_set_module_init_data(struct snd_soc_dapm_widget *w)
 			bc = (struct skl_algo_data *)sb->dobj.private;
 			if (bc->set_params != SKL_PARAM_INIT)
 				continue;
-			mconfig->formats_config.caps = (u32 *)&bc->params;
+			mconfig->formats_config.caps = (u32 *)bc->params;
 			mconfig->formats_config.caps_size = bc->max;
 			break;
 		}
@@ -947,8 +947,6 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-#define SKL_PARAM_VENDOR_ID 0xff
-
 static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 			const unsigned int __user *data, unsigned int size)
 {
@@ -962,22 +960,14 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 
 	dev_dbg(dapm->dev, "in %s control=%s\n", __func__, kcontrol->id.name);
 	dev_dbg(dapm->dev, "size = %u, %#x\n", size, size);
+
 	if (ac->params) {
-		/*
-		 * if the param_is is of type Vendor, firmware expects actual
-		 * parameter id and size from the control.
-		 */
-		if (ac->param_id == SKL_PARAM_VENDOR_ID) {
-			if (copy_from_user(ac->params,
-					   ((unsigned char *)data),
-					   size))
-				return -EIO;
-		} else {
-			if (copy_from_user(ac->params,
-					   ((unsigned char *)data) + 2*sizeof(u32),
-					   size))
-				return -EIO;
-		}
+		memset(ac->params, 0, ac->max);
+                /* skip copying first two u32 words from user which is the TLV header */
+		if (copy_from_user(ac->params,
+				   ((unsigned char *)data) + 2*sizeof(u32),
+				   size - 2*sizeof(u32)))
+			return -EIO;
 
 		if (w->power)
 			return skl_set_module_params(skl->skl_sst, (void *)ac->params,
