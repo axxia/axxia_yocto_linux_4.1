@@ -313,6 +313,8 @@ static const struct snd_soc_dapm_widget mrgfld_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			mrgfld_clock_control, SND_SOC_DAPM_PRE_PMU|
 			SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SIGGEN("probe source"),
+	SND_SOC_DAPM_SINK("probe sink"),
 
 };
 
@@ -374,6 +376,8 @@ static const struct snd_soc_dapm_route mrgfld_wm5110_map[] = {
 	{"EP", NULL, "Platform Clock"},
 	{"Tone Generator 1", NULL, "Platform Clock" },
 	{"Tone Generator 2", NULL, "Platform Clock" },
+	{"extractor cpr 15", NULL, "probe source"},
+	{"probe sink", NULL, "injector cpr 14"},
 };
 
 
@@ -443,6 +447,8 @@ static const struct snd_soc_dapm_route mrgfld_wm8998_map[] = {
 	{"EP", NULL, "Platform Clock"},
 	{"Tone Generator 1", NULL, "Platform Clock" },
 	{"Tone Generator 2", NULL, "Platform Clock" },
+	{"extractor cpr 15", NULL, "probe source"},
+	{"probe sink", NULL, "injector cpr 14"},
 };
 
 
