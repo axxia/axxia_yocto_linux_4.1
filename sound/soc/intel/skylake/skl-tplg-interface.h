@@ -155,7 +155,8 @@ enum module_pin_type {
 enum skl_module_param_type {
 	SKL_PARAM_DEFAULT = 0,
 	SKL_PARAM_INIT,
-	SKL_PARAM_SET
+	SKL_PARAM_SET,
+	SKL_PARAM_BIND
 };
 
 enum skl_probe_connect_type {
