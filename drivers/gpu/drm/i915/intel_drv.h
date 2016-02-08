@@ -737,8 +737,6 @@ enum link_m_n_set {
 
 struct sink_crc {
 	bool started;
-	u8 last_crc[6];
-	int last_count;
 };
 
 struct intel_dp {
