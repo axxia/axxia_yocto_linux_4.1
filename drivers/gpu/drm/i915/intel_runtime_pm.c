@@ -2108,36 +2108,6 @@ void intel_power_domains_suspend(struct drm_i915_private *dev_priv)
 }
 
 /**
- * intel_aux_display_runtime_get - grab an auxiliary power domain reference
- * @dev_priv: i915 device instance
- *
- * This function grabs a power domain reference for the auxiliary power domain
- * (for access to the GMBUS and DP AUX blocks) and ensures that it and all its
- * parents are powered up. Therefore users should only grab a reference to the
- * innermost power domain they need.
- *
- * Any power domain reference obtained by this function must have a symmetric
- * call to intel_aux_display_runtime_put() to release the reference again.
- */
-void intel_aux_display_runtime_get(struct drm_i915_private *dev_priv)
-{
-	intel_runtime_pm_get(dev_priv);
-}
-
-/**
- * intel_aux_display_runtime_put - release an auxiliary power domain reference
- * @dev_priv: i915 device instance
- *
- * This function drops the auxiliary power domain reference obtained by
- * intel_aux_display_runtime_get() and might power down the corresponding
- * hardware block right away if this is the last reference.
- */
-void intel_aux_display_runtime_put(struct drm_i915_private *dev_priv)
-{
-	intel_runtime_pm_put(dev_priv);
-}
-
-/**
  * intel_runtime_pm_get - grab a runtime pm reference
  * @dev_priv: i915 device instance
  *
