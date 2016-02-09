@@ -14156,7 +14156,8 @@ intel_commit_cursor_plane(struct drm_plane *plane,
 
 	intel_crtc->cursor_addr = addr;
 
-	intel_crtc_update_cursor(crtc, state->visible);
+	if (crtc->state->active)
+		intel_crtc_update_cursor(crtc, state->visible);
 }
 
 static struct drm_plane *intel_cursor_plane_create(struct drm_device *dev,
