@@ -268,12 +268,12 @@ static void skl_tplg_update_buffer_size(struct skl_sst *ctx,
 	mcfg->ibs = ((in_fmt->s_freq + 999) / 1000) *
 				(mcfg->in_fmt->channels) *
 				(mcfg->in_fmt->bit_depth >> 3) *
-				mcfg->frame_size;
+				mcfg->in_frame_size;
 
 	mcfg->obs = ((mcfg->out_fmt->s_freq + 999) / 1000) *
 				(mcfg->out_fmt->channels) *
 				(mcfg->out_fmt->bit_depth >> 3) *
-				mcfg->frame_size;
+				mcfg->out_frame_size;
 }
 
 static void skl_tplg_update_module_params(struct snd_soc_dapm_widget *w,
@@ -1360,6 +1360,7 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->max_out_queue = dfw_config->max_out_queue;
 	mconfig->is_loadable = dfw_config->is_loadable;
 	mconfig->domain = dfw_config->proc_domain;
+
 	skl_tplg_fill_fmt(mconfig->in_fmt, dfw_config->in_fmt,
 						MODULE_MAX_IN_PINS);
 	skl_tplg_fill_fmt(mconfig->out_fmt, dfw_config->out_fmt,
@@ -1371,7 +1372,8 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->vbus_id = dfw_config->vbus_id;
 	mconfig->mem_pages = dfw_config->mem_pages;
 	mconfig->fast_mode = dfw_config->fast_mode;
-	mconfig->frame_size = dfw_config->frame_size;
+	mconfig->in_frame_size = dfw_config->in_frame_size;
+	mconfig->out_frame_size = dfw_config->out_frame_size;
 
 	pipe = skl_tplg_add_pipe(bus->dev, skl, &dfw_config->pipe);
 	if (pipe)
