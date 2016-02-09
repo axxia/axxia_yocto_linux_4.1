@@ -428,8 +428,6 @@ struct drm_encoder_helper_funcs {
 	 * @enable and @disable should be used.
 	 */
 	void (*dpms)(struct drm_encoder *encoder, int mode);
-	void (*save)(struct drm_encoder *encoder);
-	void (*restore)(struct drm_encoder *encoder);
 
 	/**
 	 * @mode_fixup:
