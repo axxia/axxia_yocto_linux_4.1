@@ -297,6 +297,90 @@ struct drm_connector_helper_funcs;
 struct drm_plane_helper_funcs;
 
 /**
+ * struct drm_rgba - RGBA property value type
+ * @v: Internal representation of RGBA, stored in 16bpc format
+ *
+ * Structure to abstract away the representation of RGBA values with precision
+ * up to 16 bits per color component.  This is primarily intended for use with
+ * DRM properties that need to take a color value since we don't want userspace
+ * to have to worry about the bit layout expected by the underlying hardware.
+ *
+ * We wrap the value in a structure here so that the compiler will flag any
+ * accidental attempts by driver code to directly attempt bitwise operations
+ * that could potentially misinterpret the value.  Drivers should instead use
+ * the DRM_RGBA_{RED,GREEN,BLUE,ALPHA}BITS() macros to obtain the component
+ * bits and then build values in the format their hardware expects.
+ */
+struct drm_rgba {
+	uint64_t v;
+};
+
+/**
+ * drm_rgba - Build RGBA property values
+ * @bpc: Bits per component value for @red, @green, @blue, and @alpha parameters
+ * @red: Red component value
+ * @green: Green component value
+ * @blue: Blue component value
+ * @alpha: Alpha component value
+ *
+ * Helper to build RGBA 16bpc color values with the bits laid out in the format
+ * expected by DRM RGBA properties.
+ *
+ * Returns:
+ * An RGBA structure encapsulating the requested RGBA value.
+ */
+static inline struct drm_rgba
+drm_rgba(unsigned bpc,
+	 uint16_t red,
+	 uint16_t green,
+	 uint16_t blue,
+	 uint16_t alpha)
+{
+	int shift;
+	struct drm_rgba val;
+
+	if (WARN_ON(bpc > 16))
+		bpc = 16;
+
+	/*
+	 * If we were provided with fewer than 16 bpc, shift the value we
+	 * received into the most significant bits.
+	 */
+	shift = 16 - bpc;
+
+	val.v = red << shift;
+	val.v <<= 16;
+	val.v |= green << shift;
+	val.v <<= 16;
+	val.v |= blue << shift;
+	val.v <<= 16;
+	val.v |= alpha << shift;
+
+	return val;
+}
+
+static inline uint16_t
+drm_rgba_bits(struct drm_rgba c, unsigned compshift, unsigned bits) {
+	uint64_t val;
+
+	if (WARN_ON(bits > 16))
+		bits = 16;
+
+	val = c.v & GENMASK_ULL(compshift + 15, compshift);
+	return val >> (compshift + 16 - bits);
+}
+
+/*
+ * Macros to access the individual color components of an RGBA property value.
+ * If the requested number of bits is less than 16, only the most significant
+ * bits of the color component will be returned.
+ */
+#define DRM_RGBA_REDBITS(c, bits)   drm_rgba_bits(c, 48, bits)
+#define DRM_RGBA_GREENBITS(c, bits) drm_rgba_bits(c, 32, bits)
+#define DRM_RGBA_BLUEBITS(c, bits)  drm_rgba_bits(c, 16, bits)
+#define DRM_RGBA_ALPHABITS(c, bits) drm_rgba_bits(c, 0, bits)
+
+/**
  * struct drm_crtc_state - mutable CRTC state
  * @crtc: backpointer to the CRTC
  * @enable: whether the CRTC should be enabled, gates all other state
@@ -319,6 +403,7 @@ struct drm_plane_helper_funcs;
  * @ctm: Transformation matrix
  * @gamma_lut: Lookup table for converting pixel data after the
  *	conversion matrix
+ * @background_color: background/canvas color of regions not covered by planes
  * @event: optional pointer to a DRM event to signal upon completion of the
  * 	state update
  * @state: backpointer to global drm_atomic_state
@@ -367,6 +452,9 @@ struct drm_crtc_state {
 	struct drm_property_blob *degamma_lut;
 	struct drm_property_blob *ctm;
 	struct drm_property_blob *gamma_lut;
+
+	/* CRTC background color */
+	struct drm_rgba background_color;
 
 	struct drm_pending_vblank_event *event;
 
@@ -2127,6 +2215,7 @@ struct drm_mode_config {
 	struct drm_property *prop_crtc_id;
 	struct drm_property *prop_active;
 	struct drm_property *prop_mode_id;
+	struct drm_property *prop_background_color;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
@@ -2408,6 +2497,8 @@ struct drm_property *drm_property_create_object(struct drm_device *dev,
 					 int flags, const char *name, uint32_t type);
 struct drm_property *drm_property_create_bool(struct drm_device *dev, int flags,
 					 const char *name);
+struct drm_property *drm_property_create_rgba(struct drm_device *dev,
+					      int flags, const char *name);
 struct drm_property_blob *drm_property_create_blob(struct drm_device *dev,
                                                    size_t length,
                                                    const void *data);
@@ -2540,6 +2631,7 @@ extern int drm_format_plane_height(int height, uint32_t format, int plane);
 extern const char *drm_get_format_name(uint32_t format);
 extern struct drm_property *drm_mode_create_rotation_property(struct drm_device *dev,
 							      unsigned int supported_rotations);
+extern struct drm_property *drm_mode_create_background_color_property(struct drm_device *dev);
 extern unsigned int drm_rotation_simplify(unsigned int rotation,
 					  unsigned int supported_rotations);
 
