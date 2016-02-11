@@ -199,7 +199,7 @@ static void set_guc_init_params(struct drm_i915_private *dev_priv)
  * the value matches either of two values representing completion
  * of the GuC boot process.
  *
- * This is used for polling the GuC status in a wait_for_atomic()
+ * This is used for polling the GuC status in a wait_for()
  * loop below.
  */
 static inline bool guc_ucode_response(struct drm_i915_private *dev_priv,
@@ -259,7 +259,7 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv)
 	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA));
 
 	/*
-	 * Spin-wait for the DMA to complete & the GuC to start up.
+	 * Wait for the DMA to complete & the GuC to start up.
 	 * NB: Docs recommend not using the interrupt for completion.
 	 * Measurements indicate this should take no more than 20ms, so a
 	 * timeout here indicates that the GuC has failed and is unusable.
