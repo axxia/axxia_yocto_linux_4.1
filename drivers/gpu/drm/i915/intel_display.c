@@ -2462,12 +2462,16 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	if (size_aligned * 2 > dev_priv->ggtt.stolen_usable_size)
 		return false;
 
+	mutex_lock(&dev->struct_mutex);
+
 	obj = i915_gem_object_create_stolen_for_preallocated(dev,
 							     base_aligned,
 							     base_aligned,
 							     size_aligned);
-	if (!obj)
+	if (!obj) {
+		mutex_unlock(&dev->struct_mutex);
 		return false;
+	}
 
 	obj->tiling_mode = plane_config->tiling;
 	if (obj->tiling_mode == I915_TILING_X)
@@ -2480,12 +2484,12 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 	mode_cmd.modifier[0] = fb->modifier[0];
 	mode_cmd.flags = DRM_MODE_FB_MODIFIERS;
 
-	mutex_lock(&dev->struct_mutex);
 	if (intel_framebuffer_init(dev, to_intel_framebuffer(fb),
 				   &mode_cmd, obj)) {
 		DRM_DEBUG_KMS("intel fb init failed\n");
 		goto out_unref_obj;
 	}
+
 	mutex_unlock(&dev->struct_mutex);
 
 	DRM_DEBUG_KMS("initial plane fb obj %p\n", obj);
