@@ -109,6 +109,7 @@ struct drm_plane_helper_funcs;
  * @ctm: Transformation matrix
  * @gamma_lut: Lookup table for converting pixel data after the
  *	conversion matrix
+ * @background_color: background/canvas color of regions not covered by planes
  * @state: backpointer to global drm_atomic_state
  *
  * Note that the distinction between @enable and @active is rather subtile:
@@ -197,6 +198,10 @@ struct drm_crtc_state {
 	 * for a detailed discussion of the constraints it needs to be used
 	 * safely.
 	 */
+
+	/* CRTC background color */
+	struct drm_rgba background_color;
+
 	struct drm_pending_vblank_event *event;
 
 	struct drm_atomic_state *state;
@@ -1176,6 +1181,11 @@ struct drm_mode_config {
 	 * connectors must be of and active must be set to disabled, too.
 	 */
 	struct drm_property *prop_mode_id;
+
+	/**
+	 * @prop_background_color: RGBA background color for CRTC.
+	 */
+	struct drm_property *prop_background_color;
 
 	/**
 	 * @dvi_i_subconnector_property: Optional DVI-I property to
