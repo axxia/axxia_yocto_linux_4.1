@@ -99,6 +99,23 @@ static inline uint64_t I642U64(int64_t val)
 #define DRM_REFLECT_X	4
 #define DRM_REFLECT_Y	5
 
+enum drm_blend_factor {
+	DRM_BLEND_FACTOR_AUTO,
+	DRM_BLEND_FACTOR_ZERO,
+	DRM_BLEND_FACTOR_ONE,
+	DRM_BLEND_FACTOR_SRC_ALPHA,
+	DRM_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+};
+
+#define DRM_BLEND_FUNC(src_factor, dst_factor)		\
+	(DRM_BLEND_FACTOR_##src_factor << 16 | DRM_BLEND_FACTOR_##dst_factor)
+#define DRM_BLEND_FUNC_SRC_FACTOR(val)	(((val) >> 16) & 0xffff)
+#define DRM_BLEND_FUNC_DST_FACTOR(val)	((val) & 0xffff)
+
+struct drm_blend_mode {
+	uint64_t func;
+};
+
 enum drm_connector_force {
 	DRM_FORCE_UNSPECIFIED,
 	DRM_FORCE_OFF,
@@ -1371,6 +1388,8 @@ struct drm_plane_state {
 	/* Plane rotation */
 	unsigned int rotation;
 
+	struct drm_blend_mode blend_mode;
+
 	struct drm_atomic_state *state;
 };
 
@@ -2216,6 +2235,7 @@ struct drm_mode_config {
 	struct drm_property *prop_active;
 	struct drm_property *prop_mode_id;
 	struct drm_property *prop_background_color;
+	struct drm_property *prop_blend_func;
 
 	/* DVI-I properties */
 	struct drm_property *dvi_i_subconnector_property;
