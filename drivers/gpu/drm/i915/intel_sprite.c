@@ -226,7 +226,8 @@ skl_update_plane(struct drm_plane *drm_plane,
 		PLANE_CTL_PIPE_GAMMA_ENABLE |
 		PLANE_CTL_PIPE_CSC_ENABLE;
 
-	plane_ctl |= skl_plane_ctl_format(fb->pixel_format);
+	plane_ctl |= skl_plane_ctl_format(fb->pixel_format,
+					plane_state->alpha);
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
@@ -1144,6 +1145,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		goto fail;
 
 	intel_create_rotation_property(dev, intel_plane);
+	intel_plane_add_blend_properties(intel_plane);
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 

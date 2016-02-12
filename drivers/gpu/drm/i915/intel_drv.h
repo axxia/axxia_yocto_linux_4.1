@@ -364,6 +364,12 @@ struct intel_atomic_state {
 	struct skl_wm_values wm_results;
 };
 
+enum i915_alpha {
+	I915_ALPHA_NONE,
+	I915_ALPHA_PREMUL,
+	I915_ALPHA_NON_PREMUL
+};
+
 struct intel_plane_state {
 	struct drm_plane_state base;
 	struct drm_rect clip;
@@ -396,6 +402,10 @@ struct intel_plane_state {
 	 *     update_scaler_plane.
 	 */
 	int scaler_id;
+	/*
+	 * blending related hw states
+	 */
+	enum i915_alpha alpha;
 
 	struct drm_intel_sprite_colorkey ckey;
 
@@ -1293,6 +1303,7 @@ intel_rotation_90_or_270(unsigned int rotation)
 
 void intel_create_rotation_property(struct drm_device *dev,
 					struct intel_plane *plane);
+void intel_plane_add_blend_properties(struct intel_plane *plane);
 
 void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe);
@@ -1365,7 +1376,7 @@ int skl_max_scale(struct intel_crtc *crtc, struct intel_crtc_state *crtc_state);
 
 u32 intel_fb_gtt_offset(struct drm_framebuffer *fb, unsigned int rotation);
 
-u32 skl_plane_ctl_format(uint32_t pixel_format);
+u32 skl_plane_ctl_format(uint32_t pixel_format, enum i915_alpha alpha);
 u32 skl_plane_ctl_tiling(uint64_t fb_modifier);
 u32 skl_plane_ctl_rotation(unsigned int rotation);
 u32 skl_plane_stride(const struct drm_framebuffer *fb, int plane,
