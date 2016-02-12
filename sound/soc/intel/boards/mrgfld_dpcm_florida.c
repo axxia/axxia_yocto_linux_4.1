@@ -110,6 +110,24 @@ static const struct snd_soc_pcm_stream bxtn_florida_dai_params_bt[] = {
 	},
 };
 
+static const struct snd_soc_pcm_stream bxtn_florida_dai_params_dmic01 = {
+	.stream_name = "dmic01",
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.rate_min = 48000,
+	.rate_max = 48000,
+	.channels_min = 2,
+	.channels_max = 2,
+};
+
+static const struct snd_soc_pcm_stream bxtn_florida_dai_params_dmic23 = {
+	.stream_name = "dmic23",
+	.formats = SNDRV_PCM_FMTBIT_S16_LE,
+	.rate_min = 48000,
+	.rate_max = 48000,
+	.channels_min = 2,
+	.channels_max = 2,
+};
+
 /* set_osc_clk0-	enable/disables the osc clock0
  * addr:		address of the register to write to
  * enable:		bool to enable or disable the clock
@@ -639,6 +657,28 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 	},
 
 	{
+		.name = "Bxtn DMIC01-Loop Port",
+		.stream_name = "Bxtn DMIC01-Loop",
+		.cpu_dai_name = "DMIC01 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_dai_name = "dmic-hifi",
+		.codec_name = "dmic-codec",
+		.params = &bxtn_florida_dai_params_dmic01,
+		.dsp_loopback = true,
+	},
+
+	{
+		.name = "Bxtn DMIC23-Loop Port",
+		.stream_name = "Bxtn DMIC23-Loop",
+		.cpu_dai_name = "DMIC23 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_dai_name = "dmic-hifi",
+		.codec_name = "dmic-codec",
+		.params = &bxtn_florida_dai_params_dmic23,
+		.dsp_loopback = true,
+	},
+
+	{
 		.name = "Bxtn HDMI Port",
 		.stream_name = "Hdmi",
 		.cpu_dai_name = "HDMI Pin",
@@ -785,6 +825,28 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 		.codec_name = "snd-soc-dummy",
 		.params = &bxtn_florida_dai_params_bt,
 		.num_params = ARRAY_SIZE(bxtn_florida_dai_params_bt),
+		.dsp_loopback = true,
+	},
+
+	{
+		.name = "Bxtn DMIC01-Loop Port",
+		.stream_name = "Bxtn DMIC01-Loop",
+		.cpu_dai_name = "DMIC01 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_dai_name = "dmic-hifi",
+		.codec_name = "dmic-codec",
+		.params = &bxtn_florida_dai_params_dmic01,
+		.dsp_loopback = true,
+	},
+
+	{
+		.name = "Bxtn DMIC23-Loop Port",
+		.stream_name = "Bxtn DMIC23-Loop",
+		.cpu_dai_name = "DMIC23 Pin",
+		.platform_name = "0000:00:0e.0",
+		.codec_dai_name = "dmic-hifi",
+		.codec_name = "dmic-codec",
+		.params = &bxtn_florida_dai_params_dmic23,
 		.dsp_loopback = true,
 	},
 
