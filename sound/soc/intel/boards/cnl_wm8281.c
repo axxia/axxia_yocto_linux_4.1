@@ -272,6 +272,16 @@ static const struct snd_soc_dapm_widget mrgfld_widgets[] = {
 
 };
 
+static int cnl_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
+				struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *channels = hw_param_interval(params,
+						SNDRV_PCM_HW_PARAM_CHANNELS);
+	channels->min = channels->max = 2;
+
+	return 0;
+}
+
 static const struct snd_soc_dapm_route mrgfld_map[] = {
 	/*Headphones*/
 	{"Headphones", NULL, "HPOUT1L"},
@@ -291,8 +301,11 @@ static const struct snd_soc_dapm_route mrgfld_map[] = {
 
 	{"DMic", NULL, "SoC DMIC"},
 	{"DMIC01 Rx", NULL, "Capture"},
+	{"DMIC23 Rx", NULL, "Capture"},
 	{"dmic01_hifi", NULL, "DMIC01 Rx"},
 	{"dmic01_16k", NULL, "DMIC01 Rx"},
+	{"dmic23_hifi", NULL, "DMIC23 Rx"},
+	{"dmic23_16k", NULL, "DMIC23 Rx"},
 
 	/* ssp2 path */
 	{"Dummy Playback", NULL, "ssp2 Tx"},
@@ -476,16 +489,17 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.ops = &mrgfld_florida_ops,
 	},
 	{
-		.name = "CNL Reference Port",
-		.stream_name = "Reference Capture",
+		.name = "CNL Audio Reference cap",
+		.stream_name = "refcap",
 		.cpu_dai_name = "Reference Pin",
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.platform_name = "0000:02:18.0",
-		.dpcm_capture = 1,
+		.init = NULL,
 		.ignore_suspend = 1,
 		.nonatomic = 1,
 		.dynamic = 1,
+		.dpcm_capture = 1,
 	},
 	/* back ends */
 	{
@@ -523,6 +537,20 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.ignore_suspend = 1,
 		.no_pcm = 1,
 		.dpcm_capture = 1,
+		.be_hw_params_fixup = cnl_dmic_fixup,
+	},
+	{
+		.name = "dmic23",
+		.be_id = 4,
+		.cpu_dai_name = "DMIC23 Pin",
+		.codec_name = "dmic-codec",
+		.codec_dai_name = "dmic-hifi",
+		.platform_name = "0000:02:18.0",
+		.ignore_suspend = 1,
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.be_hw_params_fixup = cnl_dmic_fixup,
+
 	},
 	/* codec-codec link */
 	{
