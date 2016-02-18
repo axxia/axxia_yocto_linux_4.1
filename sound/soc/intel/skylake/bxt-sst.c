@@ -182,7 +182,10 @@ static int bxt_load_library(struct sst_dsp *ctx, struct skl_dfw_manifest *minfo)
 {
 	struct snd_dma_buffer dmab;
 	struct skl_sst *skl = ctx->thread_context;
-	const struct firmware *fw = NULL;
+	struct firmware *fw = NULL;
+	struct skl_ext_manifest_header *hdr;
+	u32 size;
+	const void *data;
 	int ret = 0, i, dma_id, stream_tag;
 
 	for (i = 1; i < minfo->lib_count; i++) {
@@ -193,9 +196,22 @@ static int bxt_load_library(struct sst_dsp *ctx, struct skl_dfw_manifest *minfo)
 			goto load_library_failed;
 		}
 
+		size = fw->size;
+		data = fw->data;
+		hdr = (struct skl_ext_manifest_header *)fw->data;
+		if (hdr->ext_manifest_id == SKL_EXT_MANIFEST_MAGIC_HEADER_ID) {
+			dev_dbg(ctx->dev, "Found Extended manifest in Library Binary\n");
+			if (hdr->ext_manifest_len >= fw->size) {
+				ret = -EINVAL;
+				goto load_library_failed;
+			}
+			size = fw->size - hdr->ext_manifest_len;
+			data = fw->data + hdr->ext_manifest_len;
+		}
+
 		dev_dbg(ctx->dev, "Starting to preapre host dma for library name \
-			: %s of size:%zx\n", minfo->lib[i].name, fw->size);
-		stream_tag = ctx->dsp_ops.prepare(ctx->dev, 0x40, fw->size,
+			: %s of size:%zx\n", minfo->lib[i].name, size);
+		stream_tag = ctx->dsp_ops.prepare(ctx->dev, 0x40, size,
 						&dmab);
 		if (stream_tag <= 0) {
 			dev_err(ctx->dev, "Failed to prepare DMA engine for \
@@ -204,7 +220,7 @@ static int bxt_load_library(struct sst_dsp *ctx, struct skl_dfw_manifest *minfo)
 			goto load_library_failed;
 		}
 		dma_id = stream_tag - 1;
-		memcpy(dmab.area, fw->data, fw->size);
+		memcpy(dmab.area, data, size);
 
 		ctx->dsp_ops.trigger(ctx->dev, true, stream_tag);
 		ret = skl_sst_ipc_load_library(&skl->ipc, dma_id, i);
@@ -584,8 +600,12 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 	hdr = (struct skl_ext_manifest_header *)fw->data;
 	if (hdr->ext_manifest_id == SKL_EXT_MANIFEST_MAGIC_HEADER_ID) {
 		dev_dbg(ctx->dev, "Found Extended manifest in FW Binary\n");
+		if (hdr->ext_manifest_len >= fw->size) {
+			ret = -EINVAL;
+			goto sst_load_base_firmware_failed;
+		}
 		size = fw->size - hdr->ext_manifest_len;
-		data = (u8 *)fw->data + hdr->ext_manifest_len;
+		data = fw->data + hdr->ext_manifest_len;
 	}
 
 	ret = sst_bxt_prepare_fw(ctx, data, size);
