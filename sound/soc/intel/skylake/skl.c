@@ -172,9 +172,8 @@ static irqreturn_t skl_threaded_handler(int irq, void *dev_id)
 {
 	struct hdac_ext_bus *ebus = dev_id;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
-	u32 status;
-	u32 int_enable;
-	u32 mask;
+	u32 status, int_enable, mask;
+	unsigned long flags;
 
 	status = snd_hdac_chip_readl(bus, INTSTS);
 
@@ -182,10 +181,10 @@ static irqreturn_t skl_threaded_handler(int irq, void *dev_id)
 
 	/* Re-enable stream interrupts */
 	mask = (0x1 << ebus->num_streams) - 1;
-	spin_lock(&bus->reg_lock);
+	spin_lock_irqsave(&bus->reg_lock, flags);
 	int_enable = snd_hdac_chip_readl(bus, INTCTL);
 	snd_hdac_chip_writel(bus, INTCTL, (int_enable | mask));
-	spin_unlock(&bus->reg_lock);
+	spin_unlock_irqrestore(&bus->reg_lock, flags);
 	return IRQ_HANDLED;
 }
 
