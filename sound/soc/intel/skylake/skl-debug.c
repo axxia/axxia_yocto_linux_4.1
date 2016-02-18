@@ -245,6 +245,7 @@ static ssize_t mod_control_write(struct file *file,
 
 		d->ipc_data[0] = msg.param_data_size;
 		memcpy(&d->ipc_data[1], large_data, msg.param_data_size);
+		kfree(large_data);
 		break;
 
 	case IPC_MOD_LARGE_CONFIG_SET:
@@ -279,7 +280,7 @@ static ssize_t mod_control_write(struct file *file,
 
 	/* Userspace has been fiddling around behind the kernel's back */
 	add_taint(TAINT_USER, LOCKDEP_NOW_UNRELIABLE);
-
+	kfree(buf);
 	return written;
 }
 
