@@ -79,7 +79,6 @@ struct skl {
 
 	struct skl_debug *debugfs;
 	bool nhlt_override;
-	bool mod_set_get_status;
 	struct skl_dfw_manifest manifest;
 };
 
