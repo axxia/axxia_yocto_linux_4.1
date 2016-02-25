@@ -112,7 +112,7 @@
 					<< IPC_PPL_INSTANCE_ID_SHIFT)
 
 #define IPC_CORE_ID_SHIFT		24
-#define IPC_CORE_ID_MASK		0x1F
+#define IPC_CORE_ID_MASK		0xF
 #define IPC_CORE_ID(x)			(((x) & IPC_CORE_ID_MASK) \
 					<< IPC_CORE_ID_SHIFT)
 
