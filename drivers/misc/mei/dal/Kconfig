@@ -1,0 +1,6 @@
+config INTEL_MEI_DAL
+	tristate "Dynamic Application Loader for ME"
+	depends on INTEL_MEI
+	help
+	  Dynamic Application Loader enables running java applets
+	  for user space clients and kernel space clients.
