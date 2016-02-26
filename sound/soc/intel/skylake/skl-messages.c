@@ -58,7 +58,7 @@ static int skl_free_dma_buf(struct device *dev, struct snd_dma_buffer *dmab)
 }
 
 #define ENABLE_LOGS		6
-#define DEFAULT_LOG_PRIORITY	6
+#define DEFAULT_LOG_PRIORITY	5
 
 /* set firmware logging state via IPC */
 int skl_dsp_enable_logging(struct sst_generic_ipc *ipc, int core, int enable)
