@@ -21,6 +21,7 @@
 #include <linux/pci.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
+#include <linux/pm_runtime.h>
 #include <sound/soc.h>
 #include "skl-sst-dsp.h"
 #include "cnl-sst-dsp.h"
@@ -246,6 +247,7 @@ int skl_init_dsp(struct skl *skl)
 	int irq = bus->irq;
 	int ret, index;
 
+	pm_runtime_get_sync(bus->dev);
 	/* enable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, true);
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, true);
@@ -254,21 +256,26 @@ int skl_init_dsp(struct skl *skl)
 	mmio_base = pci_ioremap_bar(skl->pci, 4);
 	if (mmio_base == NULL) {
 		dev_err(bus->dev, "ioremap error\n");
-		return -ENXIO;
+		ret = -ENXIO;
+		goto dsp_init_exit;
 	}
 
 	index  = skl_get_dsp_ops(skl->pci->device);
-	if (index  < 0)
-		return -EINVAL;
+	if (index  < 0) {
+		ret = -EINVAL;
+		goto dsp_init_exit;
+	}
 
 	loader_ops = dsp_ops[index].loader_ops();
 	ret = dsp_ops[index].init(bus->dev, mmio_base, irq,
 		loader_ops, &skl->skl_sst, &skl->manifest);
 
 	if (ret < 0)
-		return ret;
+		goto dsp_init_exit;
 
 	skl_dsp_enable_notification(skl->skl_sst, false);
+dsp_init_exit:
+	pm_runtime_put_sync(bus->dev);
 	dev_dbg(bus->dev, "dsp registration status=%d\n", ret);
 
 	return ret;
@@ -304,9 +311,11 @@ int skl_suspend_dsp(struct skl *skl)
 	if (!skl->ebus.ppcap)
 		return 0;
 
-	ret = skl_dsp_sleep(ctx->dsp);
-	if (ret < 0)
-		return ret;
+	if (ctx) {
+		ret = skl_dsp_sleep(ctx->dsp);
+		if (ret < 0)
+			return ret;
+	}
 
 	/* disable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, false);
@@ -318,7 +327,7 @@ int skl_suspend_dsp(struct skl *skl)
 int skl_resume_dsp(struct skl *skl)
 {
 	struct skl_sst *ctx = skl->skl_sst;
-	int ret;
+	int ret = 0;
 
 	/* if ppcap is not supported return 0 */
 	if (!skl->ebus.ppcap)
@@ -328,11 +337,13 @@ int skl_resume_dsp(struct skl *skl)
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, true);
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, true);
 
-	ret = skl_dsp_wake(ctx->dsp);
-	if (ret < 0)
-		return ret;
+	if (ctx) {
+		ret = skl_dsp_wake(ctx->dsp);
+		if (ret < 0)
+			return ret;
+		skl_dsp_enable_notification(skl->skl_sst, false);
+	}
 
-	skl_dsp_enable_notification(skl->skl_sst, false);
 	return ret;
 }
 
