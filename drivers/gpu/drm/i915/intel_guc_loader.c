@@ -62,6 +62,9 @@
 #define I915_SKL_GUC_UCODE "i915/skl_guc_ver6.bin"
 MODULE_FIRMWARE(I915_SKL_GUC_UCODE);
 
+#define I915_BXT_GUC_UCODE "i915/bxt_guc_ver5.bin"
+MODULE_FIRMWARE(I915_BXT_GUC_UCODE);
+
 /* User-friendly representation of an enum */
 const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status)
 {
@@ -616,6 +619,10 @@ void intel_guc_ucode_init(struct drm_device *dev)
 	} else if (IS_SKYLAKE(dev)) {
 		fw_path = I915_SKL_GUC_UCODE;
 		guc_fw->guc_fw_major_wanted = 6;
+		guc_fw->guc_fw_minor_wanted = 1;
+	} else if (IS_BROXTON(dev)) {
+		fw_path = I915_BXT_GUC_UCODE;
+		guc_fw->guc_fw_major_wanted = 5;
 		guc_fw->guc_fw_minor_wanted = 1;
 	} else {
 		fw_path = "";	/* unknown device */
