@@ -4879,7 +4879,6 @@ i915_gem_init_hw(struct drm_device *dev)
 		ret = intel_guc_ucode_load(dev);
 		if (ret) {
 			DRM_ERROR("Failed to initialize GuC, error %d\n", ret);
-			ret = -EIO;
 			goto out;
 		}
 	}
