@@ -24,6 +24,7 @@
 #include <linux/firmware.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <asm/cacheflush.h>
 
 #include "../common/sst-dsp.h"
 #include "../common/sst-ipc.h"
@@ -33,7 +34,7 @@
 
 #define FW_ROM_INIT_DONE                0x1
 
-#define BXT_FW_ROM_BASEFW_ENTERED_TIMEOUT	300
+#define BXT_FW_ROM_BASEFW_ENTERED_TIMEOUT	3000
 #define BXT_ROM_INIT_HIPCIE_TIMEOUT	500
 #define BXT_ROM_INIT_DONE_TIMEOUT	500
 #define BXT_IPC_PURGE_FW	0x01004000
@@ -265,6 +266,8 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 
 	ctx->dsp_ops.stream_tag = stream_tag;
 	memcpy(ctx->dmab.area, fwdata, fwsize);
+	/* make sure FW is flushed to DDR */
+	clflush_cache_range(ctx->dmab.area, fwsize);
 
 #ifdef BXT_ROM_BUG_WA
 	/* Step 1.a: Power up core 0 and core1 (Extra step due to ROM bug) */
@@ -622,6 +625,9 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 
 	if (ret < 0) {
 		dev_err(ctx->dev, "Transfer firmware failed %d\n", ret);
+		dev_info(ctx->dev, "Error code=0x%x: FW status=0x%x\n",
+				sst_dsp_shim_read(ctx, BXT_ADSP_ERROR_CODE),
+				sst_dsp_shim_read(ctx, BXT_ADSP_REG_FW_STATUS));
 		skl_dsp_disable_core(ctx, SKL_DSP_CORE0_MASK);
 	} else {
 		dev_dbg(ctx->dev, "Firmware download successful\n");
