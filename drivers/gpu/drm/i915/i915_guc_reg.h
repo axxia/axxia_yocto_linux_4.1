@@ -59,7 +59,8 @@
 #define GUC_MAX_IDLE_COUNT		_MMIO(0xC3E4)
 
 #define GUC_WOPCM_SIZE			_MMIO(0xc050)
-#define   GUC_WOPCM_SIZE_VALUE  	  (0x80 << 12)	/* 512KB */
+#define   GUC_WOPCM_SIZE_VALUE		(0x80 << 12)	/* 512KB */
+#define   BXT_GUC_WOPCM_SIZE_VALUE	(0x70 << 12)	/* 448KB */
 
 /* GuC addresses below GUC_WOPCM_TOP don't map through the GTT */
 #define	GUC_WOPCM_TOP			(GUC_WOPCM_SIZE_VALUE)
