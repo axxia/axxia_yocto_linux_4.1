@@ -25,6 +25,52 @@
 #include <sound/jack.h>
 #include <sound/pcm_params.h>
 
+#define DEF_BT_RATE_INBDEX 0x0
+
+struct bxtp_ivi_hu_prv {
+	int srate;
+};
+
+static unsigned int ivi_hu_bt_rates[] = {
+	8000,
+	16000,
+};
+
+/* sound card controls */
+static const char * const bt_rate[] = {"8K", "16K"};
+
+static const struct soc_enum btrate_enum =
+	SOC_ENUM_SINGLE_EXT(2, bt_rate);
+
+static int bt_sample_rate_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct bxtp_ivi_hu_prv *drv = snd_soc_card_get_drvdata(card);
+
+	ucontrol->value.integer.value[0] = drv->srate;
+	return 0;
+}
+
+static int bt_sample_rate_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_card *card = snd_kcontrol_chip(kcontrol);
+	struct bxtp_ivi_hu_prv *drv = snd_soc_card_get_drvdata(card);
+
+	if (ucontrol->value.integer.value[0] == drv->srate)
+		return 0;
+
+	drv->srate = ucontrol->value.integer.value[0];
+	return 0;
+
+}
+
+static const struct snd_kcontrol_new hu_snd_controls[] = {
+
+	SOC_ENUM_EXT("BT Rate", btrate_enum,
+			bt_sample_rate_get, bt_sample_rate_put),
+};
 
 static const struct snd_soc_dapm_widget broxton_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
@@ -66,7 +112,14 @@ static int bxtp_ssp0_gpio_init(struct snd_soc_pcm_runtime *rtd)
 static int broxton_ssp0_fixup(struct snd_soc_pcm_runtime *rtd,
 			struct snd_pcm_hw_params *params)
 {
+	struct snd_interval *rate = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_RATE);
+
+	struct snd_soc_card *card =  rtd->card;
+	struct bxtp_ivi_hu_prv *drv = snd_soc_card_get_drvdata(card);
+
 	/* SSP0 operates with a BT Transceiver */
+	rate->min = rate->max = ivi_hu_bt_rates[drv->srate];
 	return 0;
 }
 
@@ -148,8 +201,8 @@ static struct snd_soc_card broxton_rt298 = {
 	.owner = THIS_MODULE,
 	.dai_link = broxton_rt298_dais,
 	.num_links = ARRAY_SIZE(broxton_rt298_dais),
-	.controls = NULL,
-	.num_controls = 0,
+	.controls = hu_snd_controls,
+	.num_controls = ARRAY_SIZE(hu_snd_controls),
 	.dapm_widgets = broxton_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(broxton_widgets),
 	.dapm_routes = broxton_rt298_map,
@@ -160,8 +213,26 @@ static struct snd_soc_card broxton_rt298 = {
 static int broxton_audio_probe(struct platform_device *pdev)
 {
 	broxton_rt298.dev = &pdev->dev;
+	int ret_val;
+	struct bxtp_ivi_hu_prv *drv;
 
-	return snd_soc_register_card(&broxton_rt298);
+	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
+	if (!drv)
+		return -ENOMEM;
+
+	drv->srate = DEF_BT_RATE_INBDEX;
+	snd_soc_card_set_drvdata(&broxton_rt298, drv);
+
+	ret_val = snd_soc_register_card(&broxton_rt298);
+	if (ret_val) {
+		dev_dbg(&pdev->dev, "snd_soc_register_card failed %d\n",
+								 ret_val);
+		return ret_val;
+	}
+
+	platform_set_drvdata(pdev, &broxton_rt298);
+
+	return ret_val;
 }
 
 static int broxton_audio_remove(struct platform_device *pdev)
