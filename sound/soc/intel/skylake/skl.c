@@ -804,9 +804,7 @@ static struct pci_driver skl_driver = {
 	.probe = skl_probe,
 	.remove = skl_remove,
 	.driver = {
-#if 0
 		.pm = &skl_pm,
-#endif
 	},
 };
 module_pci_driver(skl_driver);
