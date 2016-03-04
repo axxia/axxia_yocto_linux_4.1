@@ -705,10 +705,11 @@ static int skl_probe(struct pci_dev *pci,
 		goto out_dmic_free;
 
 	/* create codec instances */
-	err = skl_codec_create(ebus);
-	if (err < 0)
-		goto out_unregister;
-
+	if (IS_ENABLED(CONFIG_SND_SOC_HDAC_HDMI)) {
+		err = skl_codec_create(ebus);
+		if (err < 0)
+			goto out_unregister;
+	}
 	/* init debugfs */
 	skl->debugfs = skl_debugfs_init(skl);
 
