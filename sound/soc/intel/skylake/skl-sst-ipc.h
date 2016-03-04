@@ -51,6 +51,19 @@ struct skl_d0i3_data {
 	struct delayed_work d0i3_work;
 };
 
+struct prb_data {
+	int set;
+	int param_size;
+	char *param;
+};
+
+struct skl_probe_config {
+	int dma_id;
+	int dma_type;
+	int dma_buffsize;
+	struct prb_data pdata;
+};
+
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;
@@ -63,6 +76,8 @@ struct skl_sst {
 	struct sst_generic_ipc ipc;
 
 	struct skl_d0i3_data d0i3_data;
+
+	struct skl_probe_config probe_config;
 
 	/* Callback to update D0i3C register */
 	void (*update_d0i3c)(struct device *dev,  bool enable);

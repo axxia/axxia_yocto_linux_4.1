@@ -401,6 +401,7 @@ struct hdac_stream {
 	struct snd_pcm_substream *substream;	/* assigned substream,
 						 * set in PCM open
 						 */
+	struct snd_compr_stream *stream;
 	unsigned int format_val;	/* format value to be set in the
 					 * controller and the codec
 					 */
@@ -414,6 +415,7 @@ struct hdac_stream {
 	bool no_period_wakeup:1;
 	bool locked:1;
 
+	unsigned long curr_pos;
 	/* timestamp */
 	unsigned long start_wallclk;	/* start + minimum wallclk */
 	unsigned long period_wallclk;	/* wallclk for period */
@@ -440,8 +442,15 @@ struct hdac_stream *snd_hdac_get_stream(struct hdac_bus *bus,
 
 int snd_hdac_stream_setup(struct hdac_stream *azx_dev);
 void snd_hdac_stream_cleanup(struct hdac_stream *azx_dev);
+int setup_bdle(struct hdac_bus *bus,
+			struct snd_dma_buffer *dmab,
+			struct hdac_stream *azx_dev, __le32 **bdlp,
+			int ofs, int size, int with_ioc);
+
 int snd_hdac_stream_setup_periods(struct hdac_stream *azx_dev);
 int snd_hdac_stream_set_params(struct hdac_stream *azx_dev,
+				unsigned int format_val);
+int snd_hdac_stream_set_compr_params(struct hdac_stream *azx_dev,
 				unsigned int format_val);
 void snd_hdac_stream_start(struct hdac_stream *azx_dev, bool fresh_start);
 void snd_hdac_stream_clear(struct hdac_stream *azx_dev);
