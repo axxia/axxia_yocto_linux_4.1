@@ -105,6 +105,7 @@ struct sst_mailbox {
 struct sst_dbg_rbuffer {
 	DECLARE_KFIFO_PTR(fifo_dsp, u32);
 	struct kref	refcount;
+	unsigned long	total_avail;
 	/* To set the state of the stream incase of XRUN */
 	struct snd_compr_stream *stream;
 };

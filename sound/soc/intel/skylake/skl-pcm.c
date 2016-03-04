@@ -659,10 +659,6 @@ static int skl_trace_compr_tstamp(struct snd_compr_stream *stream,
 		return -EINVAL;
 
 	tstamp->copied_total = skl_dsp_log_avail(sst, core);
-
-	if (tstamp->copied_total)
-		stream->runtime->state = SNDRV_PCM_STATE_RUNNING;
-
 	return 0;
 }
 

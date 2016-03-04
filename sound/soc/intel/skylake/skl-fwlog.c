@@ -73,6 +73,7 @@ int skl_dsp_init_log_buffer(struct sst_dsp *sst, int size,	int core,
 	ret = kfifo_alloc(&tmp->fifo_dsp, size, GFP_KERNEL);
 	if (!ret) {
 		tmp->stream = stream;
+		tmp->total_avail = 0;
 		kref_init(&tmp->refcount);
 		sst->trace_wind.dbg_buffers[core] = tmp;
 	} else
@@ -82,13 +83,14 @@ int skl_dsp_init_log_buffer(struct sst_dsp *sst, int size,	int core,
 }
 EXPORT_SYMBOL_GPL(skl_dsp_init_log_buffer);
 
-int skl_dsp_log_avail(struct sst_dsp *sst, int core)
+unsigned long skl_dsp_log_avail(struct sst_dsp *sst, int core)
 {
 	struct sst_dbg_rbuffer *buff = sst->trace_wind.dbg_buffers[core];
 
 	if (buff->stream->runtime->state == SNDRV_PCM_STATE_XRUN)
 		return 0;
-	return kfifo_len(&buff->fifo_dsp) * sizeof(u32);
+
+	return buff->total_avail;
 }
 EXPORT_SYMBOL(skl_dsp_log_avail);
 
@@ -118,6 +120,7 @@ void skl_dsp_write_log(struct sst_dsp *sst, void __iomem *src, int core,
 		}
 		data++;
 	}
+	buff->total_avail += count;
 }
 
 int skl_dsp_copy_log_user(struct sst_dsp *sst, int core,

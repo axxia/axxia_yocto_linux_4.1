@@ -4,7 +4,7 @@ int skl_dsp_init_trace_window(struct sst_dsp *sst, u32 *wp, u32 offset,
 				u32 size, int nr_cores);
 int skl_dsp_init_log_buffer(struct sst_dsp *sst, int size,
 				int core, struct snd_compr_stream *stream);
-int skl_dsp_log_avail(struct sst_dsp *sst, int core);
+unsigned long skl_dsp_log_avail(struct sst_dsp *sst, int core);
 void skl_dsp_write_log(struct sst_dsp *sst, void __iomem *src, int core,
 			int count);
 int skl_dsp_copy_log_user(struct sst_dsp *sst, int core, void __user *dest,
