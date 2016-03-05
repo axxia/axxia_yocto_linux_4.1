@@ -739,7 +739,6 @@ static int skl_tplg_mixer_dapm_pre_pmd_event(struct snd_soc_dapm_widget *w,
 	ret = skl_stop_pipe(ctx, sink_mconfig->pipe);
 	if (ret)
 		return ret;
-
 	for (i = 0; i < sink_mconfig->max_in_queue; i++) {
 		if (sink_mconfig->m_in_pin[i].pin_state == SKL_PIN_BIND_DONE) {
 			src_mconfig = sink_mconfig->m_in_pin[i].tgt_mcfg;
@@ -786,6 +785,7 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	list_for_each_entry(w_module, &s_pipe->w_list, node) {
 		dst_module = w_module->w->priv;
 
+		skl_disconnect_probe_point(ctx, w_module->w);
 		skl_tplg_free_pipe_mcps(skl, dst_module);
 		if (src_module == NULL) {
 			src_module = dst_module;
@@ -824,6 +824,7 @@ static int skl_tplg_pga_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	ret = skl_stop_pipe(ctx, src_mconfig->pipe);
 	if (ret)
 		return ret;
+
 
 	for (i = 0; i < src_mconfig->max_out_queue; i++) {
 		if (src_mconfig->m_out_pin[i].pin_state == SKL_PIN_BIND_DONE) {
@@ -968,6 +969,8 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 				   ((unsigned char *)data) + 2*sizeof(u32),
 				   size - 2*sizeof(u32)))
 			return -EIO;
+
+		skl_set_probe_point(skl->skl_sst, (void *)ac->params, ac->max, w);
 
 		if (w->power)
 			return skl_set_module_params(skl->skl_sst, (void *)ac->params,

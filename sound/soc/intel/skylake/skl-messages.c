@@ -903,6 +903,31 @@ static void skl_dump_bind_info(struct skl_sst *ctx, struct skl_module_cfg
 		src_module->m_state, dst_module->m_state);
 }
 
+int skl_disconnect_probe_point(struct skl_sst *ctx,
+				struct snd_soc_dapm_widget *w)
+{
+	struct skl_ipc_large_config_msg msg;
+	struct skl_probe_config *pconfig = &ctx->probe_config;
+	struct skl_module_cfg *mcfg;
+	if (pconfig->pdata.set == 1) {
+		if (strstr(w->name, "eprobe") != NULL)
+			msg.large_param_id = 0x02;
+		else if (strstr(w->name, "iprobe") != NULL)
+			msg.large_param_id = 0x03;
+		else
+			return;
+		mcfg = w->priv;
+		msg.module_id = mcfg->id.module_id;
+		msg.instance_id = mcfg->id.instance_id;
+		msg.param_data_size = pconfig->pdata.param_size;
+		pconfig->pdata.set = -1;
+
+		pr_debug("Disconnecting probe\n");
+		return skl_ipc_set_large_config(&ctx->ipc, &msg,
+						pconfig->pdata.param);
+	}
+	return 0;
+}
 /*
  * On module freeup, we need to unbind the module with modules
  * it is already bind.
@@ -921,7 +946,6 @@ int skl_unbind_modules(struct skl_sst *ctx,
 	int src_index, dst_index, src_pin_state, dst_pin_state;
 
 	skl_dump_bind_info(ctx, src_mcfg, dst_mcfg);
-
 	/* get src queue index */
 	src_index = skl_get_queue_index(src_mcfg->m_out_pin, dst_id, out_max);
 	if (src_index < 0)
@@ -1151,6 +1175,17 @@ int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 	return 0;
 }
 
+int skl_set_probe_point(struct skl_sst *ctx, u32 *params, int size,
+						struct snd_soc_dapm_widget *w)
+{
+	struct skl_probe_config *pconfig = &ctx->probe_config;
+	if (strstr(w->name, "probe") != NULL) {
+		pconfig->pdata.set = 1;
+		pconfig->pdata.param_size = size;
+		pconfig->pdata.param = params;
+	}
+	return 0;
+}
 /* Algo parameter set helper function */
 int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
 				u32 param_id, struct skl_module_cfg *mcfg)
