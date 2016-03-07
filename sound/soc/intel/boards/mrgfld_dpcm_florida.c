@@ -636,6 +636,32 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.init = NULL,
 		.nonatomic = 1,
 	},
+	{
+                .name = "Bxtn Audio Reference cap",
+                .stream_name = "refcap",
+                .cpu_dai_name = "Reference Pin",
+                .codec_name = "snd-soc-dummy",
+                .codec_dai_name = "snd-soc-dummy-dai",
+                .platform_name = "0000:00:0e.0",
+                .init = NULL,
+                .ignore_suspend = 1,
+                .nonatomic = 1,
+                .dynamic = 1,
+                .dpcm_capture = 1,
+        },
+	{
+		.name = "Bxtn LL Audio Port",
+		.stream_name = "Low Latency Audio",
+		.cpu_dai_name = "LowLatency Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:0e.0",
+		.dpcm_playback = 1,
+		.ignore_suspend = 1,
+		.nonatomic = 1,
+		.dynamic = 1,
+		.ops = &mrgfld_florida_ops,
+	},
 
 		/* CODEC<->CODEC link */
 	{
@@ -827,6 +853,20 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 		.platform_name = "0000:00:0e.0",
 		.init = NULL,
 		.nonatomic = 1,
+	},
+
+	{
+		.name = "Bxtn LL Audio Port",
+		.stream_name = "Low Latency Audio",
+		.cpu_dai_name = "LowLatency Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:0e.0",
+		.dpcm_playback = 1,
+		.ignore_suspend = 1,
+		.nonatomic = 1,
+		.dynamic = 1,
+		.ops = &mrgfld_florida_ops,
 	},
 
 		/* CODEC<->CODEC link */
