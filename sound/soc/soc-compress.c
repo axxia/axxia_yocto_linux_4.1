@@ -316,6 +316,7 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_platform *platform = rtd->platform;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret = 0;
 
@@ -326,6 +327,9 @@ static int soc_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 		if (ret < 0)
 			goto out;
 	}
+
+	if (cpu_dai->driver->cops && cpu_dai->driver->cops->trigger)
+			cpu_dai->driver->cops->trigger(cstream, cmd, cpu_dai);
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_START:
