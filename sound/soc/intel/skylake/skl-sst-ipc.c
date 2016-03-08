@@ -1017,7 +1017,7 @@ int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc,
 	header.primary |= IPC_MOD_INSTANCE_ID(table_id);
 	header.primary |= IPC_MOD_ID(dma_id);
 
-	ret = sst_ipc_tx_message_wait(ipc, *ipc_header, NULL, 0, NULL, 0);
+	ret = skl_ipc_tx_message(ipc, *ipc_header, NULL, 0, NULL, 0, true);
 
 	if (ret < 0)
 		dev_err(ipc->dev, "ipc: load lib failed\n");
