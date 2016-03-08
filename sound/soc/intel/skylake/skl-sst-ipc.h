@@ -126,7 +126,10 @@ struct skl_log_state_msg {
 	struct	skl_log_state logs_core[2];
 };
 
-#define SKL_IPC_BOOT_MSECS		3000
+/* Timeout values in milliseconds for response from FW */
+#define SKL_IPC_BOOT_MSECS              3000
+#define SKL_IPC_LOAD_LIB_TIMEOUT        3000
+#define SKL_IPC_DEFAULT_TIMEOUT         300
 
 #define SKL_IPC_D3_MASK	0
 #define SKL_IPC_D0_MASK	3
