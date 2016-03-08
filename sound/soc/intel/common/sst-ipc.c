@@ -53,14 +53,14 @@ static struct ipc_message *msg_get_empty(struct sst_generic_ipc *ipc)
 }
 
 static int tx_wait_done(struct sst_generic_ipc *ipc,
-	struct ipc_message *msg, void *rx_data)
+	struct ipc_message *msg, void *rx_data, int timeout)
 {
 	unsigned long flags;
 	int ret;
 
 	/* wait for DSP completion (in all cases atm inc pending) */
 	ret = wait_event_timeout(msg->waitq, msg->complete,
-		msecs_to_jiffies(IPC_TIMEOUT_MSECS));
+		msecs_to_jiffies(timeout));
 
 	spin_lock_irqsave(&ipc->dsp->spinlock, flags);
 	if (ret == 0) {
@@ -84,7 +84,7 @@ static int tx_wait_done(struct sst_generic_ipc *ipc,
 
 static int ipc_tx_message(struct sst_generic_ipc *ipc, u64 header,
 	void *tx_data, size_t tx_bytes, void *rx_data,
-	size_t rx_bytes, int wait)
+	size_t rx_bytes, int wait, int timeout)
 {
 	struct ipc_message *msg;
 	unsigned long flags;
@@ -114,7 +114,7 @@ static int ipc_tx_message(struct sst_generic_ipc *ipc, u64 header,
 	queue_kthread_work(&ipc->kworker, &ipc->kwork);
 
 	if (wait)
-		return tx_wait_done(ipc, msg, rx_data);
+		return tx_wait_done(ipc, msg, rx_data, timeout);
 	else
 		return 0;
 }
@@ -191,19 +191,33 @@ static void ipc_tx_msgs(struct kthread_work *work)
 	spin_unlock_irqrestore(&ipc->dsp->spinlock, flags);
 }
 
+/*
+ * Tx message with wait, with default timeout specified by
+ * IPC_TIMEOUT_MSECS
+ */
 int sst_ipc_tx_message_wait(struct sst_generic_ipc *ipc, u64 header,
 	void *tx_data, size_t tx_bytes, void *rx_data, size_t rx_bytes)
 {
 	return ipc_tx_message(ipc, header, tx_data, tx_bytes,
-		rx_data, rx_bytes, 1);
+		rx_data, rx_bytes, 1, IPC_TIMEOUT_MSECS);
 }
 EXPORT_SYMBOL_GPL(sst_ipc_tx_message_wait);
+
+ /* Tx message with wait, with timeout specified by the caller */
+int sst_ipc_tx_message_wait_timeout(struct sst_generic_ipc *ipc, u64 header,
+	void *tx_data, size_t tx_bytes, void *rx_data, size_t rx_bytes,
+	int timeout)
+{
+	return ipc_tx_message(ipc, header, tx_data, tx_bytes,
+		rx_data, rx_bytes, 1, timeout);
+}
+EXPORT_SYMBOL_GPL(sst_ipc_tx_message_wait_timeout);
 
 int sst_ipc_tx_message_nowait(struct sst_generic_ipc *ipc, u64 header,
 	void *tx_data, size_t tx_bytes)
 {
 	return ipc_tx_message(ipc, header, tx_data, tx_bytes,
-		NULL, 0, 0);
+		NULL, 0, 0, 0);
 }
 EXPORT_SYMBOL_GPL(sst_ipc_tx_message_nowait);
 

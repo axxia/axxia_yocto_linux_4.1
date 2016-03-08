@@ -78,6 +78,10 @@ struct sst_generic_ipc {
 int sst_ipc_tx_message_wait(struct sst_generic_ipc *ipc, u64 header,
 	void *tx_data, size_t tx_bytes, void *rx_data, size_t rx_bytes);
 
+int sst_ipc_tx_message_wait_timeout(struct sst_generic_ipc *ipc, u64 header,
+	void *tx_data, size_t tx_bytes, void *rx_data, size_t rx_bytes,
+	int timeout);
+
 int sst_ipc_tx_message_nowait(struct sst_generic_ipc *ipc, u64 header,
 	void *tx_data, size_t tx_bytes);
 
