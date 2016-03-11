@@ -156,7 +156,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 	/* Trace Buffer DAI links */
 	{
 		.name = "Bxt Trace Buffer0",
-		.stream_name = "dsp0tracebuffer",
+		.stream_name = "Core 0 Trace Buffer",
 		.cpu_dai_name = "TraceBuffer0 Pin",
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
@@ -166,7 +166,7 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 	},
 	{
 		.name = "Bxt Trace Buffer1",
-		.stream_name = "dsp1tracebuffer",
+		.stream_name = "Core 1 Trace Buffer",
 		.cpu_dai_name = "TraceBuffer1 Pin",
 		.codec_name = "snd-soc-dummy",
 		.codec_dai_name = "snd-soc-dummy-dai",
