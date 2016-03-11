@@ -358,6 +358,10 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_RESOURCE_STREAMER 36
 #define I915_PARAM_HAS_EXEC_SOFTPIN	 37
 
+/* Private (not upstreamed) parameters start from 0x800   */
+/* This helps to avoid conflicts with new upstream values */
+#define I915_PARAM_HAS_POOLED_EU         0x800
+
 typedef struct drm_i915_getparam {
 	s32 param;
 	/*
