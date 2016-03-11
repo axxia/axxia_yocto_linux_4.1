@@ -1192,6 +1192,10 @@ static int bxt_init_workarounds(struct intel_engine_cs *engine)
 	if (IS_BXT_REVID(dev, BXT_REVID_B0, REVID_FOREVER))
 		I915_WRITE(GEN8_L3SQCREG1, BXT_WA_L3SQCREG1_DEFAULT);
 
+	/* WaDisablePooledEuLoadBalancingFix:bxt */
+	WA_SET_BIT_MASKED(FF_SLICE_CS_CHICKEN2,
+			  GEN9_POOLED_EU_LOAD_BALANCE_FIX_DISABLE);
+
 	return 0;
 }
 
