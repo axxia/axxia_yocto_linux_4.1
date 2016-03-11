@@ -67,7 +67,7 @@ unsigned int skl_dsp_get_enabled_cores(struct sst_dsp  *ctx)
 	return en_cores_mask;
 }
 
-static int skl_dsp_core_set_reset_state(struct sst_dsp  *ctx, unsigned int core_mask)
+static int skl_dsp_core_set_reset_state(struct sst_dsp *ctx, unsigned int core_mask)
 {
 	int ret;
 
@@ -96,7 +96,7 @@ static int skl_dsp_core_set_reset_state(struct sst_dsp  *ctx, unsigned int core_
 	return ret;
 }
 
-int skl_dsp_core_unset_reset_state(struct sst_dsp  *ctx, unsigned int core_mask)
+int skl_dsp_core_unset_reset_state(struct sst_dsp *ctx, unsigned int core_mask)
 {
 	int ret;
 
@@ -124,7 +124,7 @@ int skl_dsp_core_unset_reset_state(struct sst_dsp  *ctx, unsigned int core_mask)
 	return ret;
 }
 
-static bool is_skl_dsp_core_enable(struct sst_dsp  *ctx, unsigned int core_mask)
+static bool is_skl_dsp_core_enable(struct sst_dsp *ctx, unsigned int core_mask)
 {
 	int val;
 	bool is_enable;
@@ -179,7 +179,7 @@ int skl_dsp_start_core(struct sst_dsp *ctx, unsigned int core_mask)
 	return ret;
 }
 
-int skl_dsp_core_power_up(struct sst_dsp  *ctx, unsigned int core_mask)
+int skl_dsp_core_power_up(struct sst_dsp *ctx, unsigned int core_mask)
 {
 	int ret;
 
@@ -208,7 +208,7 @@ int skl_dsp_core_power_up(struct sst_dsp  *ctx, unsigned int core_mask)
 	return ret;
 }
 
-int skl_dsp_core_power_down(struct sst_dsp  *ctx, unsigned int core_mask)
+int skl_dsp_core_power_down(struct sst_dsp *ctx, unsigned int core_mask)
 {
 	dev_dbg(ctx->dev, "In %s : core_mask = %x\n", __func__, core_mask);
 	/* update bits */
@@ -224,7 +224,7 @@ int skl_dsp_core_power_down(struct sst_dsp  *ctx, unsigned int core_mask)
 			"Power down");
 }
 
-int skl_dsp_enable_core(struct sst_dsp  *ctx, unsigned int core_mask)
+int skl_dsp_enable_core(struct sst_dsp *ctx, unsigned int core_mask)
 {
 	int ret;
 
@@ -240,7 +240,7 @@ int skl_dsp_enable_core(struct sst_dsp  *ctx, unsigned int core_mask)
 	return skl_dsp_start_core(ctx, core_mask);
 }
 
-int skl_dsp_disable_core(struct sst_dsp  *ctx, unsigned int core_mask)
+int skl_dsp_disable_core(struct sst_dsp *ctx, unsigned int core_mask)
 {
 	int ret;
 

@@ -209,11 +209,11 @@ struct sst_dsp *skl_dsp_ctx_init(struct device *dev,
 
 unsigned int skl_dsp_get_enabled_cores(struct sst_dsp  *ctx);
 void skl_dsp_init_core_state(struct sst_dsp *ctx);
-int skl_dsp_enable_core(struct sst_dsp  *ctx, unsigned int core_mask);
-int skl_dsp_disable_core(struct sst_dsp  *ctx, unsigned int core_mask);
-int skl_dsp_core_power_up(struct sst_dsp  *ctx, unsigned int core_mask);
-int skl_dsp_core_power_down(struct sst_dsp  *ctx, unsigned int core_mask);
-int skl_dsp_core_unset_reset_state(struct sst_dsp  *ctx, unsigned int core_mask);
+int skl_dsp_enable_core(struct sst_dsp *ctx, unsigned int core_mask);
+int skl_dsp_disable_core(struct sst_dsp *ctx, unsigned int core_mask);
+int skl_dsp_core_power_up(struct sst_dsp *ctx, unsigned int core_mask);
+int skl_dsp_core_power_down(struct sst_dsp *ctx, unsigned int core_mask);
+int skl_dsp_core_unset_reset_state(struct sst_dsp *ctx, unsigned int core_mask);
 int skl_dsp_start_core(struct sst_dsp *ctx, unsigned int core_mask);
 
 irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id);
