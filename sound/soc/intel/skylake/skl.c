@@ -713,6 +713,11 @@ static int skl_probe(struct pci_dev *pci,
 
 	/* check if dsp is there */
 	if (ebus->ppcap) {
+		err = skl_init_dsp_hw(skl);
+		if (err) {
+			dev_err(bus->dev, "DSP HW Init failed\n");
+			goto out_free;
+		}
 		/*TODO  machine name need to be read from DSDT entry*/
 		err = skl_machine_device_register(skl,
 						  (void *)pci_id->driver_data);

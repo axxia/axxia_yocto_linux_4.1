@@ -521,7 +521,7 @@ static int cnl_ipc_init(struct device *dev, struct skl_sst *cnl)
 	return 0;
 }
 
-int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
+int cnl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
 {
 	struct skl_sst *cnl;
@@ -566,18 +566,29 @@ int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 	cnl->boot_complete = false;
 	init_waitqueue_head(&cnl->boot_wait);
 
-	ret = sst->fw_ops.load_fw(sst);
-	if (ret < 0) {
-		dev_err(dev, "Load base fw failed : %d", ret);
-		return ret;
-	}
-
 	if (dsp)
 		*dsp = cnl;
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(cnl_sst_dsp_init);
+EXPORT_SYMBOL_GPL(cnl_sst_dsp_init_hw);
+
+int cnl_sst_dsp_init_fw(struct device *dev,
+			struct skl_sst *ctx, struct skl_dfw_manifest *minfo)
+{
+	int ret;
+
+	ret = ctx->dsp->fw_ops.load_fw(ctx->dsp);
+	if (ret < 0) {
+		dev_err(dev, "Load base fw failed : %d", ret);
+		return ret;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(cnl_sst_dsp_init_fw);
+
+
 
 void cnl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {

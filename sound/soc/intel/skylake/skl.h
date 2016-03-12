@@ -108,8 +108,9 @@ struct skl_dsp_ops {
 	int id;
 	struct skl_dsp_loader_ops (*loader_ops)(void);
 
-	int (*init)(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops loader_ops, struct skl_sst **skl_sst,
+	int (*init_hw)(struct device *dev, void __iomem *mmio_base, int irq,
+		struct skl_dsp_loader_ops loader_ops, struct skl_sst **skl_sst);
+	int (*init_fw)(struct device *dev, struct skl_sst *ctx,
 		struct skl_dfw_manifest *minfo);
 	void (*cleanup)(struct device *dev, struct skl_sst *ctx);
 };
@@ -122,7 +123,8 @@ void skl_nhlt_free(void __iomem *addr);
 struct nhlt_specific_cfg *skl_get_ep_blob(struct skl *skl, u32 instance,
 			u8 link_type, u8 s_fmt, u8 no_ch, u32 s_rate, u8 dirn);
 
-int skl_init_dsp(struct skl *skl);
+int skl_init_dsp_hw(struct skl *skl);
+int skl_init_dsp_fw(struct skl *skl);
 int skl_free_dsp(struct skl *skl);
 int skl_suspend_dsp(struct skl *skl);
 int skl_resume_dsp(struct skl *skl);

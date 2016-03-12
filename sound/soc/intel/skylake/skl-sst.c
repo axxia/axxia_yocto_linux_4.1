@@ -436,7 +436,7 @@ static struct sst_dsp_device skl_dev = {
 	.ops = &skl_ops,
 };
 
-int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
+int skl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
 {
 	struct skl_sst *skl;
@@ -481,22 +481,26 @@ int skl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	sst->core_info.cores = 2;
 
-	ret = sst->fw_ops.load_fw(sst);
-	if (ret < 0) {
-		dev_err(dev, "Load base fw failed : %d", ret);
-		goto cleanup;
-	}
 
 	if (dsp)
 		*dsp = skl;
 
 	return ret;
+}
+EXPORT_SYMBOL_GPL(skl_sst_dsp_init_hw);
 
-cleanup:
-	skl_sst_dsp_cleanup(dev, skl);
+int skl_sst_dsp_init_fw(struct device *dev,
+		struct skl_sst *ctx, struct skl_dfw_manifest *minfo)
+{
+	int ret;
+
+	ret = ctx->dsp->fw_ops.load_fw(ctx->dsp);
+	if (ret < 0)
+		dev_err(dev, "Load base fw failed : %d", ret);
+
 	return ret;
 }
-EXPORT_SYMBOL_GPL(skl_sst_dsp_init);
+EXPORT_SYMBOL_GPL(skl_sst_dsp_init_fw);
 
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {

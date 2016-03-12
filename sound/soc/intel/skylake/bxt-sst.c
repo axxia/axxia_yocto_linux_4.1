@@ -102,9 +102,8 @@ static struct sst_dsp_device skl_dev = {
 	.ops = &skl_ops,
 };
 
-int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp,
-		struct skl_dfw_manifest *minfo)
+int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
+		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
 {
 	struct skl_sst *skl;
 	struct sst_dsp *sst;
@@ -158,26 +157,38 @@ int bxt_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
 
 	INIT_DELAYED_WORK(&skl->d0i3_data.d0i3_work, bxt_set_dsp_D0i3);
 
-	ret = sst->fw_ops.load_fw(sst);
+	if (dsp)
+		*dsp = skl;
+	dev_dbg(dev, "Exit %s\n", __func__);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(bxt_sst_dsp_init_hw);
+
+int bxt_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx,
+			struct skl_dfw_manifest *minfo)
+{
+	int ret;
+
+	dev_dbg(dev, "In %s\n", __func__);
+
+	ret = ctx->dsp->fw_ops.load_fw(ctx->dsp);
 	if (ret < 0) {
 		dev_err(dev, "Load base fw failed : %x", ret);
 		return ret;
 	}
 
 	if (minfo->lib_count > 1) {
-		ret = sst->fw_ops.load_library(sst, minfo);
+		ret = ctx->dsp->fw_ops.load_library(ctx->dsp, minfo);
 		if (ret < 0) {
 			dev_err(dev, "Load Library failed : %x", ret);
 			return ret;
 		}
 	}
 
-	if (dsp)
-		*dsp = skl;
 	dev_dbg(dev, "Exit %s\n", __func__);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(bxt_sst_dsp_init);
+EXPORT_SYMBOL_GPL(bxt_sst_dsp_init_fw);
 
 
 /* First boot sequence has some extra steps due to a ROM bug on BXT.

@@ -1403,7 +1403,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 			return ret;
 		}
 
-		ret = skl_init_dsp(skl);
+		ret = skl_init_dsp_fw(skl);
 		if (ret < 0) {
 			dev_dbg(bus->dev, "error failed to register dsp\n");
 			goto out_free;
@@ -1432,7 +1432,6 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 	return ret;
 out_free:
 	skl->init_failed = 1;
-	skl_free(ebus);
 	return ret;
 }
 

@@ -222,11 +222,16 @@ static struct skl_dsp_loader_ops bxt_get_loader_ops(void)
 };
 
 static const struct skl_dsp_ops dsp_ops[] = {
-{.id = 0x9d70, .loader_ops = skl_get_loader_ops, .init = skl_sst_dsp_init, .cleanup = skl_sst_dsp_cleanup},
-{.id = 0x0a98, .loader_ops = bxt_get_loader_ops, .init = bxt_sst_dsp_init, .cleanup = bxt_sst_dsp_cleanup},
-{.id = 0x5a98, .loader_ops = bxt_get_loader_ops, .init = bxt_sst_dsp_init, .cleanup = bxt_sst_dsp_cleanup},
-{.id = 0x9df0, .loader_ops = bxt_get_loader_ops, .init = cnl_sst_dsp_init, .cleanup = cnl_sst_dsp_cleanup},
-{.id = 0x1a98, .loader_ops = bxt_get_loader_ops, .init = bxt_sst_dsp_init, .cleanup = bxt_sst_dsp_cleanup},
+{.id = 0x9d70, .loader_ops = skl_get_loader_ops, .init_hw = skl_sst_dsp_init_hw,
+		.init_fw = skl_sst_dsp_init_fw, .cleanup = skl_sst_dsp_cleanup},
+{.id = 0x0a98, .loader_ops = bxt_get_loader_ops, .init_hw = bxt_sst_dsp_init_hw,
+		.init_fw = bxt_sst_dsp_init_fw, .cleanup = bxt_sst_dsp_cleanup},
+{.id = 0x5a98, .loader_ops = bxt_get_loader_ops, .init_hw = bxt_sst_dsp_init_hw,
+		.init_fw = bxt_sst_dsp_init_fw, .cleanup = bxt_sst_dsp_cleanup},
+{.id = 0x9df0, .loader_ops = bxt_get_loader_ops, .init_hw = cnl_sst_dsp_init_hw,
+		.init_fw = cnl_sst_dsp_init_fw, .cleanup = cnl_sst_dsp_cleanup},
+{.id = 0x1a98, .loader_ops = bxt_get_loader_ops, .init_hw = bxt_sst_dsp_init_hw,
+		.init_fw = bxt_sst_dsp_init_fw, .cleanup = bxt_sst_dsp_cleanup},
 {}
 };
 
@@ -242,7 +247,7 @@ static int skl_get_dsp_ops(int pci_id)
 	return -EINVAL;
 }
 
-int skl_init_dsp(struct skl *skl)
+int skl_init_dsp_hw(struct skl *skl)
 {
 	void __iomem *mmio_base;
 	struct hdac_ext_bus *ebus = &skl->ebus;
@@ -251,7 +256,6 @@ int skl_init_dsp(struct skl *skl)
 	int irq = bus->irq;
 	int ret, index;
 
-	pm_runtime_get_sync(bus->dev);
 	/* enable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, true);
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, true);
@@ -271,17 +275,41 @@ int skl_init_dsp(struct skl *skl)
 	}
 
 	loader_ops = dsp_ops[index].loader_ops();
-	ret = dsp_ops[index].init(bus->dev, mmio_base, irq,
-		loader_ops, &skl->skl_sst, &skl->manifest);
-
-	if (ret < 0)
-		goto dsp_init_exit;
-
-	skl_dsp_enable_notification(skl->skl_sst, false);
+	ret = dsp_ops[index].init_hw(bus->dev, mmio_base, irq,
+		loader_ops, &skl->skl_sst);
 dsp_init_exit:
-	pm_runtime_put_sync(bus->dev);
 	dev_dbg(bus->dev, "dsp registration status=%d\n", ret);
 
+	return ret;
+}
+
+int skl_init_dsp_fw(struct skl *skl)
+{
+	struct hdac_ext_bus *ebus = &skl->ebus;
+	struct hdac_bus *bus = ebus_to_hbus(ebus);
+	int ret, index;
+
+	pm_runtime_get_sync(bus->dev);
+
+	index  = skl_get_dsp_ops(skl->pci->device);
+	if (index  < 0) {
+		ret = -EINVAL;
+		pm_runtime_put_sync(bus->dev);
+		return ret;
+	}
+
+	ret = dsp_ops[index].init_fw(bus->dev, skl->skl_sst, &skl->manifest);
+
+	if (ret < 0) {
+		skl_free_dsp(skl);
+		dev_err(bus->dev, "Firmware load failed\n");
+		pm_runtime_put_sync(bus->dev);
+		return ret;
+	}
+
+	skl_dsp_enable_notification(skl->skl_sst, false);
+	pm_runtime_put_sync(bus->dev);
+	dev_dbg(bus->dev, "dsp registration status=%d\n", ret);
 	return ret;
 }
 

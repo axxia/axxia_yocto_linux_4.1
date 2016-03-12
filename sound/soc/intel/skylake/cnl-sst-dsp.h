@@ -119,8 +119,10 @@ int cnl_dsp_disable_core(struct sst_dsp *ctx);
 irqreturn_t cnl_dsp_sst_interrupt(int irq, void *dev_id);
 void cnl_dsp_free(struct sst_dsp *dsp);
 
-int cnl_sst_dsp_init(struct device *dev, void __iomem *mmio_base, int irq,
+int cnl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
+int cnl_sst_dsp_init_fw(struct device *dev,
+	struct skl_sst *ctx, struct skl_dfw_manifest *minfo);
 void cnl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
 void cnl_ipc_int_disable(struct sst_dsp *ctx);
