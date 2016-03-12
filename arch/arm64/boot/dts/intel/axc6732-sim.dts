@@ -194,7 +194,6 @@
 	status = "okay";
 };
 
-
 &gpdma0 {
 	status = "okay";
 };
