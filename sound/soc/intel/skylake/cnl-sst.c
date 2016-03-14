@@ -583,7 +583,7 @@ int cnl_sst_dsp_init_fw(struct device *dev,
 		dev_err(dev, "Load base fw failed : %d", ret);
 		return ret;
 	}
-
+	ctx->fw_loaded = true;
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cnl_sst_dsp_init_fw);

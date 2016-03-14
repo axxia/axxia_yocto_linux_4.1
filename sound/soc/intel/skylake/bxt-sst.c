@@ -176,7 +176,7 @@ int bxt_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx,
 		dev_err(dev, "Load base fw failed : %x", ret);
 		return ret;
 	}
-
+	ctx->fw_loaded = true;
 	if (minfo->lib_count > 1) {
 		ret = ctx->dsp->fw_ops.load_library(ctx->dsp, minfo);
 		if (ret < 0) {

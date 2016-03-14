@@ -67,6 +67,8 @@ struct skl_probe_config {
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;
+	/* Flag to indicate if fw is loaded or not */
+	bool fw_loaded;
 
 	/* boot */
 	wait_queue_head_t boot_wait;

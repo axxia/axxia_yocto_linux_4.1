@@ -497,6 +497,8 @@ int skl_sst_dsp_init_fw(struct device *dev,
 	ret = ctx->dsp->fw_ops.load_fw(ctx->dsp);
 	if (ret < 0)
 		dev_err(dev, "Load base fw failed : %d", ret);
+	else
+		ctx->fw_loaded = true;
 
 	return ret;
 }
