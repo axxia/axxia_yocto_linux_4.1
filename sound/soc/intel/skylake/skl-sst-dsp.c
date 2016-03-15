@@ -455,5 +455,10 @@ void skl_dsp_free(struct sst_dsp *dsp)
 
 	free_irq(dsp->irq, dsp);
 	skl_dsp_disable_core(dsp, SKL_DSP_CORE0_MASK);
+	dsp->cl_dev.ops.cl_cleanup_controller(dsp);
+	skl_cldma_int_disable(dsp);
+	skl_ipc_op_int_disable(dsp);
+	skl_ipc_int_disable(dsp);
+
 }
 EXPORT_SYMBOL_GPL(skl_dsp_free);
