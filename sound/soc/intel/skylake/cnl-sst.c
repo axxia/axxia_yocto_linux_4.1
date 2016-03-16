@@ -252,16 +252,32 @@ static int sst_transfer_fw_host_dma(struct sst_dsp *ctx)
 static int cnl_load_base_firmware(struct sst_dsp *ctx)
 {
 	int ret = 0;
-	const struct firmware *fw = NULL;
 	struct skl_sst *cnl = ctx->thread_context;
+	struct skl_ext_manifest_header *hdr;
+	u32 size;
+	const void *data;
 
-	ret = request_firmware(&fw, "dsp_fw_release.bin", ctx->dev);
+	ret = request_firmware(&ctx->fw, "dsp_fw_release.bin", ctx->dev);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Request firmware failed: 0x%x\n", ret);
 		goto cnl_load_base_firmware_failed;
 	}
 
-	ret = cnl_prepare_fw(ctx, fw->data, fw->size);
+	size = ctx->fw->size;
+	data = ctx->fw->data;
+	hdr = (struct skl_ext_manifest_header *)ctx->fw->data;
+	if (hdr->ext_manifest_id == SKL_EXT_MANIFEST_MAGIC_HEADER_ID)
+	{
+		dev_dbg(ctx->dev, "Found Extended manifest in FW Binary\n");
+		if (hdr->ext_manifest_len >= ctx->fw->size) {
+			ret = -EINVAL;
+			goto cnl_load_base_firmware_failed;
+		}
+		size = ctx->fw->size - hdr->ext_manifest_len;
+		data = (u8 *)ctx->fw->data + hdr->ext_manifest_len;
+	}
+
+	ret = cnl_prepare_fw(ctx, data, size);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Prepare firmware failed: 0x%x\n", ret);
 		goto cnl_load_base_firmware_failed;
@@ -287,7 +303,7 @@ static int cnl_load_base_firmware(struct sst_dsp *ctx)
 	}
 
 cnl_load_base_firmware_failed:
-	release_firmware(fw);
+	release_firmware(ctx->fw);
 	return ret;
 }
 
