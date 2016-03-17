@@ -454,6 +454,15 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		skl_tplg_update_module_params(w, ctx);
 
 		skl_tplg_set_module_init_data(w);
+
+		ret = skl_dsp_get_core(ctx->dsp, mconfig->core_id);
+
+		if (ret < 0) {
+			dev_err(ctx->dev, "Failed to wake up core %d ret=%d\n",
+						mconfig->core_id, ret);
+			return ret;
+		}
+
 		ret = skl_init_module(ctx, mconfig);
 		if (ret < 0)
 			return ret;
@@ -471,6 +480,7 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 {
 	struct skl_pipe_module *w_module = NULL;
 	struct skl_module_cfg *mconfig = NULL;
+	int ret = 0;
 
 	dev_dbg(ctx->dev, "%s: pipe=%d\n", __func__, pipe->ppl_id);
 	list_for_each_entry(w_module, &pipe->w_list, node) {
@@ -478,10 +488,18 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 		dev_dbg(ctx->dev, "unload module_id=%d\n", mconfig->id.module_id);
 
 		if (mconfig->is_loadable)
-			return skl_unload_modules(ctx, mconfig);
+			ret = skl_unload_modules(ctx, mconfig);
+
+		ret = skl_dsp_put_core(ctx->dsp, mconfig->core_id);
+		if (ret < 0) {
+			/* notify error, continue with other modules */
+			dev_err(ctx->dev, "Failed to sleep core %d ret=%d\n",
+					mconfig->core_id, ret);
+
+		}
 	}
 
-	return 0;
+	return ret;
 }
 
 /*
