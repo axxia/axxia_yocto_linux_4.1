@@ -498,7 +498,7 @@ static ssize_t adsp_control_write(struct file *file,
 	u32 *ipc_data;
 	struct skl_sst *ctx = d->skl->skl_sst;
 	struct skl_ipc_large_config_msg msg;
-	char id[5];
+	char id[8];
 	u32 tx_data[EXTENDED_PARAMS_SZ];
 	int j = 0, bufsize, tx_param = 0, tx_param_id;
 	int len = min(count, (sizeof(buf)-1));
