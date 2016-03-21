@@ -589,6 +589,7 @@ static ssize_t adsp_control_write(struct file *file,
 
 	default:
 	mutex_unlock(&d->fw_ipc_data.mutex);
+	kfree(ipc_data);
 	return -EINVAL;
 	}
 
