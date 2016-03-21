@@ -425,6 +425,8 @@ cnl_continue:
 	pdev = platform_device_alloc(mach->machine, -1);
 	if (pdev == NULL) {
 		dev_err(bus->dev, "platform device alloc failed\n");
+		if (machine)
+			kfree(mach);
 		return -EIO;
 	}
 
@@ -432,6 +434,8 @@ cnl_continue:
 	if (ret) {
 		dev_err(bus->dev, "failed to add machine device\n");
 		platform_device_put(pdev);
+		if (machine)
+			kfree(mach);
 		return -EIO;
 	}
 	skl->i2s_dev = pdev;
