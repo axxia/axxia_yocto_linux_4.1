@@ -171,6 +171,7 @@ int skl_probe_compr_open(struct snd_compr_stream *substream,
 	pr_debug("**PROBE**stream tag set in dma params=%d\n",
 				 dma_params->stream_tag);
 
+	kfree(dma_params);
 	return 0;
 }
 
@@ -214,7 +215,7 @@ int skl_probe_compr_set_params(struct snd_compr_stream *substream,
 	struct skl_pipe_params p_params = {0};
 	struct skl_module_cfg *m_cfg;
 	int ret, dma_id;
-	unsigned int format_val;
+	unsigned int format_val = 0;
 	int err;
 
 	dev_dbg(dai->dev, "%s: %s\n", __func__, dai->name);
@@ -312,14 +313,13 @@ int skl_probe_compr_ack(struct snd_compr_stream *substream, size_t bytes,
 #if 0
 	writel(new_spib_pos, stream->spib_addr);
 #endif
+	return 0;
 }
 
 /* calculate runtime delay from LPIB */
-static int skl_get_delay_from_compr_lpib(struct hdac_ext_bus *ebus,
-				struct hdac_ext_stream *sstream,
+static int skl_get_delay_from_compr_lpib(struct hdac_ext_stream *sstream,
 				unsigned int pos)
 {
-	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct hdac_stream *hstream = hdac_stream(sstream);
 	struct snd_compr_stream *substream = hstream->stream;
 	int stream = substream->direction;
@@ -349,14 +349,13 @@ static unsigned int skl_get_compr_position(struct hdac_ext_stream *hstream,
 {
 	struct hdac_stream *hstr = hdac_stream(hstream);
 	struct snd_compr_stream *substream = hstr->substream;
-	struct hdac_ext_bus *ebus;
 	unsigned int pos;
 	int delay;
 
 	/* use the position buffer as default */
 	pos = snd_hdac_stream_get_pos_posbuf(hdac_stream(hstream));
 
-	skl_get_delay_from_compr_lpib(ebus, hstream, pos);
+	skl_get_delay_from_compr_lpib(hstream, pos);
 
 	return pos;
 }
@@ -400,6 +399,7 @@ int skl_probe_compr_tstamp(struct snd_compr_stream *stream,
 	if ((tstamp->copied_total - stream->runtime->total_bytes_transferred) >
 		stream->runtime->buffer_size)
 		printk(KERN_ERR"Overflow in probe capture stream\n");
+	return 0;
 
 }
 
@@ -514,8 +514,10 @@ int skl_probe_compr_trigger(struct snd_compr_stream *substream, int cmd,
 	int ret;
 
 	mconfig = skl_tplg_fe_get_cpr_module(dai, substream->direction);
-	if (!mconfig)
+	if (!mconfig){
 		pr_err("In compress trigger, mconfig is NULL\n");
+		return -EINVAL;
+	}
 
 	dev_dbg(dai->dev, "In %s cmd=%d\n", __func__, cmd);
 
