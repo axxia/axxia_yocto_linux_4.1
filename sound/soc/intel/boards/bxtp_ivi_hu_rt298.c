@@ -104,6 +104,10 @@ static int bxtp_ssp0_gpio_init(struct snd_soc_pcm_runtime *rtd)
 	u32 gpio_value2 = 0x44000600;
 
 	gpio_addr = (void *)ioremap_nocache(0xd0c40610, 0x30);
+        if (gpio_addr == NULL) {
+                printk("failed to remap the address for SSP0\n");
+                return(-EIO);
+        }
 
 	memcpy_toio(gpio_addr + 0x8, &gpio_value1, sizeof(gpio_value1));
 	memcpy_toio(gpio_addr + 0x10, &gpio_value2, sizeof(gpio_value2));
