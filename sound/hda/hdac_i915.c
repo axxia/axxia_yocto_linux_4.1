@@ -358,6 +358,9 @@ int snd_hdac_i915_init(struct hdac_bus *bus)
 	struct i915_audio_component *acomp;
 	int ret;
 
+	if (WARN_ON(hdac_acomp))
+		return -EBUSY;
+
 	if (!i915_gfx_present())
 		return -ENODEV;
 
