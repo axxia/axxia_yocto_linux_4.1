@@ -269,7 +269,8 @@ static const struct snd_soc_dapm_widget mrgfld_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("Platform Clock", SND_SOC_NOPM, 0, 0,
 			mrgfld_clock_control, SND_SOC_DAPM_PRE_PMU|
 			SND_SOC_DAPM_POST_PMD),
-
+	SND_SOC_DAPM_SIGGEN("probe source"),
+	SND_SOC_DAPM_SINK("probe sink"),
 };
 
 static int cnl_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -337,6 +338,8 @@ static const struct snd_soc_dapm_route mrgfld_map[] = {
 	{"EP", NULL, "Platform Clock"},
 	{"Tone Generator 1", NULL, "Platform Clock" },
 	{"Tone Generator 2", NULL, "Platform Clock" },
+	{ "extractor cpr 21", NULL, "probe source"},
+	{ "probe sink", NULL, "injector cpr 3"},
 };
 
 static const struct snd_kcontrol_new mrgfld_controls[] = {
@@ -593,7 +596,29 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.capture_only = true,
 		.ignore_suspend = 1,
 	},
-
+	/* Probe DAI-links */
+	{
+		.name = "CNL Probe playback",
+		.stream_name = "Probe Playback",
+		.cpu_dai_name = "Probe0 Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:02:18.0",
+		.init = NULL,
+		.ignore_suspend = 1,
+		.nonatomic = 1,
+	},
+	{
+		.name = "CNL Probe capture",
+		.stream_name = "Probe Capture",
+		.cpu_dai_name = "Probe1 Pin",
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:02:18.0",
+		.init = NULL,
+		.ignore_suspend = 1,
+		.nonatomic = 1,
+	},
 	/* back ends */
 	{
 		.name = "SSP0-Codec",
