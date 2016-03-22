@@ -146,7 +146,6 @@ static enum hdac_ext_stream_type skl_get_host_stream_type(struct hdac_ext_bus *e
 int skl_probe_compr_open(struct snd_compr_stream *substream,
 						struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *stream;
 	struct snd_compr_runtime *runtime = substream->runtime;
@@ -206,7 +205,6 @@ int skl_probe_compr_set_params(struct snd_compr_stream *substream,
 							struct snd_soc_dai *dai)
 {
 
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 	struct hdac_ext_stream *stream = get_hdac_ext_compr_stream(substream);
 	struct snd_compr_runtime *runtime = substream->runtime;
@@ -268,7 +266,6 @@ int skl_probe_compr_set_params(struct snd_compr_stream *substream,
 void skl_probe_compr_close(struct snd_compr_stream *substream,
 						struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct hdac_ext_stream *stream = get_hdac_ext_compr_stream(substream);
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
 
@@ -288,9 +285,7 @@ void skl_probe_compr_close(struct snd_compr_stream *substream,
 int skl_probe_compr_ack(struct snd_compr_stream *substream, size_t bytes,
 							struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
-	struct hdac_ext_stream *stream = get_hdac_ext_compr_stream(substream);
 	u64 new_spib_pos;
 	struct snd_compr_runtime *runtime = substream->runtime;
 	/* 64-bit Modulus */
@@ -347,10 +342,7 @@ static int skl_get_delay_from_compr_lpib(struct hdac_ext_stream *sstream,
 static unsigned int skl_get_compr_position(struct hdac_ext_stream *hstream,
 					int codec_delay)
 {
-	struct hdac_stream *hstr = hdac_stream(hstream);
-	struct snd_compr_stream *substream = hstr->substream;
 	unsigned int pos;
-	int delay;
 
 	/* use the position buffer as default */
 	pos = snd_hdac_stream_get_pos_posbuf(hdac_stream(hstream));
@@ -406,7 +398,7 @@ int skl_probe_compr_tstamp(struct snd_compr_stream *stream,
 int skl_probe_compr_copy(struct snd_compr_stream *stream, char __user *buf,
 							size_t count, struct snd_soc_dai *dai)
 {
-	int offset = 0, availcount = 0, retval = 0, spib_pos, copy;
+	int offset = 0, availcount = 0, retval = 0, copy;
 	void *dstn;
 
 	if (stream->direction == SND_COMPRESS_CAPTURE) {
@@ -462,7 +454,6 @@ int skl_decoupled_compr_trigger(struct snd_pcm_substream *substream,
 	struct hdac_ext_bus *ebus = get_bus_compr_ctx(substream);
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 	struct snd_soc_pcm_runtime *rtd = snd_pcm_substream_chip(substream);
-	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct hdac_ext_stream *stream;
 	int start;
 	unsigned long cookie;
@@ -507,7 +498,6 @@ int skl_decoupled_compr_trigger(struct snd_pcm_substream *substream,
 int skl_probe_compr_trigger(struct snd_compr_stream *substream, int cmd,
 							struct snd_soc_dai *dai)
 {
-	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct skl *skl = get_skl_ctx(dai->dev);
 	struct skl_sst *ctx = skl->skl_sst;
 	struct skl_module_cfg *mconfig;

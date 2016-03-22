@@ -915,7 +915,7 @@ int skl_disconnect_probe_point(struct skl_sst *ctx,
 		else if (strstr(w->name, "iprobe") != NULL)
 			msg.large_param_id = 0x03;
 		else
-			return;
+			return -EINVAL;
 		mcfg = w->priv;
 		msg.module_id = mcfg->id.module_id;
 		msg.instance_id = mcfg->id.instance_id;
