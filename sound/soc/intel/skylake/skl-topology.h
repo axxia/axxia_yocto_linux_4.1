@@ -33,6 +33,7 @@
 #define MAX_DMIC_TS_GROUPS 4
 #define MAX_FIXED_DMIC_PARAMS_SIZE 727
 #define MAX_ADSP_SZ 1024
+#define STEREO 2
 
 /* Maximum number of coefficients up down mixer module */
 #define UP_DOWN_MIXER_MAX_COEFF		8
@@ -205,6 +206,11 @@ struct skl_module_fmt {
 
 struct skl_module_cfg;
 
+struct skl_gain_module_config {
+	struct skl_base_cfg mconf;
+	struct skl_gain_config gain_cfg;
+};
+
 struct skl_module_inst_id {
 	u32 module_id;
 	u32 instance_id;
@@ -270,6 +276,12 @@ enum skl_module_state {
 	SKL_MODULE_BIND_DONE = 4
 };
 
+struct skl_gain_data {
+	u64 ramp_duration;
+	u32 ramp_type;
+	u32 volume[STEREO];
+};
+
 struct skl_module_cfg {
 	char guid[SKL_MOD_NAME];
 	struct skl_module_inst_id id;
@@ -307,6 +319,7 @@ struct skl_module_cfg {
 	enum skl_module_state m_state;
 	struct skl_pipe *pipe;
 	struct skl_specific_cfg formats_config;
+	struct skl_gain_data gain_data;
 };
 
 struct skl_algo_data {

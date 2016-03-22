@@ -22,12 +22,16 @@
 /* Default types range from 0~12. type can range from 0 to 0xff
  * SST types start at higher to avoid any overlapping in future */
 #define SKL_CONTROL_TYPE_BYTE_EXT	0x100
+#define SKL_CONTROL_TYPE_VOLUME         0x102
+#define SKL_CONTROL_TYPE_RAMP_DURATION  0x103
+#define SKL_CONTROL_TYPE_RAMP_TYPE      0x104
 #define SKL_CONTROL_TYPE_DSP_LOG      0x105
 
 #define HDA_SST_CFG_MAX	900 /* size of copier cfg*/
 #define MAX_IN_QUEUE 8
 #define MAX_OUT_QUEUE 8
 #define SKL_MOD_NAME 40 /* Length of GUID string */
+#define STEREO 2
 
 #define LIB_NAME_LENGTH 512
 #define HDA_MAX_LIB    16
@@ -83,9 +87,9 @@ enum skl_module_type {
 	SKL_MODULE_TYPE_UPDWMIX,
 	SKL_MODULE_TYPE_SRCINT,
 	SKL_MODULE_TYPE_ALGO,
-	SKL_MODULE_TYPE_BASE_OUTFMT,
-	SKL_MODULE_TYPE_PROBE
-
+	SKL_MODULE_TYPE_MIC_SELECT,
+	SKL_MODULE_TYPE_PROBE,
+	SKL_MODULE_TYPE_GAIN,
 };
 
 enum skl_core_affinity {
@@ -227,6 +231,13 @@ struct skl_dfw_module {
 	struct skl_dfw_module_pin in_pin[MAX_IN_QUEUE];
 	struct skl_dfw_module_pin out_pin[MAX_OUT_QUEUE];
 	struct skl_dfw_module_caps caps;
+} __packed;
+
+struct skl_gain_config {
+	u32 channel_id;
+	u32 target_volume;
+	u32 ramp_type;
+	u64 ramp_duration;
 } __packed;
 
 struct skl_dfw_algo_data {

@@ -559,6 +559,23 @@ static void skl_setup_out_format(struct skl_sst *ctx,
 	dev_dbg(ctx->dev, "copier out format chan=%d fre=%d bitdepth=%d\n",
 		out_fmt->number_of_channels, format->s_freq, format->bit_depth);
 }
+#define SKL_ENABLE_ALL_CHANNELS  0xffffffff
+
+static int skl_set_gain_format(struct skl_sst *ctx,
+			struct skl_module_cfg *mconfig,
+			struct skl_gain_module_config *gain_mconfig)
+{
+	struct skl_gain_data *gain_fmt = &mconfig->gain_data;
+
+	skl_set_base_module_format(ctx, mconfig,
+			(struct skl_base_cfg *)gain_mconfig);
+	gain_mconfig->gain_cfg.channel_id = SKL_ENABLE_ALL_CHANNELS;
+	gain_mconfig->gain_cfg.target_volume = gain_fmt->volume[0];
+	gain_mconfig->gain_cfg.ramp_type = gain_fmt->ramp_type;
+	gain_mconfig->gain_cfg.ramp_duration = gain_fmt->ramp_duration;
+
+	return 0;
+}
 
 /*
  * DSP needs SRC module for frequency conversion, SRC takes base module
@@ -712,7 +729,10 @@ static u16 skl_get_module_param_size(struct skl_sst *ctx,
 		param_size += mconfig->formats_config.caps_size;
 		return param_size;
 
-	case SKL_MODULE_TYPE_BASE_OUTFMT:
+	case SKL_MODULE_TYPE_GAIN:
+		return sizeof(struct skl_gain_module_config);
+
+	case SKL_MODULE_TYPE_MIC_SELECT:
 		return sizeof(struct skl_base_outfmt_cfg);
 
 	default:
@@ -769,7 +789,11 @@ static int skl_set_module_format(struct skl_sst *ctx,
 		skl_set_algo_format(ctx, module_config, *param_data);
 		break;
 
-	case SKL_MODULE_TYPE_BASE_OUTFMT:
+	case SKL_MODULE_TYPE_GAIN:
+		skl_set_gain_format(ctx, module_config, *param_data);
+		break;
+
+	case SKL_MODULE_TYPE_MIC_SELECT:
 		skl_set_base_outfmt_format(ctx, module_config, *param_data);
 		break;
 
