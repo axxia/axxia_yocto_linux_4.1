@@ -581,14 +581,6 @@ static int skl_link_hw_free(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-static bool skl_is_core_valid(int core)
-{
-	if (core != INT_MIN)
-		return true;
-	else
-		return false;
-}
-
 static int skl_get_compr_core(struct snd_compr_stream *stream)
 {
 	struct snd_soc_pcm_runtime *rtd = stream->private_data;
@@ -604,6 +596,10 @@ static int skl_get_compr_core(struct snd_compr_stream *stream)
 
 static int skl_is_logging_core(int core)
 {
+	/*
+	 * disabled on core 2 and 3 for cnl for now.
+	 * will be added when LogState struct is fixed in fw.
+	 */
 	if (core == 0 || core == 1)
 		return 1;
 	else
@@ -632,7 +628,7 @@ static int skl_trace_compr_set_params(struct snd_compr_stream *stream,
 	int size = params->buffer.fragment_size * params->buffer.fragments;
 	int core = skl_get_compr_core(stream);
 
-	if (!skl_is_core_valid(core))
+	if (!skl_is_logging_core(core))
 		return -EINVAL;
 
 	size = size / sizeof(u32);
@@ -667,7 +663,7 @@ static int skl_trace_compr_tstamp(struct snd_compr_stream *stream,
 	struct sst_dsp *sst = skl_sst->dsp;
 	int core = skl_get_compr_core(stream);
 
-	if (!skl_is_core_valid(core))
+	if (!skl_is_logging_core(core))
 		return -EINVAL;
 
 	tstamp->copied_total = skl_dsp_log_avail(sst, core);
@@ -698,7 +694,7 @@ static int skl_trace_compr_free(struct snd_compr_stream *stream,
 	int core = skl_get_compr_core(stream);
 	int is_enabled = sst->trace_wind.flags & BIT(core);
 
-	if (!skl_is_core_valid(core))
+	if (!skl_is_logging_core(core))
 		return -EINVAL;
 	if (is_enabled) {
 		sst->trace_wind.flags &= ~BIT(core);
