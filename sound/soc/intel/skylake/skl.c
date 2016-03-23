@@ -648,12 +648,16 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 	ebus->num_streams = cp_streams + pb_streams;
 
 	/* initialize streams */
-	snd_hdac_ext_stream_init_all
+	err = snd_hdac_ext_stream_init_all
 		(ebus, 0, cp_streams, SNDRV_PCM_STREAM_CAPTURE);
-	start_idx = cp_streams;
-	snd_hdac_ext_stream_init_all
-		(ebus, start_idx, pb_streams, SNDRV_PCM_STREAM_PLAYBACK);
+	if (err < 0)
+		return err;
 
+	start_idx = cp_streams;
+	err = snd_hdac_ext_stream_init_all
+		(ebus, start_idx, pb_streams, SNDRV_PCM_STREAM_PLAYBACK);
+	if (err < 0)
+		return err;
 	err = snd_hdac_bus_alloc_stream_pages(bus);
 	if (err < 0)
 		return err;
@@ -717,7 +721,9 @@ static int skl_probe(struct pci_dev *pci,
 
 	}
 	if (ebus->mlcap)
-		snd_hdac_ext_bus_get_ml_capabilities(ebus);
+		err = snd_hdac_ext_bus_get_ml_capabilities(ebus);
+		if (err < 0)
+			goto out_mach_free;
 
 	/* create device for soc dmic */
 	err = skl_dmic_device_register(skl);
