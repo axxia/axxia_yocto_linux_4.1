@@ -59,8 +59,9 @@ hdac_ext_host_stream_compr_assign(struct hdac_ext_bus *ebus,
 		res->hstream.running = 0;
 		res->hstream.stream = substream;
 		spin_unlock_irq(&hbus->reg_lock);
+		pr_err("**PROBE** chosen stream tag = %d, index = %d\n",
+				res->hstream.stream_tag, res->hstream.index);
 	}
-	 pr_err("**PROBE** chosen stream tag = %d, index = %d\n", res->hstream.stream_tag, res->hstream.index);
 	return res;
 }
 
