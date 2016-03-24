@@ -595,7 +595,7 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
 		}
 	}
 
-	if (!sink)
+	if ((!sink) && (next_sink))
 		return skl_tplg_bind_sinks(next_sink, skl, src_mconfig);
 
 	return 0;
