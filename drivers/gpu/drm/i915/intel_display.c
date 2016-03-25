@@ -111,8 +111,7 @@ static void intel_begin_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void intel_finish_crtc_commit(struct drm_crtc *, struct drm_crtc_state *);
 static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_crtc,
 	struct intel_crtc_state *crtc_state);
-static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
-			   int num_connectors);
+static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state);
 static void skylake_pfit_enable(struct intel_crtc *crtc);
 static void ironlake_pfit_disable(struct intel_crtc *crtc, bool force);
 static void ironlake_pfit_enable(struct intel_crtc *crtc);
@@ -1074,7 +1073,7 @@ chv_find_best_dpll(const intel_limit_t *limit,
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state, int target_clock,
 			intel_clock_t *best_clock)
 {
-	int refclk = i9xx_get_refclk(crtc_state, 0);
+	int refclk = i9xx_get_refclk(crtc_state);
 
 	return chv_find_best_dpll(intel_limit(crtc_state, refclk), crtc_state,
 				  target_clock, refclk, NULL, best_clock);
@@ -7017,8 +7016,7 @@ static inline bool intel_panel_use_ssc(struct drm_i915_private *dev_priv)
 		&& !(dev_priv->quirks & QUIRK_LVDS_SSC_DISABLE);
 }
 
-static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
-			   int num_connectors)
+static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc_state->base.crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7029,7 +7027,7 @@ static int i9xx_get_refclk(const struct intel_crtc_state *crtc_state,
 	if (IS_VALLEYVIEW(dev) || IS_CHERRYVIEW(dev) || IS_BROXTON(dev)) {
 		refclk = 100000;
 	} else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-	    intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
+	    intel_panel_use_ssc(dev_priv)) {
 		refclk = dev_priv->vbt.lvds_ssc_freq;
 		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n", refclk);
 	} else if (!IS_GEN2(dev)) {
@@ -7470,8 +7468,7 @@ void vlv_force_pll_off(struct drm_device *dev, enum pipe pipe)
 
 static void i9xx_compute_dpll(struct intel_crtc *crtc,
 			      struct intel_crtc_state *crtc_state,
-			      intel_clock_t *reduced_clock,
-			      int num_connectors)
+			      intel_clock_t *reduced_clock)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7530,7 +7527,7 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 	if (crtc_state->sdvo_tv_clock)
 		dpll |= PLL_REF_INPUT_TVCLKINBC;
 	else if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
+		 intel_panel_use_ssc(dev_priv))
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
@@ -7547,8 +7544,7 @@ static void i9xx_compute_dpll(struct intel_crtc *crtc,
 
 static void i8xx_compute_dpll(struct intel_crtc *crtc,
 			      struct intel_crtc_state *crtc_state,
-			      intel_clock_t *reduced_clock,
-			      int num_connectors)
+			      intel_clock_t *reduced_clock)
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -7574,7 +7570,7 @@ static void i8xx_compute_dpll(struct intel_crtc *crtc,
 		dpll |= DPLL_DVO_2X_MODE;
 
 	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
-		 intel_panel_use_ssc(dev_priv) && num_connectors < 2)
+	    intel_panel_use_ssc(dev_priv))
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
@@ -7802,14 +7798,10 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 {
 	struct drm_device *dev = crtc->base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int refclk, num_connectors = 0;
+	int refclk;
 	intel_clock_t clock;
 	bool ok;
 	const intel_limit_t *limit;
-	struct drm_atomic_state *state = crtc_state->base.state;
-	struct drm_connector *connector;
-	struct drm_connector_state *connector_state;
-	int i;
 
 	memset(&crtc_state->dpll_hw_state, 0,
 	       sizeof(crtc_state->dpll_hw_state));
@@ -7817,13 +7809,8 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	if (crtc_state->has_dsi_encoder)
 		return 0;
 
-	for_each_connector_in_state(state, connector, connector_state, i) {
-		if (connector_state->crtc == &crtc->base)
-			num_connectors++;
-	}
-
 	if (!crtc_state->clock_set) {
-		refclk = i9xx_get_refclk(crtc_state, num_connectors);
+		refclk = i9xx_get_refclk(crtc_state);
 
 		/*
 		 * Returns a set of divisors for the desired target clock with
@@ -7849,15 +7836,13 @@ static int i9xx_crtc_compute_clock(struct intel_crtc *crtc,
 	}
 
 	if (IS_GEN2(dev)) {
-		i8xx_compute_dpll(crtc, crtc_state, NULL,
-				  num_connectors);
+		i8xx_compute_dpll(crtc, crtc_state, NULL);
 	} else if (IS_CHERRYVIEW(dev)) {
 		chv_compute_dpll(crtc, crtc_state);
 	} else if (IS_VALLEYVIEW(dev)) {
 		vlv_compute_dpll(crtc, crtc_state);
 	} else {
-		i9xx_compute_dpll(crtc, crtc_state, NULL,
-				  num_connectors);
+		i9xx_compute_dpll(crtc, crtc_state, NULL);
 	}
 
 	return 0;
@@ -8543,30 +8528,9 @@ static int ironlake_get_refclk(struct intel_crtc_state *crtc_state)
 {
 	struct drm_device *dev = crtc_state->base.crtc->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_atomic_state *state = crtc_state->base.state;
-	struct drm_connector *connector;
-	struct drm_connector_state *connector_state;
-	struct intel_encoder *encoder;
-	int num_connectors = 0, i;
-	bool is_lvds = false;
 
-	for_each_connector_in_state(state, connector, connector_state, i) {
-		if (connector_state->crtc != crtc_state->base.crtc)
-			continue;
-
-		encoder = to_intel_encoder(connector_state->best_encoder);
-
-		switch (encoder->type) {
-		case INTEL_OUTPUT_LVDS:
-			is_lvds = true;
-			break;
-		default:
-			break;
-		}
-		num_connectors++;
-	}
-
-	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2) {
+	if (intel_pipe_will_have_type(crtc_state, INTEL_OUTPUT_LVDS) &&
+	    intel_panel_use_ssc(dev_priv)) {
 		DRM_DEBUG_KMS("using SSC reference clock of %d kHz\n",
 			      dev_priv->vbt.lvds_ssc_freq);
 		return dev_priv->vbt.lvds_ssc_freq;
@@ -8727,7 +8691,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 	struct drm_connector_state *connector_state;
 	struct intel_encoder *encoder;
 	uint32_t dpll;
-	int factor, num_connectors = 0, i;
+	int factor, i;
 	bool is_lvds = false, is_sdvo = false;
 
 	for_each_connector_in_state(state, connector, connector_state, i) {
@@ -8747,8 +8711,6 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		default:
 			break;
 		}
-
-		num_connectors++;
 	}
 
 	/* Enable autotuning of the PLL clock (if permissible) */
@@ -8802,7 +8764,7 @@ static uint32_t ironlake_compute_dpll(struct intel_crtc *intel_crtc,
 		break;
 	}
 
-	if (is_lvds && intel_panel_use_ssc(dev_priv) && num_connectors < 2)
+	if (is_lvds && intel_panel_use_ssc(dev_priv))
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
