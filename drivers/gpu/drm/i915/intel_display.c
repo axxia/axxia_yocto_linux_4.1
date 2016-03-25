@@ -4953,7 +4953,8 @@ static void ironlake_crtc_enable(struct drm_crtc *crtc)
 	 */
 	intel_crtc_load_lut(crtc);
 
-	dev_priv->display.initial_watermarks(intel_crtc->config);
+	if (dev_priv->display.initial_watermarks != NULL)
+		dev_priv->display.initial_watermarks(intel_crtc->config);
 	intel_enable_pipe(intel_crtc);
 
 	if (intel_crtc->config->has_pch_encoder)
@@ -5052,7 +5053,10 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 	if (!intel_crtc->config->has_dsi_encoder)
 		intel_ddi_enable_transcoder_func(crtc);
 
-	dev_priv->display.initial_watermarks(pipe_config);
+	if (dev_priv->display.initial_watermarks != NULL)
+		dev_priv->display.initial_watermarks(pipe_config);
+	else
+		intel_update_watermarks(crtc);
 	intel_enable_pipe(intel_crtc);
 
 	if (intel_crtc->config->has_pch_encoder)
