@@ -1464,6 +1464,8 @@ out_free_priv:
 
 	kfree(dev_priv);
 
+	printk(KERN_INFO "IOTG i915 forklift 2016-03-25\n");
+
 	return ret;
 }
 
