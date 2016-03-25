@@ -10559,7 +10559,8 @@ retry:
 
 	drm_mode_copy(&crtc_state->base.mode, mode);
 
-	if (drm_atomic_commit(state)) {
+	ret = drm_atomic_commit(state);
+	if (ret) {
 		DRM_DEBUG_KMS("failed to set mode on load-detect pipe\n");
 		if (old->release_fb)
 			old->release_fb->funcs->destroy(old->release_fb);
