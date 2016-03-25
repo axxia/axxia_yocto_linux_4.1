@@ -1386,6 +1386,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	intel_runtime_pm_put(dev_priv);
 
+	printk(KERN_INFO "IOTG i915 forklift 2016-03-25\n");
+
 	return 0;
 
 out_cleanup_vblank:
