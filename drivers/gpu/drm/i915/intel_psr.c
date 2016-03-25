@@ -781,7 +781,10 @@ void intel_psr_init(struct drm_device *dev)
 
 	/* Per platform default */
 	if (i915.enable_psr == -1) {
-		i915.enable_psr = 0;
+		if (IS_HASWELL(dev) || IS_BROADWELL(dev))
+			i915.enable_psr = 1;
+		else
+			i915.enable_psr = 0;
 	}
 
 	/* Set link_standby x link_off defaults */
