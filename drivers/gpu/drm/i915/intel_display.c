@@ -1843,8 +1843,7 @@ static void ironlake_enable_pch_transcoder(struct drm_i915_private *dev_priv,
 	BUG_ON(!HAS_PCH_SPLIT(dev));
 
 	/* Make sure PCH DPLL is enabled */
-	assert_shared_dpll_enabled(dev_priv,
-				   intel_crtc_to_shared_dpll(intel_crtc));
+	assert_shared_dpll_enabled(dev_priv, intel_crtc->config->shared_dpll);
 
 	/* FDI must be feeding us bits for PCH ports */
 	assert_fdi_tx_enabled(dev_priv, pipe);
@@ -4106,7 +4105,8 @@ static void ironlake_pch_enable(struct drm_crtc *crtc)
 		temp = I915_READ(PCH_DPLL_SEL);
 		temp |= TRANS_DPLL_ENABLE(pipe);
 		sel = TRANS_DPLLB_SEL(pipe);
-		if (intel_crtc->config->shared_dpll == DPLL_ID_PCH_PLL_B)
+		if (intel_crtc->config->shared_dpll ==
+		    intel_get_shared_dpll_by_id(dev_priv, DPLL_ID_PCH_PLL_B))
 			temp |= sel;
 		else
 			temp &= ~sel;
@@ -4842,7 +4842,7 @@ static void haswell_crtc_enable(struct drm_crtc *crtc)
 		intel_set_pch_fifo_underrun_reporting(dev_priv, TRANSCODER_A,
 						      false);
 
-	if (intel_crtc_to_shared_dpll(intel_crtc))
+	if (intel_crtc->config->shared_dpll)
 		intel_enable_shared_dpll(intel_crtc);
 
 	if (intel_crtc->config->has_dp_encoder)
@@ -8011,7 +8011,7 @@ static bool i9xx_get_pipe_config(struct intel_crtc *crtc,
 		return false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
-	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
+	pipe_config->shared_dpll = NULL;
 
 	ret = false;
 
@@ -9215,7 +9215,7 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 		return false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
-	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
+	pipe_config->shared_dpll = NULL;
 
 	ret = false;
 	tmp = I915_READ(PIPECONF(crtc->pipe));
@@ -9244,6 +9244,7 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 
 	if (I915_READ(PCH_TRANSCONF(crtc->pipe)) & TRANS_ENABLE) {
 		struct intel_shared_dpll *pll;
+		enum intel_dpll_id pll_id;
 
 		pipe_config->has_pch_encoder = true;
 
@@ -9254,17 +9255,18 @@ static bool ironlake_get_pipe_config(struct intel_crtc *crtc,
 		ironlake_get_fdi_m_n_config(crtc, pipe_config);
 
 		if (HAS_PCH_IBX(dev_priv->dev)) {
-			pipe_config->shared_dpll =
-				(enum intel_dpll_id) crtc->pipe;
+			pll_id = (enum intel_dpll_id) crtc->pipe;
 		} else {
 			tmp = I915_READ(PCH_DPLL_SEL);
 			if (tmp & TRANS_DPLLB_SEL(crtc->pipe))
-				pipe_config->shared_dpll = DPLL_ID_PCH_PLL_B;
+				pll_id = DPLL_ID_PCH_PLL_B;
 			else
-				pipe_config->shared_dpll = DPLL_ID_PCH_PLL_A;
+				pll_id= DPLL_ID_PCH_PLL_A;
 		}
 
-		pll = &dev_priv->shared_dplls[pipe_config->shared_dpll];
+		pipe_config->shared_dpll =
+			intel_get_shared_dpll_by_id(dev_priv, pll_id);
+		pll = pipe_config->shared_dpll;
 
 		WARN_ON(!pll->get_hw_state(dev_priv, pll,
 					   &pipe_config->dpll_hw_state));
@@ -9700,28 +9702,34 @@ static void bxt_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
 {
+	enum intel_dpll_id id;
+
 	switch (port) {
 	case PORT_A:
 		pipe_config->ddi_pll_sel = SKL_DPLL0;
-		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL1;
+		id = DPLL_ID_SKL_DPLL1;
 		break;
 	case PORT_B:
 		pipe_config->ddi_pll_sel = SKL_DPLL1;
-		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL2;
+		id = DPLL_ID_SKL_DPLL2;
 		break;
 	case PORT_C:
 		pipe_config->ddi_pll_sel = SKL_DPLL2;
-		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL3;
+		id = DPLL_ID_SKL_DPLL3;
 		break;
 	default:
 		DRM_ERROR("Incorrect port type\n");
+		return;
 	}
+
+	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
 }
 
 static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
 {
+	enum intel_dpll_id id;
 	u32 temp, dpll_ctl1;
 
 	temp = I915_READ(DPLL_CTRL2) & DPLL_CTRL2_DDI_CLK_SEL_MASK(port);
@@ -9736,36 +9744,53 @@ static void skylake_get_ddi_pll(struct drm_i915_private *dev_priv,
 		 */
 		dpll_ctl1 = I915_READ(DPLL_CTRL1);
 		pipe_config->dpll_hw_state.ctrl1 = dpll_ctl1 & 0x3f;
-		break;
+		return;
 	case SKL_DPLL1:
-		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL1;
+		id = DPLL_ID_SKL_DPLL1;
 		break;
 	case SKL_DPLL2:
-		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL2;
+		id = DPLL_ID_SKL_DPLL2;
 		break;
 	case SKL_DPLL3:
-		pipe_config->shared_dpll = DPLL_ID_SKL_DPLL3;
+		id = DPLL_ID_SKL_DPLL3;
 		break;
+	default:
+		MISSING_CASE(pipe_config->ddi_pll_sel);
+		return;
 	}
+
+	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
 }
 
 static void haswell_get_ddi_pll(struct drm_i915_private *dev_priv,
 				enum port port,
 				struct intel_crtc_state *pipe_config)
 {
+	enum intel_dpll_id id;
+
 	pipe_config->ddi_pll_sel = I915_READ(PORT_CLK_SEL(port));
 
 	switch (pipe_config->ddi_pll_sel) {
 	case PORT_CLK_SEL_WRPLL1:
-		pipe_config->shared_dpll = DPLL_ID_WRPLL1;
+		id = DPLL_ID_WRPLL1;
 		break;
 	case PORT_CLK_SEL_WRPLL2:
-		pipe_config->shared_dpll = DPLL_ID_WRPLL2;
+		id = DPLL_ID_WRPLL2;
 		break;
 	case PORT_CLK_SEL_SPLL:
-		pipe_config->shared_dpll = DPLL_ID_SPLL;
+		id = DPLL_ID_SPLL;
 		break;
+	default:
+		MISSING_CASE(pipe_config->ddi_pll_sel);
+		/* fall through */
+	case PORT_CLK_SEL_NONE:
+	case PORT_CLK_SEL_LCPLL_810:
+	case PORT_CLK_SEL_LCPLL_1350:
+	case PORT_CLK_SEL_LCPLL_2700:
+		return;
 	}
+
+	pipe_config->shared_dpll = intel_get_shared_dpll_by_id(dev_priv, id);
 }
 
 static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
@@ -9788,9 +9813,8 @@ static void haswell_get_ddi_port_state(struct intel_crtc *crtc,
 	else
 		haswell_get_ddi_pll(dev_priv, port, pipe_config);
 
-	if (pipe_config->shared_dpll >= 0) {
-		pll = &dev_priv->shared_dplls[pipe_config->shared_dpll];
-
+	pll = pipe_config->shared_dpll;
+	if (pll) {
 		WARN_ON(!pll->get_hw_state(dev_priv, pll,
 					   &pipe_config->dpll_hw_state));
 	}
@@ -9830,7 +9854,7 @@ static bool haswell_get_pipe_config(struct intel_crtc *crtc,
 	ret = false;
 
 	pipe_config->cpu_transcoder = (enum transcoder) crtc->pipe;
-	pipe_config->shared_dpll = DPLL_ID_PRIVATE;
+	pipe_config->shared_dpll = NULL;
 
 	tmp = I915_READ(TRANS_DDI_FUNC_CTL(TRANSCODER_EDP));
 	if (tmp & TRANS_DDI_FUNC_ENABLE) {
@@ -11855,7 +11879,7 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 
 	if (mode_changed && crtc_state->enable &&
 	    dev_priv->display.crtc_compute_clock &&
-	    !WARN_ON(pipe_config->shared_dpll != DPLL_ID_PRIVATE)) {
+	    !WARN_ON(pipe_config->shared_dpll)) {
 		ret = dev_priv->display.crtc_compute_clock(intel_crtc,
 							   pipe_config);
 		if (ret)
@@ -12200,7 +12224,7 @@ clear_intel_crtc_state(struct intel_crtc_state *crtc_state)
 	struct drm_crtc_state tmp_state;
 	struct intel_crtc_scaler_state scaler_state;
 	struct intel_dpll_hw_state dpll_hw_state;
-	enum intel_dpll_id shared_dpll;
+	struct intel_shared_dpll *shared_dpll;
 	uint32_t ddi_pll_sel;
 	bool force_thru;
 
@@ -12470,6 +12494,15 @@ intel_pipe_config_compare(struct drm_device *dev,
 		ret = false; \
 	}
 
+#define PIPE_CONF_CHECK_P(name)	\
+	if (current_config->name != pipe_config->name) { \
+		INTEL_ERR_OR_DBG_KMS("mismatch in " #name " " \
+			  "(expected %p, found %p)\n", \
+			  current_config->name, \
+			  pipe_config->name); \
+		ret = false; \
+	}
+
 #define PIPE_CONF_CHECK_M_N(name) \
 	if (!intel_compare_link_m_n(&current_config->name, \
 				    &pipe_config->name,\
@@ -12637,7 +12670,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 
 	PIPE_CONF_CHECK_X(ddi_pll_sel);
 
-	PIPE_CONF_CHECK_I(shared_dpll);
+	PIPE_CONF_CHECK_P(shared_dpll);
 	PIPE_CONF_CHECK_X(dpll_hw_state.dpll);
 	PIPE_CONF_CHECK_X(dpll_hw_state.dpll_md);
 	PIPE_CONF_CHECK_X(dpll_hw_state.fp0);
@@ -12656,6 +12689,7 @@ intel_pipe_config_compare(struct drm_device *dev,
 
 #undef PIPE_CONF_CHECK_X
 #undef PIPE_CONF_CHECK_I
+#undef PIPE_CONF_CHECK_P
 #undef PIPE_CONF_CHECK_I_ALT
 #undef PIPE_CONF_CHECK_FLAGS
 #undef PIPE_CONF_CHECK_CLOCK_FUZZY
@@ -12879,7 +12913,8 @@ check_shared_dpll_state(struct drm_device *dev)
 	int i;
 
 	for (i = 0; i < dev_priv->num_shared_dpll; i++) {
-		struct intel_shared_dpll *pll = &dev_priv->shared_dplls[i];
+		struct intel_shared_dpll *pll =
+			intel_get_shared_dpll_by_id(dev_priv, i);
 		int enabled_crtcs = 0, active_crtcs = 0;
 		bool active;
 
@@ -12901,9 +12936,9 @@ check_shared_dpll_state(struct drm_device *dev)
 		     pll->on, active);
 
 		for_each_intel_crtc(dev, crtc) {
-			if (crtc->base.state->enable && intel_crtc_to_shared_dpll(crtc) == pll)
+			if (crtc->base.state->enable && crtc->config->shared_dpll == pll)
 				enabled_crtcs++;
-			if (crtc->active && intel_crtc_to_shared_dpll(crtc) == pll)
+			if (crtc->active && crtc->config->shared_dpll == pll)
 				active_crtcs++;
 		}
 		I915_STATE_WARN(pll->active != active_crtcs,
@@ -12973,8 +13008,6 @@ static void intel_modeset_clear_plls(struct drm_atomic_state *state)
 	struct drm_device *dev = state->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_shared_dpll_config *shared_dpll = NULL;
-	struct intel_crtc *intel_crtc;
-	struct intel_crtc_state *intel_crtc_state;
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 	int i;
@@ -12983,21 +13016,22 @@ static void intel_modeset_clear_plls(struct drm_atomic_state *state)
 		return;
 
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
-		int dpll;
+		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
+		struct intel_shared_dpll *old_dpll =
+			to_intel_crtc_state(crtc->state)->shared_dpll;
 
-		intel_crtc = to_intel_crtc(crtc);
-		intel_crtc_state = to_intel_crtc_state(crtc_state);
-		dpll = intel_crtc_state->shared_dpll;
-
-		if (!needs_modeset(crtc_state) || dpll == DPLL_ID_PRIVATE)
+		if (!needs_modeset(crtc_state))
 			continue;
 
-		intel_crtc_state->shared_dpll = DPLL_ID_PRIVATE;
+		to_intel_crtc_state(crtc_state)->shared_dpll = NULL;
+
+		if (!old_dpll)
+			continue;
 
 		if (!shared_dpll)
 			shared_dpll = intel_atomic_get_shared_dpll_state(state);
 
-		shared_dpll[dpll].crtc_mask &= ~(1 << intel_crtc->pipe);
+		intel_shared_dpll_config_put(shared_dpll, old_dpll, intel_crtc);
 	}
 }
 
@@ -15644,7 +15678,7 @@ static void intel_modeset_readout_hw_state(struct drm_device *dev)
 		pll->active = 0;
 		pll->config.crtc_mask = 0;
 		for_each_intel_crtc(dev, crtc) {
-			if (crtc->active && intel_crtc_to_shared_dpll(crtc) == pll) {
+			if (crtc->active && crtc->config->shared_dpll == pll) {
 				pll->active++;
 				pll->config.crtc_mask |= 1 << crtc->pipe;
 			}
