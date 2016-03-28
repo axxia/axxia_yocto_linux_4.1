@@ -815,6 +815,8 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 				mconfig->id.module_id, mconfig->guid);
 			if (ret < 0)
 				return ret;
+
+			mconfig->m_state = SKL_MODULE_LOADED;
 		}
 
 		/* update blob if blob is null for be with default value */
@@ -860,7 +862,8 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 		mconfig  = w_module->w->priv;
 		dev_dbg(ctx->dev, "unload module_id=%d\n", mconfig->id.module_id);
 
-		if (mconfig->is_loadable && ctx->dsp->fw_ops.unload_mod)
+		if (mconfig->is_loadable && ctx->dsp->fw_ops.unload_mod &&
+			mconfig->m_state > SKL_MODULE_UNINIT)
 			return ctx->dsp->fw_ops.unload_mod(ctx->dsp,
 						mconfig->id.module_id);
 		ret = skl_dsp_put_core(ctx->dsp, mconfig->core_id);
