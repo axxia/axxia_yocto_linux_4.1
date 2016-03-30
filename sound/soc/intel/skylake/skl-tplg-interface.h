@@ -197,7 +197,8 @@ struct skl_dfw_pipe {
 	u8 pipe_id;
 	u8 pipe_priority;
 	u16 conn_type:4;
-	u16 rsvd:4;
+	u16 lp_mode:1;
+	u16 rsvd:3;
 	u16 memory_pages:8;
 } __packed;
 

@@ -1882,6 +1882,7 @@ static struct skl_pipe *skl_tplg_add_pipe(struct device *dev,
 	pipe->memory_pages = dfw_pipe->memory_pages;
 	pipe->pipe_priority = dfw_pipe->pipe_priority;
 	pipe->conn_type = dfw_pipe->conn_type;
+	pipe->lp_mode = dfw_pipe->lp_mode;
 	pipe->state = SKL_PIPE_INVALID;
 	pipe->p_params = params;
 	INIT_LIST_HEAD(&pipe->w_list);
