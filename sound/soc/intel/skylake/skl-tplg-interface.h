@@ -258,7 +258,11 @@ struct skl_gain_config {
 
 struct skl_dfw_algo_data {
 	u32 set_params:2;
-	u32 rsvd:30;
+	u32 runtime_applicable:1;
+	u32 access_type:2;
+	u32 value_cacheable:1;
+	u32 notification_ctrl:1;
+	u32 rsvd:25;
 	u32 param_id;
 	u32 max;
 	char params[0];

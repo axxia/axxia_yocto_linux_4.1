@@ -2098,6 +2098,10 @@ static int skl_init_algo_data(struct device *dev, struct soc_bytes_ext *be,
 	ac->max = dfw_ac->max;
 	ac->param_id = dfw_ac->param_id;
 	ac->set_params = dfw_ac->set_params;
+	ac->access_type = dfw_ac->access_type;
+	ac->value_cacheable = dfw_ac->value_cacheable;
+	ac->notification_ctrl = dfw_ac->notification_ctrl;
+
 
 	if (ac->max) {
 		ac->params = (char *) devm_kzalloc(dev, ac->max, GFP_KERNEL);

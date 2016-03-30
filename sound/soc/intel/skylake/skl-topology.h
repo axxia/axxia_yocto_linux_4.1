@@ -99,6 +99,12 @@ struct probe_pt_param {
 	u32 node_id;
 };
 
+enum skl_widget_access {
+	SKL_WIDGET_READ = 0,
+	SKL_WIDGET_WRITE = 1,
+	SKL_WIDGET_READ_WRITE = 2
+};
+
 struct skl_audio_data_format {
 	enum skl_s_freq s_freq;
 	enum skl_bitdepth bit_depth;
@@ -336,6 +342,11 @@ struct skl_module_cfg {
 
 struct skl_algo_data {
 	u32 param_id;
+	u32 runtime_applicable:1;
+	u32 access_type:2;
+	u32 value_cacheable:1;
+	u32 notification_ctrl:1;
+	u32 rsvd:27;
 	u32 set_params;
 	u32 max;
 	char *params;
