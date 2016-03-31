@@ -138,10 +138,6 @@ enum tpm2_start_method {
 struct tpm_chip;
 
 struct tpm_vendor_specific {
-	unsigned long timeout_a, timeout_b, timeout_c, timeout_d; /* jiffies */
-	bool timeout_adjusted;
-	unsigned long duration[3]; /* jiffies */
-	bool duration_adjusted;
 	void *priv;
 };
 
@@ -178,6 +174,13 @@ struct tpm_chip {
 	struct mutex tpm_mutex;	/* tpm is processing */
 
 	struct tpm_vendor_specific vendor;
+	unsigned long timeout_a; /* jiffies */
+	unsigned long timeout_b; /* jiffies */
+	unsigned long timeout_c; /* jiffies */
+	unsigned long timeout_d; /* jiffies */
+	bool timeout_adjusted;
+	unsigned long duration[3]; /* jiffies */
+	bool duration_adjusted;
 
 	struct dentry **bios_dir;
 
