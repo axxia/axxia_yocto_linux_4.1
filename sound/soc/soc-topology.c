@@ -877,6 +877,8 @@ static int soc_tplg_denum_create_texts(struct soc_enum *se,
 		}
 	}
 
+	se->texts = se->dobj.control.dtexts;
+
 	return 0;
 
 err:
