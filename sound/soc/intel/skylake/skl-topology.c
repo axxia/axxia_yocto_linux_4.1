@@ -26,10 +26,12 @@
 #include "skl-topology.h"
 #include "skl.h"
 #include "skl-tplg-interface.h"
+#include "skl-fwlog.h"
 
 #define SKL_CH_FIXUP_MASK		(1 << 0)
 #define SKL_RATE_FIXUP_MASK		(1 << 1)
 #define SKL_FMT_FIXUP_MASK		(1 << 2)
+
 
 /* Update the count of streams for which D0i3 can be attempted and that of
  * streams for which D0i3 can not be attempted. In the streaming case
@@ -919,6 +921,32 @@ static int skl_tplg_pga_event(struct snd_soc_dapm_widget *w,
 
 	return 0;
 }
+static int skl_tplg_dsp_log_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hdac_ext_bus *ebus = snd_soc_component_get_drvdata
+					(&(platform->component));
+	struct skl *skl = ebus_to_skl(ebus);
+
+	ucontrol->value.integer.value[0] = get_dsp_log_priority(skl);
+
+	return 0;
+}
+
+static int skl_tplg_dsp_log_set(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_platform *platform = snd_soc_kcontrol_platform(kcontrol);
+	struct hdac_ext_bus *ebus = snd_soc_component_get_drvdata
+					(&(platform->component));
+	struct skl *skl = ebus_to_skl(ebus);
+
+	update_dsp_log_priority(ucontrol->value.integer.value[0], skl);
+
+	return 0;
+}
+
 
 static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 			unsigned int __user *data, unsigned int size)
@@ -1243,6 +1271,11 @@ const struct snd_soc_tplg_bytes_ext_ops skl_tlv_ops[] = {
 					skl_tplg_tlv_control_set},
 };
 
+static const struct snd_soc_tplg_kcontrol_ops skl_tplg_kcontrol_ops[] = {
+	{SKL_CONTROL_TYPE_DSP_LOG, skl_tplg_dsp_log_get,
+					skl_tplg_dsp_log_set},
+};
+
 /*
  * The topology binary passes the pin info for a module so initialize the pin
  * info passed into module instance
@@ -1545,6 +1578,8 @@ exit_manifest:
 static struct snd_soc_tplg_ops skl_tplg_ops  = {
 	.widget_load = skl_tplg_widget_load,
 	.control_load = skl_tplg_control_load,
+	.io_ops = skl_tplg_kcontrol_ops,
+	.io_ops_count = ARRAY_SIZE(skl_tplg_kcontrol_ops),
 	.bytes_ext_ops = skl_tlv_ops,
 	.bytes_ext_ops_count = ARRAY_SIZE(skl_tlv_ops),
 	.manifest = skl_manifest_load,

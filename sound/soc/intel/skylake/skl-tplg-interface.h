@@ -22,6 +22,7 @@
 /* Default types range from 0~12. type can range from 0 to 0xff
  * SST types start at higher to avoid any overlapping in future */
 #define SKL_CONTROL_TYPE_BYTE_EXT	0x100
+#define SKL_CONTROL_TYPE_DSP_LOG      0x105
 
 #define HDA_SST_CFG_MAX	900 /* size of copier cfg*/
 #define MAX_IN_QUEUE 8
