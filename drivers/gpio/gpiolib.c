@@ -1129,7 +1129,6 @@ EXPORT_SYMBOL_GPL(gpiod_is_active_low);
 
 int gpiod_set_drive(struct gpio_desc *desc, unsigned mode)
 {
-	unsigned long		flags;
 	struct gpio_chip	*chip;
 
 	chip = desc->chip;
