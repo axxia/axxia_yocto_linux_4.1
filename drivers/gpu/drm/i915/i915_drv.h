@@ -1913,6 +1913,7 @@ struct drm_i915_private {
 	u32 fdi_rx_config;
 
 	u32 chv_phy_control;
+	u32 bxt_phy_grc;
 
 	u32 suspend_count;
 	bool suspended_to_idle;
