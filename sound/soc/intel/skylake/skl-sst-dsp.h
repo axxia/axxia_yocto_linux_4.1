@@ -122,6 +122,10 @@ struct sst_dsp_device;
 /** FW Extended Manifest Header id = $AE1 */
 #define SKL_EXT_MANIFEST_MAGIC_HEADER_ID   0x31454124
 
+/*DSP notification events*/
+#define EVENT_GLB_NOTIFY_PHRASE_DETECTED  4
+
+/* DSP Core state */
 enum skl_dsp_states {
 	SKL_DSP_RUNNING = 1,
 	SKL_DSP_RUNNING_D0I3, /* Running in D0i3 state*/
@@ -159,12 +163,18 @@ struct skl_dsp_loader_ops {
 				 int stream_tag);
 };
 
-struct skl_dsp_notify_params {
-	struct skl_sst *skl_sst;
-	u32 event;
+struct skl_hwd_event {
+	bool is_hwd_event;
 };
+
+struct skl_notify_data {
+	u32 type;
+	u32 length;
+	char data[0];
+};
+
 struct skl_dsp_notify_ops {
-	int (*notify_cb)(struct skl_dsp_notify_params *params);
+	int (*notify_cb)(struct skl_sst *skl, unsigned int event, struct skl_notify_data *notify_data);
 };
 
 struct skl_load_module_info {

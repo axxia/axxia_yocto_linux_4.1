@@ -31,7 +31,6 @@
 #include "skl-sst-ipc.h"
 #include "skl-tplg-interface.h"
 #include "skl-fwlog.h"
-#include "skl.h"
 
 #define FW_ROM_INIT_DONE                0x1
 
@@ -108,7 +107,6 @@ int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 	struct skl_sst *skl;
 	struct sst_dsp *sst;
 	u32 dsp_wp[] = {BXT_ADSP_WP_DSP0, BXT_ADSP_WP_DSP1};
-	struct skl_dsp_notify_params *params;
 	int ret = 0;
 
 	dev_dbg(dev, "In %s\n", __func__);
@@ -146,9 +144,6 @@ int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		dev_err(dev, "FW tracing init failed : %x", ret);
 		return ret;
 	}
-	params = devm_kzalloc(dev, sizeof(struct skl_dsp_notify_params), GFP_KERNEL);
-	params->skl_sst = skl;
-	skl->params = params;
 
 	ret = skl_ipc_init(dev, skl);
 	if (ret)

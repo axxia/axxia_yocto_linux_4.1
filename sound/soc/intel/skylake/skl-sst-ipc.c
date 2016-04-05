@@ -14,6 +14,7 @@
  */
 #include <linux/device.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include "../common/sst-dsp.h"
 #include "skl-sst-dsp.h"
@@ -449,6 +450,8 @@ int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 		struct skl_ipc_header header)
 {
 	struct skl_sst *skl = container_of(ipc, struct skl_sst, ipc);
+	struct skl_notify_data *notify_data;
+	struct skl_hwd_event hwd_data;
 
 	if (IPC_GLB_NOTIFY_MSG_TYPE(header.primary)) {
 		switch (IPC_GLB_NOTIFY_TYPE(header.primary)) {
@@ -473,9 +476,19 @@ int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 
 		case IPC_GLB_NOTIFY_PHRASE_DETECTED:
 			dev_err(ipc->dev, "*****Pharse Detected **********\n");
-			mdelay(1);
-			skl->notify_ops.notify_cb(skl->params);
+			notify_data = kzalloc((sizeof(struct skl_notify_data) + sizeof(struct skl_hwd_event)), GFP_KERNEL);
+			if (!notify_data)
+				return -ENOMEM;
 
+			hwd_data.is_hwd_event = true;
+
+			/* Copying hot-word event specific data */
+			memcpy(notify_data->data, &hwd_data, sizeof(struct skl_hwd_event));
+			notify_data->length = sizeof(struct skl_hwd_event);
+			notify_data->type = 0xFF;
+			mdelay(1);
+			skl->notify_ops.notify_cb(skl, IPC_GLB_NOTIFY_PHRASE_DETECTED, notify_data);
+			kfree(notify_data);
 			/*
 			 * Per HW recomendation, After phrase detection,
 			 * clear the CGCTL.MISCBDCGE.

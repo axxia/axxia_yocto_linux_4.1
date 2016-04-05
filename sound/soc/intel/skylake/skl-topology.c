@@ -1387,6 +1387,8 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 	struct snd_soc_dapm_context *dapm = snd_soc_dapm_kcontrol_dapm(kcontrol);
 	struct skl_algo_data *bc = (struct skl_algo_data *)sb->dobj.private;
 	struct skl *skl = get_skl_ctx(dapm->dev);
+	struct skl_notify_data *notify_data;
+	int ret = 0;
 
 	dev_dbg(dapm->dev, "In%s control_name=%s, id=%u\n", __func__, kcontrol->id.name, bc->param_id);
 	dev_dbg(dapm->dev, "size = %u (%#x), max = %#x\n", size, size, bc->max);
@@ -1396,14 +1398,21 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 				      bc->max, bc->param_id, mconfig);
 
 	if (bc->params) {
-		int ret;
 		ret = copy_to_user(data, &bc->param_id, sizeof(u32));
 		ret = copy_to_user(((unsigned char *)data) + sizeof(u32), &bc->max, sizeof(u32));
 		ret = copy_to_user(((unsigned char *)data) + 2*sizeof(u32), bc->params, size - 2*sizeof(u32));
 
-		return  ret;
 	}
-	return 0;
+
+	/* Notification payload will be set to 0 after read is done */
+	if (bc->notification_ctrl) {
+		notify_data = (struct skl_notify_data *)bc->params;
+
+		if (notify_data != NULL)
+			memset(notify_data->data, 0, notify_data->length);
+	}
+
+	return  ret;
 }
 
 static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
@@ -1420,7 +1429,8 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 	dev_dbg(dapm->dev, "in %s control=%s\n", __func__, kcontrol->id.name);
 	dev_dbg(dapm->dev, "size = %u, %#x\n", size, size);
 
-	if (ac->params) {
+	if (ac->params && (ac->access_type == SKL_WIDGET_WRITE ||
+				ac->access_type == SKL_WIDGET_READ_WRITE)) {
 		memset(ac->params, 0, ac->max);
                 /* skip copying first two u32 words from user which is the TLV header */
 		if (copy_from_user(ac->params,

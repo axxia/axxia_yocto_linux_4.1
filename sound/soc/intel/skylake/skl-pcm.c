@@ -858,27 +858,41 @@ static struct snd_soc_dai_ops skl_link_dai_ops = {
 	.trigger = skl_link_pcm_trigger,
 };
 
-static int skl_dsp_cb_event(struct skl_dsp_notify_params *params)
+static int skl_dsp_cb_event(struct skl_sst *skl, unsigned int event,
+		struct skl_notify_data *notify_data)
 {
-	struct snd_soc_platform *soc_platform = params->skl_sst->platform;
+	struct snd_soc_platform *soc_platform = skl->platform;
 	struct snd_soc_card *card;
 	struct snd_kcontrol *kcontrol;
+	struct soc_bytes_ext *sb;
+	struct skl_algo_data *bc;
+	u8 param_length;
 
 	if (!soc_platform) {
-		dev_err(params->skl_sst->dev,
+		dev_err(skl->dev,
 			"%s: Platform not found\n", __func__);
 		return -EINVAL;
 	}
 
-	card = soc_platform->component.card;
-	kcontrol = snd_soc_card_get_kcontrol(card,
-				"hwd_in hwd 0 notif params"); /*control name of WoV notification*/
-	if (!kcontrol) {
-			dev_err(params->skl_sst->dev,
-				"hwd notification control not found\n");
-			return -EINVAL;
+
+	switch (event) {
+	case EVENT_GLB_NOTIFY_PHRASE_DETECTED:
+		card = soc_platform->component.card;
+		/*TODO Need to avoid hard-coded control name*/
+		kcontrol = snd_soc_card_get_kcontrol(card,
+					"hwd_in hwd 0 notif params"); /*control name of WoV notification*/
+		if (!kcontrol) {
+				dev_err(skl->dev,
+					"hwd notification control not found\n");
+				return -EINVAL;
 		}
-	snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kcontrol->id);
+
+		sb = (struct soc_bytes_ext *)kcontrol->private_value;
+		bc = (struct skl_algo_data *)sb->dobj.private;
+		param_length = sizeof(struct skl_notify_data) + sizeof(struct skl_hwd_event);
+		memcpy(bc->params, (char *)notify_data, param_length);
+		snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kcontrol->id);
+	}
 	return 0;
 }
 
