@@ -12545,6 +12545,9 @@ static int intel_plane_state_check_blend(struct drm_plane_state *plane_state)
 		state->use_plane_alpha = true;
 		break;
 	default:
+		DRM_DEBUG_KMS("Invalid blend factor combination (0x%x,0x%x)\n",
+			      DRM_BLEND_FUNC_SRC_FACTOR(mode->func),
+			      DRM_BLEND_FUNC_DST_FACTOR(mode->func));
 		return -EINVAL;
 	}
 
