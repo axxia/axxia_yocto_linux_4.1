@@ -1294,6 +1294,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 {
 	struct drm_i915_private *dev_priv = params->dev->dev_private;
+	struct drm_i915_gem_request *req = params->request;
 	struct intel_engine_cs  *engine = params->engine;
 	u64 exec_start, exec_len;
 	int ret;
@@ -1305,12 +1306,12 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 	 * Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
-	ret = intel_ring_invalidate_all_caches(params->request);
+	ret = intel_ring_invalidate_all_caches(req);
 	if (ret)
 		return ret;
 
 	/* Switch to the correct context for the batch */
-	ret = i915_switch_context(params->request);
+	ret = i915_switch_context(req);
 	if (ret)
 		return ret;
 
@@ -1319,7 +1320,7 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 
 	if (engine == &dev_priv->engine[RCS] &&
 	    params->instp_mode != dev_priv->relative_constants_mode) {
-		ret = intel_ring_begin(params->request, 4);
+		ret = intel_ring_begin(req, 4);
 		if (ret)
 			return ret;
 
@@ -1333,7 +1334,7 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 	}
 
 	if (params->args_flags & I915_EXEC_GEN7_SOL_RESET) {
-		ret = i915_reset_gen7_sol_offsets(params->dev, params->request);
+		ret = i915_reset_gen7_sol_offsets(params->dev, req);
 		if (ret)
 			return ret;
 	}
@@ -1345,13 +1346,13 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 	if (exec_len == 0)
 		exec_len = params->batch_obj->base.size;
 
-	ret = engine->dispatch_execbuffer(params->request,
-					exec_start, exec_len,
-					params->dispatch_flags);
+	ret = engine->dispatch_execbuffer(req,
+					  exec_start, exec_len,
+					  params->dispatch_flags);
 	if (ret)
 		return ret;
 
-	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
+	trace_i915_gem_ring_dispatch(req, params->dispatch_flags);
 
 	i915_gem_execbuffer_retire_commands(params);
 

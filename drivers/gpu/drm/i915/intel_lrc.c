@@ -1010,7 +1010,8 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 {
 	struct drm_device *dev = params->dev;
 	struct drm_i915_private *dev_priv = params->dev->dev_private;
-	struct intel_ringbuffer *ringbuf = params->request->ringbuf;
+	struct drm_i915_gem_request *req = params->request;
+	struct intel_ringbuffer *ringbuf = req->ringbuf;
 	struct intel_engine_cs *engine = params->engine;
 	u64 exec_start;
 	int ret;
@@ -1022,13 +1023,13 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 	 * Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
-	ret = logical_ring_invalidate_all_caches(params->request);
+	ret = logical_ring_invalidate_all_caches(req);
 	if (ret)
 		return ret;
 
 	if (engine == &dev_priv->engine[RCS] &&
 	    params->instp_mode != dev_priv->relative_constants_mode) {
-		ret = intel_logical_ring_begin(params->request, 4);
+		ret = intel_logical_ring_begin(req, 4);
 		if (ret)
 			return ret;
 
@@ -1044,11 +1045,11 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 	exec_start = params->batch_obj_vm_offset +
 		     params->args_batch_start_offset;
 
-	ret = engine->emit_bb_start(params->request, exec_start, params->dispatch_flags);
+	ret = engine->emit_bb_start(req, exec_start, params->dispatch_flags);
 	if (ret)
 		return ret;
 
-	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
+	trace_i915_gem_ring_dispatch(req, params->dispatch_flags);
 
 	i915_gem_execbuffer_retire_commands(params);
 
