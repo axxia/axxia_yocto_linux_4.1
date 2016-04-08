@@ -807,6 +807,19 @@ struct i915_ctx_hang_stats {
 	bool banned;
 };
 
+/*
+ * User-settable GFX scheduler priorities are on a scale of -1023 (I don't
+ * care about running) to +1023 (I'm the most important thing in existence)
+ * with zero being the default. Any process may decrease its scheduling
+ * priority, but only a sufficiently privileged process may increase it
+ * beyond zero.
+ */
+
+struct i915_ctx_sched_info {
+	/* Scheduling priority */
+	int32_t priority;
+};
+
 struct i915_fence_timeline {
 	char        name[32];
 	unsigned    fence_context;
@@ -847,6 +860,7 @@ struct intel_context {
 	int flags;
 	struct drm_i915_file_private *file_priv;
 	struct i915_ctx_hang_stats hang_stats;
+	struct i915_ctx_sched_info sched_info;
 	struct i915_hw_ppgtt *ppgtt;
 
 	/* Legacy ring buffer submission */

@@ -961,6 +961,9 @@ int i915_gem_context_getparam_ioctl(struct drm_device *dev, void *data,
 		else
 			args->value = to_i915(dev)->ggtt.base.total;
 		break;
+	case I915_CONTEXT_PARAM_PRIORITY:
+		args->value = (__u64) ctx->sched_info.priority;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -998,6 +1001,7 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 		else
 			ctx->hang_stats.ban_period_seconds = args->value;
 		break;
+
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
 		if (args->size) {
 			ret = -EINVAL;
@@ -1006,6 +1010,26 @@ int i915_gem_context_setparam_ioctl(struct drm_device *dev, void *data,
 			ctx->flags |= args->value ? CONTEXT_NO_ZEROMAP : 0;
 		}
 		break;
+
+	case I915_CONTEXT_PARAM_PRIORITY:
+	{
+		int32_t	priority = (int32_t) args->value;
+		struct drm_i915_private *dev_priv  = dev->dev_private;
+		struct i915_scheduler   *scheduler = dev_priv->scheduler;
+
+		if (args->size)
+			ret = -EINVAL;
+		else if ((priority > scheduler->priority_level_max) ||
+			 (priority < scheduler->priority_level_min))
+			ret = -EINVAL;
+		else if ((priority > 0) &&
+			 !capable(CAP_SYS_ADMIN))
+			ret = -EPERM;
+		else
+			ctx->sched_info.priority = priority;
+		break;
+	}
+
 	default:
 		ret = -EINVAL;
 		break;

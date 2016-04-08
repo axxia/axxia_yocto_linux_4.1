@@ -1720,6 +1720,9 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->batch_obj               = batch_obj;
 	params->request                 = req;
 
+	/* Start with the context's priority level */
+	qe.priority = ctx->sched_info.priority;
+
 	/*
 	 * Save away the list of objects used by this batch buffer for the
 	 * purpose of tracking inter-buffer dependencies.
