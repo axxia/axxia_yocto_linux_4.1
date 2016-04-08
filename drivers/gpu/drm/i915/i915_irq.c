@@ -3105,23 +3105,24 @@ static void i915_hangcheck_elapsed(struct work_struct *work)
 
 		if (engine->hangcheck.seqno == seqno) {
 			if (ring_idle(engine, seqno)) {
+				busy = false;
 				engine->hangcheck.action = HANGCHECK_IDLE;
 
 				if (waitqueue_active(&engine->irq_queue)) {
+					if (!(dev_priv->gpu_error.test_irq_rings & intel_engine_flag(engine)))
+						DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
+							  engine->name);
+					else
+						DRM_INFO("Fake missed irq on %s\n",
+							 engine->name);
+
 					/* Issue a wake-up to catch stuck h/w. */
-					if (!test_and_set_bit(engine->id, &dev_priv->gpu_error.missed_irq_rings)) {
-						if (!(dev_priv->gpu_error.test_irq_rings & intel_engine_flag(engine)))
-							DRM_ERROR("Hangcheck timer elapsed... %s idle\n",
-								  engine->name);
-						else
-							DRM_INFO("Fake missed irq on %s\n",
-								 engine->name);
-						wake_up_all(&engine->irq_queue);
-					}
+					set_bit(engine->id, &dev_priv->gpu_error.missed_irq_rings);
+					wake_up_all(&engine->irq_queue);
 					/* Safeguard against driver failure */
 					engine->hangcheck.score += BUSY;
-				} else
-					busy = false;
+					busy = true;
+				}
 			} else {
 				/* We always increment the hangcheck score
 				 * if the ring is busy and still processing
