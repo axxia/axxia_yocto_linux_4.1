@@ -1266,6 +1266,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	might_sleep();
 	WARN(!intel_irqs_enabled(dev_priv), "IRQs disabled");
 
+	/* Lightweight check first of all */
 	if (i915_gem_request_completed(req))
 		return 0;
 
@@ -1475,6 +1476,11 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 	 */
 	request->ringbuf->last_retired_head = request->postfix;
 
+	/*
+	 * Must use list_del_init() not list_del() because some other
+	 * code tests (list_empty(&request->list)) to see whether the
+	 * request is (still) on the engine->request_list!
+	 */
 	list_del_init(&request->list);
 	i915_gem_request_remove_from_client(request);
 
@@ -1508,10 +1514,18 @@ __i915_gem_request_retire__upto(struct drm_i915_gem_request *req)
 
 	lockdep_assert_held(&engine->dev->struct_mutex);
 
+	/*
+	 * If the request is not on any list, then presumably
+	 * it's already been retired?
+	 */
 	if (list_empty(&req->list))
 		return;
 
 	do {
+		/* Don't blindly assume that the request will be found! */
+		if (WARN_ON(list_empty(&engine->request_list)))
+			break;
+
 		tmp = list_first_entry(&engine->request_list,
 				       typeof(*tmp), list);
 
@@ -2738,6 +2752,24 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 
 	/* Sanity check that the reserved size was large enough. */
 	intel_ring_reserved_space_end(ringbuf);
+}
+
+void i915_gem_request_dequeue(struct drm_i915_gem_request *request)
+{
+	/*
+	 * The request has been de-queued from the hardware in some manner
+	 * (e.g. through pre-emption). So it needs to be removed from the
+	 * active request list (the request list doesn't contribute to
+	 * refcounting, so we don't also have to unreference it here).
+	 *
+	 * It also needs to have its seqno cleared as that will not be
+	 * valid any longer. However, the expectation is that the request
+	 * will be resubmitted later. At that time it will be assigned a
+	 * shiny new seqno.
+	 */
+	WARN_ON(i915_gem_request_completed(request));
+	list_del_init(&request->list);
+	request->seqno = 0;
 }
 
 static bool i915_context_is_banned(struct drm_i915_private *dev_priv,

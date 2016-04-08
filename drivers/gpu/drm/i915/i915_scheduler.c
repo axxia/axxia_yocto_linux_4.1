@@ -1175,6 +1175,169 @@ void i915_scheduler_reset_cleanup(struct intel_engine_cs *engine)
 	}
 }
 
+/*
+ * At this point, preemption has occurred.
+ *
+ * All the requests that had already completed before preemption will
+ * have been taken off the fence_signal_list, signalled, and put onto
+ * the fence_unsignal_list for cleanup. The preempting request itself
+ * should however still be on the fence_signal_list (and has not been
+ * signalled). There may also be additional requests on this list; they
+ * have been preempted.
+ *
+ * The request_list has not yet been processed, so it may still contain
+ * requests that have already completed. It should also contain the
+ * preempting request (not completed), and maybe additional requests;
+ * again, these have been preempted and need to be recycled through the
+ * scheduler.
+ */
+noinline
+static void
+i915_scheduler_preemption_postprocess(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct i915_scheduler *scheduler = dev_priv->scheduler;
+	struct i915_scheduler_queue_entry *pnode = NULL;
+	struct drm_i915_gem_request *preq = NULL;
+	struct i915_scheduler_stats *stats;
+	unsigned long flags;
+	int preempted = 0, preemptive = 0;
+
+	mutex_lock(&engine->dev->struct_mutex);
+
+	/*
+	 * FIXME: grab & empty fence_signal_list with spinlock,
+	 * then iterate after?
+	 */
+	spin_lock_irqsave(&engine->fence_lock, flags);
+	while (!list_empty(&engine->fence_signal_list)) {
+		struct i915_scheduler_queue_entry *node;
+		struct drm_i915_gem_request *req;
+
+		req = list_first_entry(&engine->fence_signal_list,
+				       struct drm_i915_gem_request,
+				       signal_link);
+		list_del_init(&req->signal_link);
+		spin_unlock_irqrestore(&engine->fence_lock, flags);
+
+		/* We should find only tracked unsignalled requests */
+		node = req->scheduler_qe;
+		WARN(!node || i915_gem_request_completed(req) ||
+		     (node->status == I915_SQS_PREEMPTED),
+		     "Invalid node state: %s [req = %d:%d]\n",
+		     node ? i915_scheduler_queue_status_str(node->status) : "NULL",
+		     req->uniq, req->seqno);
+
+		i915_gem_request_unreference(req);
+
+		spin_lock_irqsave(&engine->fence_lock, flags);
+	}
+	spin_unlock_irqrestore(&engine->fence_lock, flags);
+	/* Fence signal list must now be empty */
+
+	/*
+	 * The preemptive request and all other requests remaining on the
+	 * engine's work-in-progress list must be marked as preempted, so
+	 * the scheduler will reselect and resubmit them ...
+	 */
+	spin_lock_irqsave(&scheduler->lock, flags);
+
+	{
+		struct drm_i915_gem_request *req, *next;
+
+		list_for_each_entry_safe(req, next, &engine->request_list, list) {
+			struct i915_scheduler_queue_entry *node;
+
+			node = req->scheduler_qe;
+			if (WARN_ON(req->engine != engine))
+				continue;
+			if (i915_gem_request_completed(req))
+				continue;
+			/* Let's hope there aren't any untracked nodes here! */
+			if (WARN_ON(!node))
+				continue;
+
+			if (node->status == I915_SQS_PREEMPTED) {
+				/* Already processed in _notify() above */
+				preemptive += 1;
+				preq = req;
+				pnode = req->scheduler_qe;
+			} else if (!WARN_ON(!I915_SQS_IS_FLYING(node))) {
+				preempted += 1;
+				node->status = I915_SQS_PREEMPTED;
+				trace_i915_scheduler_unfly(engine, node);
+				trace_i915_scheduler_node_state_change(engine, node);
+				/* Empty the preempted ringbuffer */
+				intel_lr_context_resync(req->ctx, engine, false);
+			}
+
+			i915_gem_request_dequeue(req);
+		}
+	}
+
+	/* We should have found exactly ONE preemptive request */
+	WARN(preemptive != 1, "Got unexpected preemptive count II: %d!\n",
+	     preemptive);
+	stats = &scheduler->stats[engine->id];
+	stats->preempted += preempted;
+	if (stats->max_preempted < preempted)
+		stats->max_preempted = preempted;
+
+	{
+		/* XXX: Sky should be empty now */
+		struct i915_scheduler_queue_entry *node;
+
+		for_each_scheduler_node(node, engine->id)
+			WARN_ON(I915_SQS_IS_FLYING(node));
+	}
+
+	/* Anything else to do here ... ? */
+
+	/*
+	 * Postprocessing complete; the scheduler is now back in
+	 * normal non-preemptive state and can submit more requests
+	 */
+	scheduler->flags[engine->id] &= ~(I915_SF_PREEMPTING|I915_SF_PREEMPTED);
+
+	spin_unlock_irqrestore(&scheduler->lock, flags);
+
+	/* XXX: Should be nothing outstanding on request list */
+	{
+		struct drm_i915_gem_request *req;
+
+		list_for_each_entry(req, &engine->request_list, list)
+			WARN_ON(!i915_gem_request_completed(req));
+	}
+
+	/* Anything else to do here ... ? */
+	if (!WARN_ON(pnode == NULL || preq == NULL)) {
+		WARN_ON(pnode->params.request != preq);
+		WARN_ON(preq->scheduler_qe != pnode);
+		WARN_ON(preq->seqno);
+
+		/*
+		 * FIXME: assign a new reserved seqno here to ensure
+		 * we don't relaunch this request with the same seqno
+		 * FIXME: can we just clear it here instead?
+		 */
+		if (dev_priv->next_seqno == 0)
+			dev_priv->next_seqno = 1;
+		dev_priv->last_seqno = dev_priv->next_seqno++;
+		DRM_DEBUG_DRIVER("reassigning reserved seqno %08x->%08x, (seqno %08x, uniq %d)\n",
+			preq->reserved_seqno, dev_priv->last_seqno,
+			preq->seqno, preq->uniq);
+		preq->reserved_seqno = dev_priv->last_seqno;
+
+		/* FIXME: don't sleep, don't empty context? */
+		msleep(1);
+		/* Empty the preempted ringbuffer */
+		intel_lr_context_resync(preq->ctx, engine, false);
+	}
+
+	mutex_unlock(&engine->dev->struct_mutex);
+}
+
+noinline
 static bool i915_scheduler_remove(struct i915_scheduler *scheduler,
 				  struct intel_engine_cs *engine,
 				  struct list_head *remove)
@@ -1335,11 +1498,16 @@ void i915_scheduler_work_handler(struct work_struct *work)
 {
 	struct intel_engine_cs *engine;
 	struct drm_i915_private *dev_priv;
+	struct i915_scheduler *scheduler;
 
 	dev_priv = container_of(work, struct drm_i915_private, mm.scheduler_work);
+	scheduler = dev_priv->scheduler;
 
-	for_each_engine(engine, dev_priv)
+	for_each_engine(engine, dev_priv) {
+		if (scheduler->flags[engine->id] & I915_SF_PREEMPTED)
+			i915_scheduler_preemption_postprocess(engine);
 		i915_scheduler_process_work(engine);
+	}
 }
 
 /**

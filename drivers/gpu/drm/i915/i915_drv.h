@@ -2416,6 +2416,7 @@ struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct intel_context *ctx);
 void i915_gem_request_cancel(struct drm_i915_gem_request *req);
+void i915_gem_request_dequeue(struct drm_i915_gem_request *req);
 void i915_gem_request_enable_interrupt(struct drm_i915_gem_request *req,
 				       bool fence_locked);
 void i915_gem_request_notify(struct intel_engine_cs *ring, bool fence_locked);
