@@ -384,6 +384,9 @@ static inline bool i915_scheduler_is_dependency_valid(
 	if (I915_SQS_IS_FLYING(dep)) {
 		if (node->params.engine != dep->params.engine)
 			return true;
+
+		if (node->params.request->scheduler_flags & I915_REQ_SF_PREEMPT)
+			return true;
 	}
 
 	return false;
@@ -396,10 +399,12 @@ static int i915_scheduler_pop_from_queue_locked(struct intel_engine_cs *engine,
 	struct i915_scheduler *scheduler = dev_priv->scheduler;
 	struct i915_scheduler_queue_entry *best = NULL;
 	struct i915_scheduler_queue_entry *node;
+	struct drm_i915_gem_request *req;
 	int ret;
 	int i;
 	bool any_queued = false;
 	bool has_local, has_remote, only_remote = false;
+	bool local_preempt_only;
 
 	assert_scheduler_lock_held(scheduler);
 
@@ -411,16 +416,42 @@ static int i915_scheduler_pop_from_queue_locked(struct intel_engine_cs *engine,
 			continue;
 		any_queued = true;
 
+		/*
+		 * Attempt to re-enable pre-emption if a node wants to pre-empt
+		 * but previously got downgraded.
+		 */
+		req = node->params.request;
+		if (req->scheduler_flags & I915_REQ_SF_WAS_PREEMPT)
+			req->scheduler_flags |= I915_REQ_SF_PREEMPT;
+
 		has_local  = false;
 		has_remote = false;
+		local_preempt_only = (req->scheduler_flags & I915_REQ_SF_PREEMPT) != 0;
 		for (i = 0; i < node->num_deps; i++) {
 			if (!i915_scheduler_is_dependency_valid(node, i))
 				continue;
 
-			if (node->dep_list[i]->params.engine == node->params.engine)
+			if (node->dep_list[i]->params.engine == node->params.engine) {
 				has_local = true;
-			else
+
+				if (local_preempt_only) {
+					req->scheduler_flags &= ~I915_REQ_SF_PREEMPT;
+					if (i915_scheduler_is_dependency_valid(node, i))
+						local_preempt_only = false;
+					req->scheduler_flags |= I915_REQ_SF_PREEMPT;
+				}
+			} else
 				has_remote = true;
+		}
+
+		if (has_local && local_preempt_only) {
+			/*
+			 * If a preemptive node's local dependencies are all
+			 * flying, then they can be ignored by un-preempting
+			 * the node.
+			 */
+			req->scheduler_flags &= ~I915_REQ_SF_PREEMPT;
+			has_local = false;
 		}
 
 		if (has_remote && !has_local)
@@ -481,6 +512,7 @@ static int i915_scheduler_submit(struct intel_engine_cs *engine)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct i915_scheduler *scheduler = dev_priv->scheduler;
 	struct i915_scheduler_queue_entry *node;
+	struct drm_i915_gem_request *req;
 	int ret, count = 0, flying;
 
 	WARN_ON(!mutex_is_locked(&dev->struct_mutex));
@@ -499,6 +531,32 @@ static int i915_scheduler_submit(struct intel_engine_cs *engine)
 		WARN_ON(node->params.engine != engine);
 		WARN_ON(node->status != I915_SQS_POPPED);
 		count++;
+
+		req = node->params.request;
+		if (req->scheduler_flags & I915_REQ_SF_PREEMPT) {
+			struct i915_scheduler_queue_entry *fly;
+			bool got_flying = false;
+
+			for_each_scheduler_node(fly, engine->id) {
+				if (!I915_SQS_IS_FLYING(fly))
+					continue;
+
+				got_flying = true;
+				if (fly->priority >= node->priority) {
+					/*
+					 * Already working on something at least
+					 * as important, so don't interrupt it.
+					 */
+					req->scheduler_flags &= ~I915_REQ_SF_PREEMPT;
+					break;
+				}
+			}
+
+			if (!got_flying) {
+				/* Nothing to preempt so don't bother. */
+				req->scheduler_flags &= ~I915_REQ_SF_PREEMPT;
+			}
+		}
 
 		/*
 		 * The call to pop above will have removed the node from the
