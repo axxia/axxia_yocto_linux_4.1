@@ -2362,7 +2362,7 @@ static int ring_wait_for_space(struct intel_engine_cs *engine, int n)
 	if (ret)
 		return ret;
 
-	ringbuf->space = space;
+	intel_ring_update_space(ringbuf);
 	return 0;
 }
 

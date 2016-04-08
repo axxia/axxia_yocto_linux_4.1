@@ -782,7 +782,7 @@ static int logical_ring_wait_for_space(struct drm_i915_gem_request *req,
 	if (ret)
 		return ret;
 
-	ringbuf->space = space;
+	intel_ring_update_space(ringbuf);
 	return 0;
 }
 
