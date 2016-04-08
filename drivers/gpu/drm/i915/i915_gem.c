@@ -5304,11 +5304,13 @@ int i915_gem_init(struct drm_device *dev)
 
 	if (!i915.enable_execlists) {
 		dev_priv->gt.execbuf_submit = i915_gem_ringbuffer_submission;
+		dev_priv->gt.execbuf_final = i915_gem_ringbuffer_submission_final;
 		dev_priv->gt.init_engines = i915_gem_init_engines;
 		dev_priv->gt.cleanup_engine = intel_cleanup_engine;
 		dev_priv->gt.stop_engine = intel_stop_engine;
 	} else {
 		dev_priv->gt.execbuf_submit = intel_execlists_submission;
+		dev_priv->gt.execbuf_final = intel_execlists_submission_final;
 		dev_priv->gt.init_engines = intel_logical_rings_init;
 		dev_priv->gt.cleanup_engine = intel_logical_ring_cleanup;
 		dev_priv->gt.stop_engine = intel_logical_ring_stop;

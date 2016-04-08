@@ -949,35 +949,31 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 	struct drm_device       *dev = params->dev;
 	struct intel_engine_cs *engine = params->engine;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct intel_ringbuffer *ringbuf = params->ctx->engine[engine->id].ringbuf;
-	u64 exec_start;
-	int instp_mode;
-	u32 instp_mask;
 	int ret;
 
-	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
-	instp_mask = I915_EXEC_CONSTANTS_MASK;
-	switch (instp_mode) {
+	params->instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
+	params->instp_mask = I915_EXEC_CONSTANTS_MASK;
+	switch (params->instp_mode) {
 	case I915_EXEC_CONSTANTS_REL_GENERAL:
 	case I915_EXEC_CONSTANTS_ABSOLUTE:
 	case I915_EXEC_CONSTANTS_REL_SURFACE:
-		if (instp_mode != 0 && engine != &dev_priv->engine[RCS]) {
+		if (params->instp_mode != 0 && engine != &dev_priv->engine[RCS]) {
 			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
 			return -EINVAL;
 		}
 
-		if (instp_mode != dev_priv->relative_constants_mode) {
-			if (instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
+		if (params->instp_mode != dev_priv->relative_constants_mode) {
+			if (params->instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
 				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
 				return -EINVAL;
 			}
 
 			/* The HW changed the meaning on this bit on gen6 */
-			instp_mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
+			params->instp_mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
 		}
 		break;
 	default:
-		DRM_DEBUG("execbuf with unknown constants: %d\n", instp_mode);
+		DRM_DEBUG("execbuf with unknown constants: %d\n", params->instp_mode);
 		return -EINVAL;
 	}
 
@@ -992,7 +988,35 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 
 	i915_gem_execbuffer_move_to_active(vmas, params->request);
 
-	/* To be split into two functions here... */
+	ret = dev_priv->gt.execbuf_final(params);
+	if (ret)
+		return ret;
+
+	/*
+	 * Free everything that was stored in the QE structure (until the
+	 * scheduler arrives and does it instead):
+	 */
+	if (params->dispatch_flags & I915_DISPATCH_SECURE)
+		i915_gem_execbuff_release_batch_obj(params->batch_obj);
+
+	return 0;
+}
+
+/*
+ * This is the main function for sending a batch to the engine.
+ * It is called from the scheduler, with the struct_mutex already held.
+ */
+int intel_execlists_submission_final(struct i915_execbuffer_params *params)
+{
+	struct drm_device *dev = params->dev;
+	struct drm_i915_private *dev_priv = params->dev->dev_private;
+	struct intel_ringbuffer *ringbuf = params->request->ringbuf;
+	struct intel_engine_cs *engine = params->engine;
+	u64 exec_start;
+	int ret;
+
+	/* The mutex must be acquired before calling this function */
+	WARN_ON(!mutex_is_locked(&params->dev->struct_mutex));
 
 	/*
 	 * Unconditionally invalidate gpu caches and ensure that we do flush
@@ -1003,7 +1027,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 		return ret;
 
 	if (engine == &dev_priv->engine[RCS] &&
-	    instp_mode != dev_priv->relative_constants_mode) {
+	    params->instp_mode != dev_priv->relative_constants_mode) {
 		ret = intel_logical_ring_begin(params->request, 4);
 		if (ret)
 			return ret;
@@ -1011,14 +1035,14 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 		intel_logical_ring_emit(ringbuf, MI_NOOP);
 		intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(1));
 		intel_logical_ring_emit_reg(ringbuf, INSTPM);
-		intel_logical_ring_emit(ringbuf, instp_mask << 16 | instp_mode);
+		intel_logical_ring_emit(ringbuf, params->instp_mask << 16 | params->instp_mode);
 		intel_logical_ring_advance(ringbuf);
 
-		dev_priv->relative_constants_mode = instp_mode;
+		dev_priv->relative_constants_mode = params->instp_mode;
 	}
 
 	exec_start = params->batch_obj_vm_offset +
-		     args->batch_start_offset;
+		     params->args_batch_start_offset;
 
 	ret = engine->emit_bb_start(params->request, exec_start, params->dispatch_flags);
 	if (ret)

@@ -1232,41 +1232,38 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	struct drm_device *dev = params->dev;
 	struct intel_engine_cs *engine = params->engine;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	u64 exec_start, exec_len;
-	int instp_mode;
-	u32 instp_mask;
 	int ret;
 
-	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
-	instp_mask = I915_EXEC_CONSTANTS_MASK;
-	switch (instp_mode) {
+	params->instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
+	params->instp_mask = I915_EXEC_CONSTANTS_MASK;
+	switch (params->instp_mode) {
 	case I915_EXEC_CONSTANTS_REL_GENERAL:
 	case I915_EXEC_CONSTANTS_ABSOLUTE:
 	case I915_EXEC_CONSTANTS_REL_SURFACE:
-		if (instp_mode != 0 && engine != &dev_priv->engine[RCS]) {
+		if (params->instp_mode != 0 && engine != &dev_priv->engine[RCS]) {
 			DRM_DEBUG("non-0 rel constants mode on non-RCS\n");
 			return -EINVAL;
 		}
 
-		if (instp_mode != dev_priv->relative_constants_mode) {
+		if (params->instp_mode != dev_priv->relative_constants_mode) {
 			if (INTEL_INFO(dev)->gen < 4) {
 				DRM_DEBUG("no rel constants on pre-gen4\n");
 				return -EINVAL;
 			}
 
 			if (INTEL_INFO(dev)->gen > 5 &&
-			    instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
+			    params->instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
 				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
 				return -EINVAL;
 			}
 
 			/* The HW changed the meaning on this bit on gen6 */
 			if (INTEL_INFO(dev)->gen >= 6)
-				instp_mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
+				params->instp_mask &= ~I915_EXEC_CONSTANTS_REL_SURFACE;
 		}
 		break;
 	default:
-		DRM_DEBUG("execbuf with unknown constants: %d\n", instp_mode);
+		DRM_DEBUG("execbuf with unknown constants: %d\n", params->instp_mode);
 		return -EINVAL;
 	}
 
@@ -1276,7 +1273,33 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 	i915_gem_execbuffer_move_to_active(vmas, params->request);
 
-	/* To be split into two functions here... */
+	ret = dev_priv->gt.execbuf_final(params);
+	if (ret)
+		return ret;
+
+	/*
+	 * Free everything that was stored in the QE structure (until the
+	 * scheduler arrives and does it instead):
+	 */
+	if (params->dispatch_flags & I915_DISPATCH_SECURE)
+		i915_gem_execbuff_release_batch_obj(params->batch_obj);
+
+	return 0;
+}
+
+/*
+ * This is the main function for sending a batch to the engine.
+ * It is called from the scheduler, with the struct_mutex already held.
+ */
+int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
+{
+	struct drm_i915_private *dev_priv = params->dev->dev_private;
+	struct intel_engine_cs  *engine = params->engine;
+	u64 exec_start, exec_len;
+	int ret;
+
+	/* The mutex must be acquired before calling this function */
+	WARN_ON(!mutex_is_locked(&params->dev->struct_mutex));
 
 	/*
 	 * Unconditionally invalidate gpu caches and ensure that we do flush
@@ -1295,7 +1318,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	     "%s didn't clear reload\n", engine->name);
 
 	if (engine == &dev_priv->engine[RCS] &&
-	    instp_mode != dev_priv->relative_constants_mode) {
+	    params->instp_mode != dev_priv->relative_constants_mode) {
 		ret = intel_ring_begin(params->request, 4);
 		if (ret)
 			return ret;
@@ -1303,19 +1326,19 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 		intel_ring_emit(engine, MI_NOOP);
 		intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(1));
 		intel_ring_emit_reg(engine, INSTPM);
-		intel_ring_emit(engine, instp_mask << 16 | instp_mode);
+		intel_ring_emit(engine, params->instp_mask << 16 | params->instp_mode);
 		intel_ring_advance(engine);
 
-		dev_priv->relative_constants_mode = instp_mode;
+		dev_priv->relative_constants_mode = params->instp_mode;
 	}
 
-	if (args->flags & I915_EXEC_GEN7_SOL_RESET) {
-		ret = i915_reset_gen7_sol_offsets(dev, params->request);
+	if (params->args_flags & I915_EXEC_GEN7_SOL_RESET) {
+		ret = i915_reset_gen7_sol_offsets(params->dev, params->request);
 		if (ret)
 			return ret;
 	}
 
-	exec_len   = args->batch_len;
+	exec_len   = params->args_batch_len;
 	exec_start = params->batch_obj_vm_offset +
 		     params->args_batch_start_offset;
 
@@ -1643,24 +1666,43 @@ i915_gem_do_execbuffer(struct drm_device *dev, void *data,
 	params->file                    = file;
 	params->engine                    = engine;
 	params->dispatch_flags          = dispatch_flags;
+	params->args_flags              = args->flags;
+	params->args_batch_len          = args->batch_len;
+	params->args_num_cliprects      = args->num_cliprects;
+	params->args_DR1                = args->DR1;
+	params->args_DR4                = args->DR4;
 	params->batch_obj               = batch_obj;
 	params->ctx                     = ctx;
 	params->request                 = req;
 
 	ret = dev_priv->gt.execbuf_submit(params, args, &eb->vmas);
+	if (ret)
+		goto err_batch_unpin;
+
+	/* the request owns the ref now */
+	i915_gem_context_unreference(ctx);
+
+	/*
+	 * The eb list is no longer required. The scheduler has extracted all
+	 * the information than needs to persist.
+	 */
+	eb_destroy(eb);
+
+	/*
+	 * Don't clean up everything that is now saved away in the queue.
+	 * Just unlock and return immediately.
+	 */
+	mutex_unlock(&dev->struct_mutex);
+
+	intel_runtime_pm_put(dev_priv);
+
+	return 0;
 
 err_batch_unpin:
-	/*
-	 * FIXME: We crucially rely upon the active tracking for the (ppgtt)
-	 * batch vma for correctness. For less ugly and less fragility this
-	 * needs to be adjusted to also track the ggtt batch vma properly as
-	 * active.
-	 */
 	if (dispatch_flags & I915_DISPATCH_SECURE)
-		i915_gem_object_ggtt_unpin(batch_obj);
+		i915_gem_execbuff_release_batch_obj(batch_obj);
 
 err:
-	/* the request owns the ref now */
 	i915_gem_context_unreference(ctx);
 	eb_destroy(eb);
 
@@ -1679,6 +1721,17 @@ pre_mutex_err:
 	 * is really idle. */
 	intel_runtime_pm_put(dev_priv);
 	return ret;
+}
+
+void i915_gem_execbuff_release_batch_obj(struct drm_i915_gem_object *batch_obj)
+{
+	/*
+	 * FIXME: We crucially rely upon the active tracking for the (ppgtt)
+	 * batch vma for correctness. For less ugly and less fragility this
+	 * needs to be adjusted to also track the ggtt batch vma properly as
+	 * active.
+	 */
+	i915_gem_object_ggtt_unpin(batch_obj);
 }
 
 /*
