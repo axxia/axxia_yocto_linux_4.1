@@ -49,6 +49,12 @@ struct  intel_hw_status_page {
 #define I915_READ_MODE(ring) I915_READ(RING_MI_MODE((ring)->mmio_base))
 #define I915_WRITE_MODE(ring, val) I915_WRITE(RING_MI_MODE((ring)->mmio_base), val)
 
+#define I915_READ_UHPTR(ring) \
+		I915_READ(RING_UHPTR((ring)->mmio_base))
+#define I915_WRITE_UHPTR(ring, val) \
+		I915_WRITE(RING_UHPTR((ring)->mmio_base), val)
+#define I915_READ_NOPID(ring) I915_READ(RING_NOPID((ring)->mmio_base))
+
 /* seqno size is actually only a uint32, but since we plan to use MI_FLUSH_DW to
  * do the writes, and that must have qw aligned offsets, simply pretend it's 8b.
  */
@@ -430,11 +436,31 @@ intel_write_status_page(struct intel_engine_cs *engine,
  * 0x20-0x2f: Reserved (Gen6+)
  *
  * The area from dword 0x30 to 0x3ff is available for driver usage.
+ *
+ * Note: in general the allocation of these indices is arbitrary, as long
+ * as they are all unique. But a few of them are used with instructions that
+ * have specific alignment requirements, those particular indices must be
+ * chosen carefully to meet those requirements. The list below shows the
+ * currently-known alignment requirements:
+ *
+ *	I915_GEM_SCRATCH_INDEX	    must be EVEN
  */
-#define I915_GEM_HWS_INDEX		0x30
-#define I915_GEM_HWS_INDEX_ADDR (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
-#define I915_GEM_HWS_SCRATCH_INDEX	0x40
-#define I915_GEM_HWS_SCRATCH_ADDR (I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
+
+/*
+ * Tracking; these are updated by the GPU at the beginning and/or end of every
+ * batch. One pair for regular buffers, the other for preemptive ones.
+ */
+#define I915_BATCH_DONE_SEQNO		0x30  /* Completed batch seqno        */
+#define I915_BATCH_ACTIVE_SEQNO		0x31  /* In progress batch seqno      */
+#define I915_PREEMPTIVE_DONE_SEQNO	0x32  /* Completed preemptive batch   */
+#define I915_PREEMPTIVE_ACTIVE_SEQNO	0x33  /* In progress preemptive batch */
+
+#define I915_GEM_HWS_INDEX		I915_BATCH_DONE_SEQNO	/* alias */
+#define I915_GEM_HWS_INDEX_ADDR         (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
+//#define I915_GEM_ACTIVE_SEQNO_INDEX	I915_BATCH_ACTIVE_SEQNO	/* alias */
+
+#define I915_GEM_HWS_SCRATCH_INDEX	0x40  /* QWord */
+#define I915_GEM_HWS_SCRATCH_ADDR	(I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
 struct intel_ringbuffer *
 intel_engine_create_ringbuffer(struct intel_engine_cs *engine, int size);
