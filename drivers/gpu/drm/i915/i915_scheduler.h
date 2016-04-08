@@ -33,6 +33,8 @@ enum {
 	I915_REQ_SF_WAS_PREEMPT      = (1 << 1),
 	/* Request is preemptive */
 	I915_REQ_SF_PREEMPT          = (1 << 2),
+	/* Request has been preempted midbatch, need to restart */
+	I915_REQ_SF_RESTART          = (1 << 3),
 };
 
 enum i915_scheduler_queue_status {
@@ -111,6 +113,7 @@ struct i915_scheduler_stats {
 	uint32_t queued;
 	uint32_t submitted;
 	uint32_t preempted;
+	uint32_t mid_preempted;
 	uint32_t completed;
 	uint32_t expired;
 

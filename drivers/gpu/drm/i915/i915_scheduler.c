@@ -618,7 +618,9 @@ static int i915_scheduler_submit(struct intel_engine_cs *engine)
 		 * watchdog/reset code has not nuked the node while we
 		 * weren't looking:
 		 */
-		if (ret && (node->status != I915_SQS_DEAD)) {
+		if (ret == 0) {
+			req->scheduler_flags &= ~I915_REQ_SF_RESTART;
+		} else if (node->status != I915_SQS_DEAD) {
 			bool requeue = true;
 
 			/*
@@ -1199,6 +1201,7 @@ i915_scheduler_preemption_postprocess(struct intel_engine_cs *engine)
 	struct i915_scheduler *scheduler = dev_priv->scheduler;
 	struct i915_scheduler_queue_entry *pnode = NULL;
 	struct drm_i915_gem_request *preq = NULL;
+	struct drm_i915_gem_request *midp = NULL;
 	struct i915_scheduler_stats *stats;
 	unsigned long flags;
 	int preempted = 0, preemptive = 0;
@@ -1267,8 +1270,12 @@ i915_scheduler_preemption_postprocess(struct intel_engine_cs *engine)
 				node->status = I915_SQS_PREEMPTED;
 				trace_i915_scheduler_unfly(engine, node);
 				trace_i915_scheduler_node_state_change(engine, node);
-				/* Empty the preempted ringbuffer */
-				intel_lr_context_resync(req->ctx, engine, false);
+
+				/* Identify a mid-batch preemption */
+				if (req->seqno == engine->last_batch_start) {
+					WARN(midp, "Multiple mid-batch-preempted requests?\n");
+					midp = req;
+				}
 			}
 
 			i915_gem_request_dequeue(req);
@@ -1283,12 +1290,49 @@ i915_scheduler_preemption_postprocess(struct intel_engine_cs *engine)
 	if (stats->max_preempted < preempted)
 		stats->max_preempted = preempted;
 
+	/* Now fix up the contexts of all preempt{ive,ed} requests */
 	{
-		/* XXX: Sky should be empty now */
+		struct intel_context *mid_ctx = NULL;
 		struct i915_scheduler_queue_entry *node;
+		u32 started = engine->last_batch_start;
 
-		for_each_scheduler_node(node, engine->id)
-			WARN_ON(I915_SQS_IS_FLYING(node));
+		/*
+		 * Iff preemption was mid-batch, we should have found a
+		 * mid-batch-preempted request
+		 */
+		if (started && started != engine->last_irq_seqno)
+			WARN(!midp, "Mid-batch preempted, but request not found\n");
+		else
+			WARN(midp, "Found unexpected mid-batch preemption?\n");
+
+		if (midp) {
+			/* Rewrite this context rather than emptying it */
+			intel_lr_context_resync_req(midp);
+			midp->scheduler_flags |= I915_REQ_SF_RESTART;
+			mid_ctx = midp->ctx;
+			stats->mid_preempted += 1;
+			WARN_ON(preq == midp);
+		}
+
+		for_each_scheduler_node(node, engine->id) {
+			/* XXX: Sky should be empty now */
+			if (WARN_ON(I915_SQS_IS_FLYING(node)))
+				continue;
+
+			/* Clean up preempted contexts */
+			if (node->status != I915_SQS_PREEMPTED)
+				continue;
+
+			if (node->params.ctx != mid_ctx) {
+				/* Empty the preempted ringbuffer */
+				intel_lr_context_resync(node->params.ctx, engine,
+							false);
+				/* Request is now queued, not preempted */
+				node->status = I915_SQS_QUEUED;
+				trace_i915_scheduler_node_state_change(engine,
+								       node);
+			}
+		}
 	}
 
 	/* Anything else to do here ... ? */

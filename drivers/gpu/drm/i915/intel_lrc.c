@@ -1096,6 +1096,18 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 	if (ret)
 		goto err;
 
+	/*
+	 * For the case of restarting a mid-batch preempted request,
+	 * the ringbuffer already contains all necessary instructions,
+	 * so we can just go straight to submitting it
+	 */
+	if ((req->scheduler_flags & I915_REQ_SF_RESTART)) {
+		DRM_DEBUG_DRIVER("restart: req head/tail 0x%x/%x ringbuf 0x%x/%x\n",
+			req->head, req->tail, ringbuf->head, ringbuf->tail);
+		i915_gem_execbuffer_retire_commands(params);
+		return 0;
+	}
+
 	/* record where we start filling the ring */
 	req->head = intel_ring_get_tail(ringbuf);
 
@@ -2893,6 +2905,45 @@ error_deref_obj:
 	ctx->engine[engine->id].ringbuf = NULL;
 	ctx->engine[engine->id].state = NULL;
 	return ret;
+}
+
+/*
+ * Update the ringbuffer associated with the specified request
+ * so that only the section relating to that request is valid.
+ * Then propagate the change to the associated context image.
+ */
+void intel_lr_context_resync_req(struct drm_i915_gem_request *req)
+{
+	enum intel_engine_id engine_id = req->engine->id;
+	struct drm_i915_gem_object *ctx_obj;
+	struct intel_ringbuffer *ringbuf;
+	struct page *page;
+	uint32_t *reg_state;
+
+	ctx_obj = req->ctx->engine[engine_id].state;
+	ringbuf = req->ringbuf;
+
+	if (WARN_ON(!ringbuf || !ctx_obj))
+		return;
+	if (WARN_ON(i915_gem_object_get_pages(ctx_obj)))
+		return;
+
+	page = i915_gem_object_get_page(ctx_obj, LRC_STATE_PN);
+	reg_state = kmap_atomic(page);
+
+	DRM_DEBUG_DRIVER("Updating ringbuf head/tail, previously 0x%x/%x ...\n",
+		ringbuf->head, ringbuf->tail);
+
+	ringbuf->tail = req->tail;
+	ringbuf->last_retired_head = req->head;
+	intel_ring_update_space(ringbuf);
+
+	DRM_DEBUG_DRIVER("Updated ringbuf, now 0x%x/%x space %d\n",
+		ringbuf->head, ringbuf->tail, ringbuf->space);
+
+	reg_state[CTX_RING_TAIL+1] = ringbuf->tail;
+
+	kunmap_atomic(reg_state);
 }
 
 /*

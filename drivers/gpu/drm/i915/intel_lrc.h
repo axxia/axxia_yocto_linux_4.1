@@ -103,6 +103,7 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 				    struct intel_engine_cs *engine);
 void intel_lr_context_unpin(struct intel_context *ctx,
 			    struct intel_engine_cs *engine);
+void intel_lr_context_resync_req(struct drm_i915_gem_request *req);
 void intel_lr_context_resync(struct intel_context *ctx,
 			     struct intel_engine_cs *ring,
 			     bool rezero);

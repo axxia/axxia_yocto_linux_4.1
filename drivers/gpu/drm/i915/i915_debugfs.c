@@ -3727,6 +3727,7 @@ static int i915_scheduler_info(struct seq_file *m, void *unused)
 	PRINT_VAR("  Queued",               "u", stats[e].queued);
 	PRINT_VAR("  Submitted",            "u", stats[e].submitted);
 	PRINT_VAR("  Preempted",            "u", stats[e].preempted);
+	PRINT_VAR("  Midbatch preempted",   "u", stats[e].mid_preempted);
 	PRINT_VAR("  Completed",            "u", stats[e].completed);
 	PRINT_VAR("  Expired",              "u", stats[e].expired);
 	seq_putc(m, '\n');
