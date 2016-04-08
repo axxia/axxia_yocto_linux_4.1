@@ -1295,6 +1295,12 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 	/* The mutex must be acquired before calling this function */
 	WARN_ON(!mutex_is_locked(&params->dev->struct_mutex));
 
+	/* Check the context wasn't banned between submission and execution: */
+	if (params->ctx->hang_stats.banned) {
+		DRM_DEBUG("Trying to execute for banned context!\n");
+		return -ENOENT;
+	}
+
 	/* Make sure the request's seqno is the latest and greatest: */
 	if (req->reserved_seqno != dev_priv->last_seqno) {
 		ret = i915_gem_get_seqno(engine->dev, &req->reserved_seqno);
