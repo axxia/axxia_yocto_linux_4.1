@@ -734,6 +734,8 @@ void i915_scheduler_wakeup(struct drm_device *dev)
  */
 void i915_scheduler_clean_node(struct i915_scheduler_queue_entry *node)
 {
+	int i;
+
 	if (!I915_SQS_IS_COMPLETE(node)) {
 		WARN(!node->params.request->cancelled,
 		     "Cleaning active node: %d!\n", node->status);
@@ -749,6 +751,19 @@ void i915_scheduler_clean_node(struct i915_scheduler_queue_entry *node)
 			i915_gem_execbuff_release_batch_obj(node->params.batch_obj);
 
 		node->params.batch_obj = NULL;
+	}
+
+	/* Release the locked buffers: */
+	for (i = 0; i < node->num_objs; i++)
+		drm_gem_object_unreference(&node->objs[i].obj->base);
+	kfree(node->objs);
+	node->objs = NULL;
+	node->num_objs = 0;
+
+	/* Context too: */
+	if (node->params.ctx) {
+		i915_gem_context_unreference(node->params.ctx);
+		node->params.ctx = NULL;
 	}
 
 	/* And anything else owned by the node: */
