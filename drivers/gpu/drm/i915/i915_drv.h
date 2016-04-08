@@ -585,6 +585,10 @@ struct drm_i915_error_state {
 
 	u32 *active_bo_count, *pinned_bo_count;
 	u32 vm_count;
+
+	struct intel_guc guc;
+	struct i915_guc_client execbuf_client;
+	struct i915_guc_client preempt_client;
 };
 
 struct intel_connector;
