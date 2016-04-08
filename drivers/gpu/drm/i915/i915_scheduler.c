@@ -887,3 +887,48 @@ void i915_scheduler_process_work(struct intel_engine_cs *engine)
 	if (do_submit)
 		intel_runtime_pm_put(dev_priv);
 }
+
+/**
+ * i915_scheduler_closefile - notify the scheduler that a DRM file handle
+ * has been closed.
+ * @dev: DRM device
+ * @file: file being closed
+ *
+ * Goes through the scheduler's queues and removes all connections to the
+ * disappearing file handle that still exist. There is an argument to say
+ * that this should also flush such outstanding work through the hardware.
+ * However, with pre-emption, TDR and other such complications doing so
+ * becomes a locking nightmare. So instead, just warn with a debug message
+ * if the application is leaking uncompleted work and make sure a null
+ * pointer dereference will not follow.
+ */
+void i915_scheduler_closefile(struct drm_device *dev, struct drm_file *file)
+{
+	struct i915_scheduler_queue_entry *node;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_scheduler *scheduler = dev_priv->scheduler;
+	struct intel_engine_cs *engine;
+
+	if (!scheduler)
+		return;
+
+	spin_lock_irq(&scheduler->lock);
+
+	for_each_engine(engine, dev_priv) {
+		for_each_scheduler_node(node, engine->id) {
+			if (node->params.file != file)
+				continue;
+
+			if (!I915_SQS_IS_COMPLETE(node))
+				DRM_DEBUG_DRIVER("Closing file handle with outstanding work: %d:%d/%d on %s\n",
+						 node->params.request->uniq,
+						 node->params.request->seqno,
+						 node->status,
+						 engine->name);
+
+			node->params.file = NULL;
+		}
+	}
+
+	spin_unlock_irq(&scheduler->lock);
+}
