@@ -309,9 +309,26 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 	err_printf(m, "  EXECLIST_CSB_WR: 0x%08x\n", ring->execlist_csb_write_pointer);
 	err_printf(m, "  EXECLIST_CSB_RD: 0x%08x\n", ring->execlist_csb_read_pointer);
 
-	for (i = 0; i < 6; i++) {
-		err_printf(m, "  EXECLIST_CSB[%d]: 0x%08x\n", i, ring->execlist_csb[i]);
-		err_printf(m, "  EXECLIST_CTX[%d]: 0x%08x\n", i, ring->execlist_ctx[i]);
+#define GEN8_CTX_STATUS_IDLE_ACTIVE	(1 << 0)
+#define GEN8_CTX_STATUS_PREEMPTED	(1 << 1)
+#define GEN8_CTX_STATUS_ELEMENT_SWITCH	(1 << 2)
+#define GEN8_CTX_STATUS_ACTIVE_IDLE	(1 << 3)
+#define GEN8_CTX_STATUS_COMPLETE	(1 << 4)
+#define GEN8_CTX_STATUS_LITE_RESTORE	(1 << 15)
+
+	for (i = 1; i <= 6; ++i) {
+		int n = (ring->execlist_csb_write_pointer + i) % 6;
+		u32 csb = ring->execlist_csb[n];
+
+		err_printf(m, "  EXECLIST_CTX/CSB[%d]:  0x%08x  0x%08x  ",
+			n, ring->execlist_ctx[n], csb);
+		err_printf(m, "%s %s %s %s %s %s\n",
+			csb & GEN8_CTX_STATUS_IDLE_ACTIVE	? "I->A" : "    ",
+			csb & GEN8_CTX_STATUS_PREEMPTED		? "PRMT" : "    ",
+			csb & GEN8_CTX_STATUS_ELEMENT_SWITCH	? "ELSW" : "    ",
+			csb & GEN8_CTX_STATUS_ACTIVE_IDLE	? "A->I" : "    ",
+			csb & GEN8_CTX_STATUS_COMPLETE		? "DONE" : "    ",
+			csb & GEN8_CTX_STATUS_LITE_RESTORE	? "LITE" : "    ");
 	}
 }
 
@@ -466,10 +483,14 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				   dev_priv->engine[i].name,
 				   error->ring[i].num_requests);
 			for (j = 0; j < error->ring[i].num_requests; j++) {
-				err_printf(m, "  seqno 0x%08x, emitted %ld, tail 0x%08x\n",
-					   error->ring[i].requests[j].seqno,
-					   error->ring[i].requests[j].jiffies,
-					   error->ring[i].requests[j].tail);
+				struct drm_i915_error_request *erq;
+
+				erq = &error->ring[i].requests[j];
+				err_printf(m, "  seqno 0x%08x, tail 0x%08x, "
+					"emitted %ld, ctx_desc 0x%08x_%08x\n",
+					erq->seqno, erq->tail, erq->jiffies,
+					upper_32_bits(erq->ctx_desc),
+					lower_32_bits(erq->ctx_desc));
 			}
 		}
 
@@ -1160,6 +1181,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		count = 0;
 		list_for_each_entry(request, &engine->request_list, list) {
+			struct intel_context *ctx = request->ctx;
 			struct drm_i915_error_request *erq;
 
 			if (count >= error->ring[i].num_requests) {
@@ -1182,8 +1204,9 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			}
 
 			erq = &error->ring[i].requests[count++];
-			erq->seqno = request->seqno;
+			erq->ctx_desc = intel_lr_context_descriptor(ctx, engine);
 			erq->jiffies = request->emitted_jiffies;
+			erq->seqno = request->seqno;
 			erq->tail = request->postfix;
 		}
 	}
