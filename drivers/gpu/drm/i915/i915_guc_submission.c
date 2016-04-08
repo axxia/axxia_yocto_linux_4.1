@@ -93,7 +93,8 @@ static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 	for (i = 0; i < len; i++)
 		I915_WRITE(SOFT_SCRATCH(i), data[i]);
 
-	POSTING_READ(SOFT_SCRATCH(i - 1));
+	I915_WRITE(SOFT_SCRATCH(15), 0);
+	POSTING_READ(SOFT_SCRATCH(0));
 
 	I915_WRITE(HOST2GUC_INTERRUPT, HOST2GUC_TRIGGER);
 
@@ -120,6 +121,55 @@ static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
+	return ret;
+}
+
+/*
+ * Tell the GuC to submit a request pre-emptively
+ */
+static int
+host2guc_preempt(struct i915_guc_client *client,
+		 struct intel_context *ctx,
+		 struct intel_engine_cs *ring)
+{
+	struct drm_i915_private *dev_priv = ring->dev->dev_private;
+	struct intel_guc *guc = &dev_priv->guc;
+	uint32_t engine_id = ring->guc_id;
+	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine_id].state;
+	struct intel_ringbuffer *ringbuf = ctx->engine[engine_id].ringbuf;
+	struct guc_process_desc *desc;
+	void *base;
+	u32 data[7];
+	int ret;
+
+	if (WARN_ON(!ctx_obj || !ringbuf))
+		return -EINVAL;
+
+	WARN_ON(!i915_gem_obj_is_pinned(ctx_obj));
+	WARN_ON(!i915_gem_obj_is_pinned(ringbuf->obj));
+
+	WARN_ON(guc->preempt_client != client);
+
+	base = kmap_atomic(i915_gem_object_get_page(client->client_obj, 0));
+	desc = base + client->proc_desc_offset;
+
+	/* Update the tail so it is visible to GuC */
+	desc->tail = client->wq_tail;
+	kunmap_atomic(base);
+
+	data[0] = HOST2GUC_ACTION_REQUEST_PREEMPTION;
+	data[1] = guc->preempt_client->ctx_index;		/* preemptive client			*/
+	data[2] = /* PREEMPT_ENGINE_OPTIONS */
+		  HOST2GUC_PREEMPT_OPTION_IMMEDIATE |		/* submit before return			*/
+		  HOST2GUC_PREEMPT_OPTION_DROP_WORK_Q |		/* drop wq for client data[5]		*/
+		  HOST2GUC_PREEMPT_OPTION_DROP_SUBMIT_Q;	/* drop submitted (engine, priority)	*/
+	data[3] = engine_id;					/* target engine			*/
+	data[4] = guc->execbuf_client->priority;		/* victim priority			*/
+	data[5] = guc->execbuf_client->ctx_index;		/* victim ctx/wq			*/
+	data[6] = i915_gem_obj_ggtt_offset(ctx_obj) + LRC_GUCSHR_PN*PAGE_SIZE;
+
+	ret = host2guc_action(guc, data, 7);
+	WARN_ON(ret);
 	return ret;
 }
 
@@ -565,16 +615,21 @@ static int guc_add_workqueue_item(struct i915_guc_client *gc,
 int i915_guc_submit(struct i915_guc_client *client,
 		    struct drm_i915_gem_request *rq)
 {
-	struct intel_guc *guc = client->guc;
+	bool preemptive = client->priority <= GUC_CTX_PRIORITY_HIGH;
 	unsigned int engine_id = rq->engine->guc_id;
+	struct intel_guc *guc = client->guc;
 	int q_ret, b_ret;
 
 	if (WARN_ON(engine_id >= I915_NUM_ENGINES))
 		return -ENXIO;
 
 	q_ret = guc_add_workqueue_item(client, rq);
-	if (q_ret == 0)
-		b_ret = guc_ring_doorbell(client);
+	if (q_ret == 0) {
+		if (preemptive)
+			b_ret = host2guc_preempt(client, rq->ctx, rq->engine);
+		else
+			b_ret = guc_ring_doorbell(client);
+	}
 
 	client->submissions[engine_id] += 1;
 	if (q_ret) {
@@ -585,6 +640,7 @@ int i915_guc_submit(struct i915_guc_client *client,
 		client->retcode = q_ret = b_ret;
 	} else {
 		client->retcode = 0;
+		rq->elsp_submitted += 1;
 	}
 	guc->submissions[engine_id] += 1;
 	guc->last_seqno[engine_id] = rq->seqno;

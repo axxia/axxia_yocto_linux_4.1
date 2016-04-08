@@ -457,7 +457,11 @@ intel_write_status_page(struct intel_engine_cs *engine,
  * chosen carefully to meet those requirements. The list below shows the
  * currently-known alignment requirements:
  *
- *	I915_GEM_SCRATCH_INDEX	    must be EVEN
+ *	I915_GEM_SCRATCH_INDEX	    must be EVEN (QWord aligned)
+ *	I915_GEM_HWS_INDEX	    must be EVEN (QWord aligned), but also bit 3
+ *				    must be ZERO, so that the resulting address
+ *				    has a 0 in bit 5 (see BSpec for limitation
+ *				    on MI_FLUSH_DW instruction).
  */
 
 /*

@@ -801,6 +801,9 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
 	struct drm_i915_private *dev_priv = request->i915;
 	struct intel_engine_cs *engine = request->engine;
+	struct i915_guc_client *client = dev_priv->guc.execbuf_client;
+	static const bool fake = false;	/* true => only pretend to preempt */
+	bool preemptive = false;	/* for now */
 
 	intel_logical_ring_advance(ringbuf);
 	request->tail = ringbuf->tail;
@@ -829,8 +832,11 @@ intel_logical_ring_advance_and_submit(struct drm_i915_gem_request *request)
 		}
 	}
 
-	if (dev_priv->guc.execbuf_client)
-		i915_guc_submit(dev_priv->guc.execbuf_client, request);
+	if (preemptive && dev_priv->guc.preempt_client && !fake)
+		client = dev_priv->guc.preempt_client;
+
+	if (client)
+		i915_guc_submit(client, request);
 	else
 		execlists_context_queue(request);
 
@@ -2048,57 +2054,96 @@ static void bxt_a_set_seqno(struct intel_engine_cs *engine, u32 seqno)
  */
 #define WA_TAIL_DWORDS 2
 
-static inline u32 hws_seqno_address(struct intel_engine_cs *engine)
-{
-	return engine->status_page.gfx_addr + I915_GEM_HWS_INDEX_ADDR;
-}
-
 static int gen8_emit_request(struct drm_i915_gem_request *request)
 {
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
+	u32 cmd;
+	u64 addr;
 	int ret;
 
-	ret = intel_logical_ring_begin(request, 6 + WA_TAIL_DWORDS);
+	/*
+	 * Reserve space for the instructions below, plus some NOOPs
+	 * at the end of each request to be used as a workaround for
+	 * not being allowed to do lite restore with HEAD==TAIL
+	 * (WaIdleLiteRestore).
+	 */
+	ret = intel_logical_ring_begin(request, 4 + 2 + WA_TAIL_DWORDS);
 	if (ret)
 		return ret;
 
-	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
-	BUILD_BUG_ON(I915_GEM_HWS_INDEX_ADDR & (1 << 5));
+	cmd = MI_FLUSH_DW;
+	cmd += 1;			/* Gen8+ uses long addresses	*/
+	cmd |= MI_FLUSH_DW_OP_STOREDW;	/* Store DWord as post-op	*/
+	cmd |= MI_FLUSH_DW_STORE_INDEX;	/* Address is relative to HWSP	*/
 
-	intel_logical_ring_emit(ringbuf,
-				(MI_FLUSH_DW + 1) | MI_FLUSH_DW_OP_STOREDW);
-	intel_logical_ring_emit(ringbuf,
-				hws_seqno_address(request->engine) |
-				MI_FLUSH_DW_USE_GTT);
-	intel_logical_ring_emit(ringbuf, 0);
+	// Must be QWord aligned even for DWord write
+	BUILD_BUG_ON((I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT) & (1 << 2));
+
+#if	1
+	/* w/a: bit 5 needs to be zero for MI_FLUSH_DW address. */
+	// This is true for a QWord write, but not a DWord
+	BUILD_BUG_ON((I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT) & (1 << 5));
+#endif
+
+	addr = I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT;
+	addr |= MI_FLUSH_DW_USE_GTT;
+//	addr += ring->status_page.gfx_addr;
+
+	intel_logical_ring_emit(ringbuf, cmd);
+	intel_logical_ring_emit(ringbuf, lower_32_bits(addr));
+	intel_logical_ring_emit(ringbuf, upper_32_bits(addr));
 	intel_logical_ring_emit(ringbuf, i915_gem_request_get_seqno(request));
+
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
+
 	return intel_logical_ring_advance_and_submit(request);
 }
 
 static int gen8_emit_request_render(struct drm_i915_gem_request *request)
 {
 	struct intel_ringbuffer *ringbuf = request->ringbuf;
+	u32 cmd, opts;
+	u64 addr;
 	int ret;
 
-	ret = intel_logical_ring_begin(request, 6 + WA_TAIL_DWORDS);
+	/*
+	 * Reserve space for the instructions below, plus some NOOPs
+	 * at the end of each request to be used as a workaround for
+	 * not being allowed to do lite restore with HEAD==TAIL
+	 * (WaIdleLiteRestore).
+	 */
+	ret = intel_logical_ring_begin(request, 6 + 2 + WA_TAIL_DWORDS);
 	if (ret)
 		return ret;
+
+	cmd = GFX_OP_PIPE_CONTROL(6);
+
+	opts = PIPE_CONTROL_GLOBAL_GTT_IVB;	/* Address via GGTT	*/
+	opts |= PIPE_CONTROL_STORE_DATA_INDEX;	/* Index into HWSP	*/
+	opts |= PIPE_CONTROL_CS_STALL;		/* Stall CS until done	*/
+	opts |= PIPE_CONTROL_QW_WRITE;		/* Write QWord		*/
+
+	// Must be QWord aligned
+	BUILD_BUG_ON((I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT) & (1 << 2));
+
+	addr = I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT;
+//	addr += ring->status_page.gfx_addr;
 
 	/* w/a for post sync ops following a GPGPU operation we
 	 * need a prior CS_STALL, which is emitted by the flush
 	 * following the batch.
 	 */
-	intel_logical_ring_emit(ringbuf, GFX_OP_PIPE_CONTROL(5));
-	intel_logical_ring_emit(ringbuf,
-				(PIPE_CONTROL_GLOBAL_GTT_IVB |
-				 PIPE_CONTROL_CS_STALL |
-				 PIPE_CONTROL_QW_WRITE));
-	intel_logical_ring_emit(ringbuf, hws_seqno_address(request->engine));
-	intel_logical_ring_emit(ringbuf, 0);
+	intel_logical_ring_emit(ringbuf, cmd);
+	intel_logical_ring_emit(ringbuf, opts);
+	intel_logical_ring_emit(ringbuf, lower_32_bits(addr));
+	intel_logical_ring_emit(ringbuf, upper_32_bits(addr));
 	intel_logical_ring_emit(ringbuf, i915_gem_request_get_seqno(request));
+	intel_logical_ring_emit(ringbuf, 0);	/* Clear 'in progress'	*/
+
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+
 	return intel_logical_ring_advance_and_submit(request);
 }
 
