@@ -1117,13 +1117,12 @@ static void i915_gem_record_active_context(struct intel_engine_cs *engine,
 			continue;
 		}
 
-		if (!error->ccid)
-			continue;
-
 		if (i915.enable_execlists)
 			base += LRC_PPHWSP_PN * PAGE_SIZE;
 
-		if (base == (error->ccid & PAGE_MASK))
+		if (error->ccid && base == (error->ccid & PAGE_MASK))
+			ering->ctx = i915_error_ggtt_object_create(dev_priv, obj);
+		else if (((base ^ ering->ctx_desc) & 0x00000000FFFFF000ULL) == 0)
 			ering->ctx = i915_error_ggtt_object_create(dev_priv, obj);
 	}
 }
