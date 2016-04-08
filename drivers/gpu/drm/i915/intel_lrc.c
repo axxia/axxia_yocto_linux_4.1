@@ -991,7 +991,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 			return -EINVAL;
 		}
 
-		if (params->instp_mode != dev_priv->relative_constants_mode) {
+		if (params->instp_mode != params->ctx->relative_constants_mode) {
 			if (params->instp_mode == I915_EXEC_CONSTANTS_REL_SURFACE) {
 				DRM_DEBUG("rel surface constants mode invalid on gen5+\n");
 				return -EINVAL;
@@ -1105,14 +1105,14 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 		goto err;
 
 	if (engine == &dev_priv->engine[RCS] &&
-	    params->instp_mode != dev_priv->relative_constants_mode) {
+	    params->instp_mode != params->ctx->relative_constants_mode) {
 		intel_logical_ring_emit(ringbuf, MI_NOOP);
 		intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(1));
 		intel_logical_ring_emit_reg(ringbuf, INSTPM);
 		intel_logical_ring_emit(ringbuf, params->instp_mask << 16 | params->instp_mode);
 		intel_logical_ring_advance(ringbuf);
 
-		dev_priv->relative_constants_mode = params->instp_mode;
+		params->ctx->relative_constants_mode = params->instp_mode;
 	}
 
 	exec_start = params->batch_obj_vm_offset +

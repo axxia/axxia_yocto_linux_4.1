@@ -5576,8 +5576,6 @@ i915_gem_load_init(struct drm_device *dev)
 				i915_scheduler_work_handler);
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 
-	dev_priv->relative_constants_mode = I915_EXEC_CONSTANTS_REL_GENERAL;
-
 	/*
 	 * Set initial sequence number for requests.
 	 * Using this number allows the wraparound to happen early,

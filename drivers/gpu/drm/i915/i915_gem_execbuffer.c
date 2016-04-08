@@ -1241,7 +1241,7 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 			return -EINVAL;
 		}
 
-		if (params->instp_mode != dev_priv->relative_constants_mode) {
+		if (params->instp_mode != params->ctx->relative_constants_mode) {
 			if (INTEL_INFO(dev)->gen < 4) {
 				DRM_DEBUG("no rel constants on pre-gen4\n");
 				return -EINVAL;
@@ -1364,14 +1364,14 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 	     "%s didn't clear reload\n", engine->name);
 
 	if (engine == &dev_priv->engine[RCS] &&
-	    params->instp_mode != dev_priv->relative_constants_mode) {
+	    params->instp_mode != params->ctx->relative_constants_mode) {
 		intel_ring_emit(engine, MI_NOOP);
 		intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(1));
 		intel_ring_emit_reg(engine, INSTPM);
 		intel_ring_emit(engine, params->instp_mask << 16 | params->instp_mode);
 		intel_ring_advance(engine);
 
-		dev_priv->relative_constants_mode = params->instp_mode;
+		params->ctx->relative_constants_mode = params->instp_mode;
 	}
 
 	if (params->args_flags & I915_EXEC_GEN7_SOL_RESET) {
