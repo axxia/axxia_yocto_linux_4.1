@@ -377,6 +377,7 @@ struct  intel_engine_cs {
 	struct list_head fence_signal_list;
 	struct list_head fence_unsignal_list;
 	uint32_t last_irq_seqno;
+	uint32_t last_batch_start;
 };
 
 static inline bool

@@ -966,41 +966,73 @@ int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe)
  * then i915_scheduler_wakeup() is called so the scheduler can do further
  * processing (submit more work) at the end.
  */
-bool i915_scheduler_notify_request(struct drm_i915_gem_request *req)
+bool i915_scheduler_notify_request(struct drm_i915_gem_request *req,
+				   bool preempt)
 {
-	struct drm_i915_private *dev_priv = to_i915(req->engine->dev);
+	struct drm_i915_private *dev_priv = req->i915;
 	struct i915_scheduler *scheduler = dev_priv->scheduler;
 	struct i915_scheduler_queue_entry *node = req->scheduler_qe;
+	uint32_t engine_id = req->engine->id;
 	unsigned long flags;
+	bool result;
 
 	trace_i915_scheduler_landing(req);
 
-	if (!node)
-		return false;
-
 	spin_lock_irqsave(&scheduler->lock, flags);
 
-	WARN_ON(!I915_SQS_IS_FLYING(node));
-
-	/* Node was in flight so mark it as complete. */
-	if (req->cancelled) {
+	if (!node) {
+		/* Untracked request, presumably engine init */
+		WARN_ON(preempt);
+		WARN_ON(!(req->scheduler_flags & I915_REQ_SF_UNTRACKED));
+		scheduler->stats[engine_id].non_batch_done++;
+		result = false;
+	} else if (WARN(!I915_SQS_IS_FLYING(node), "Node not flying: %d:%d -> %s! [preempt = %d]\n",
+			req->uniq, req->seqno,
+			i915_scheduler_queue_status_str(node->status),
+			preempt)) {
+		/* This shouldn't happen */
+		result = false;
+	} else if (req->cancelled) {
 		/* If a preemption was in progress, it won't complete now. */
+		/* Need to clear I915_PREEMPTIVE_ACTIVE_SEQNO??? */
 		if (node->status == I915_SQS_OVERTAKING)
-			scheduler->flags[req->engine->id] &=
+			scheduler->flags[engine_id] &=
 				    ~(I915_SF_PREEMPTING | I915_SF_PREEMPTED);
 
 		node->status = I915_SQS_DEAD;
-		scheduler->stats[req->engine->id].kill_flying++;
-	} else {
+		scheduler->stats[engine_id].kill_flying++;
+		result = true;
+	} else if (node->status == I915_SQS_FLYING) {
+		WARN(preempt, "Got flying node with preemption!\n");
+
+		/* Node was in flight so mark it as complete. */
 		node->status = I915_SQS_COMPLETE;
-		scheduler->stats[req->engine->id].completed++;
+		scheduler->stats[engine_id].completed++;
+		result = true;
+	} else if (node->status == I915_SQS_OVERTAKING) {
+		WARN(!preempt, "Got overtaking node without preemption!\n");
+
+		/* Preempting request has completed & becomes preempted */
+		node->status = I915_SQS_PREEMPTED;
+		trace_i915_scheduler_unfly(node->params.engine, node);
+
+		/* Scheduler is now in post-preemption state */
+		scheduler->flags[engine_id] |= I915_SF_PREEMPTED;
+		scheduler->stats[engine_id].preempts_completed++;
+		result = true;
+	} else {
+		WARN(true, "Unknown node state: %s [%s]!\n",
+		     i915_scheduler_queue_status_str(node->status),
+		     preempt ? "preempting" : "regular");
+		result = false;
 	}
 
-	trace_i915_scheduler_node_state_change(req->engine, node);
+	if (result)
+		trace_i915_scheduler_node_state_change(req->engine, node);
 
 	spin_unlock_irqrestore(&scheduler->lock, flags);
 
-	return true;
+	return result;
 }
 
 static int i915_scheduler_remove_dependent(struct i915_scheduler *scheduler,
@@ -1433,11 +1465,17 @@ static int i915_scheduler_dump_locked(struct intel_engine_cs *engine,
 	}
 
 	if (scheduler->flags[engine->id] & I915_SF_DUMP_SEQNO) {
-		uint32_t seqno;
+		uint32_t seqno, b_active, b_done, p_active, p_done;
 
-		seqno = engine->get_seqno(engine, true);
+		seqno    = engine->get_seqno(engine, true);
+		p_done   = intel_read_status_page(engine, I915_PREEMPTIVE_DONE_SEQNO);
+		p_active = intel_read_status_page(engine, I915_PREEMPTIVE_ACTIVE_SEQNO);
+		b_done   = intel_read_status_page(engine, I915_BATCH_DONE_SEQNO);
+		b_active = intel_read_status_page(engine, I915_BATCH_ACTIVE_SEQNO);
 
-		DRM_DEBUG_DRIVER("<%s> Seqno = %d\n", engine->name, seqno);
+		DRM_DEBUG_DRIVER("<%s> Seqno = %08x, BD = %08x, BA = %08x, PD = %08x, PA = %08x\n",
+				 engine->name, seqno, b_done, b_active,
+				 p_done, p_active);
 	}
 
 	if (scheduler->flags[engine->id] & I915_SF_DUMP_DETAILS) {

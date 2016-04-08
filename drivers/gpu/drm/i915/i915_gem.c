@@ -2569,6 +2569,14 @@ i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 		engine->last_irq_seqno = 0;
 	}
 
+	/* Also reset sw batch tracking state */
+	for_each_engine(engine, dev_priv) {
+		intel_write_status_page(engine, I915_BATCH_DONE_SEQNO, 0);
+		intel_write_status_page(engine, I915_BATCH_ACTIVE_SEQNO, 0);
+		intel_write_status_page(engine, I915_PREEMPTIVE_DONE_SEQNO, 0);
+		intel_write_status_page(engine, I915_PREEMPTIVE_ACTIVE_SEQNO, 0);
+	}
+
 	return 0;
 }
 
@@ -2921,7 +2929,10 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 	 */
 	seqno = engine->get_seqno(engine, false);
 	trace_i915_gem_request_notify(engine, seqno);
-	if (seqno == engine->last_irq_seqno)
+
+	/* Is there anything new to process? */
+	if ((seqno == engine->last_irq_seqno) &&
+	    !i915_scheduler_is_engine_preempting(engine))
 		return;
 
 	if (!fence_locked)
@@ -2950,7 +2961,7 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 		 * and call scheduler_clean() while the scheduler
 		 * thinks it is still active.
 		 */
-		if (i915_scheduler_notify_request(req))
+		if (i915_scheduler_notify_request(req, false))
 			wake_sched = true;
 
 		if (!req->cancelled) {
@@ -2965,6 +2976,53 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 
 		/* Can't unreference here because that might grab fence_lock */
 		list_add_tail(&req->unsignal_link, &engine->fence_unsignal_list);
+	}
+
+	if (i915_scheduler_is_engine_preempting(engine)) {
+		u32 preempt_start, preempt_done;
+
+		preempt_start = intel_read_status_page(engine,
+						I915_PREEMPTIVE_ACTIVE_SEQNO);
+		preempt_done = intel_read_status_page(engine,
+						I915_PREEMPTIVE_DONE_SEQNO);
+
+		/*
+		 * A preemption request leaves both ACTIVE and DONE set to the
+		 * same seqno.  If we find ACTIVE set but DONE is different,
+		 * the preemption has started but not yet completed, so leave
+		 * it until next time. After successfully processing a
+		 * preemption request, we clear ACTIVE below to ensure we
+		 * don't see it again.
+		 */
+		if (preempt_start && preempt_done == preempt_start) {
+			bool sched_ack = false;
+
+			list_for_each_entry_safe(req, req_next, &engine->fence_signal_list, signal_link) {
+				if (req->seqno == preempt_done) {
+					/*
+					 * De-list and notify the scheduler,
+					 * but don't signal yet
+					 */
+					list_del_init(&req->signal_link);
+					sched_ack = i915_scheduler_notify_request(req, true);
+					break;
+				}
+			}
+
+			WARN_ON(!sched_ack);
+			wake_sched = true;
+
+			/*
+			 * Capture BATCH ACTIVE to determine whether a batch
+			 * was in progress when preempted
+			 */
+			engine->last_batch_start = intel_read_status_page(engine,
+							I915_BATCH_ACTIVE_SEQNO);
+
+			/* Acknowledge/clear preemption-active flag */
+			intel_write_status_page(req->engine,
+					     I915_PREEMPTIVE_ACTIVE_SEQNO, 0);
+		}
 	}
 
 	if (!fence_locked)

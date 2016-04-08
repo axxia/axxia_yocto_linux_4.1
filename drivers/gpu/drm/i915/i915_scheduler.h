@@ -183,7 +183,8 @@ void i915_scheduler_closefile(struct drm_device *dev, struct drm_file *file);
 void i915_scheduler_reset_cleanup(struct intel_engine_cs *engine);
 void i915_scheduler_clean_node(struct i915_scheduler_queue_entry *node);
 int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe);
-bool i915_scheduler_notify_request(struct drm_i915_gem_request *req);
+bool i915_scheduler_notify_request(struct drm_i915_gem_request *req,
+				   bool preempt);
 void i915_scheduler_wakeup(struct drm_device *dev);
 bool i915_scheduler_is_engine_flying(struct intel_engine_cs *engine);
 bool i915_scheduler_is_engine_preempting(struct intel_engine_cs *engine);
