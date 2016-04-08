@@ -2858,6 +2858,7 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 {
 	struct drm_i915_gem_request *req, *req_next;
 	unsigned long flags;
+	bool wake_sched = false;
 	u32 seqno;
 
 	if (list_empty(&engine->fence_signal_list)) {
@@ -2894,6 +2895,15 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 		 */
 		list_del_init(&req->signal_link);
 
+		/*
+		 * NB: Must notify the scheduler before signalling
+		 * the node. Otherwise the node can get retired first
+		 * and call scheduler_clean() while the scheduler
+		 * thinks it is still active.
+		 */
+		if (i915_scheduler_notify_request(req))
+			wake_sched = true;
+
 		if (!req->cancelled) {
 			fence_signal_locked(&req->fence);
 			trace_i915_gem_request_complete(req);
@@ -2910,6 +2920,13 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 
 	if (!fence_locked)
 		spin_unlock_irqrestore(&engine->fence_lock, flags);
+
+	/* Necessary? Or does the fence_signal() call do an implicit wakeup? */
+	wake_up_all(&engine->irq_queue);
+
+	/* Final scheduler processing after all individual updates are done. */
+	if (wake_sched)
+		i915_scheduler_wakeup(engine->dev);
 }
 
 static const char *i915_gem_request_get_driver_name(struct fence *req_fence)
