@@ -117,6 +117,7 @@ struct i915_scheduler {
 	int32_t priority_level_preempt;
 	uint32_t min_flying;
 	uint32_t file_queue_max;
+	uint32_t dump_flags;
 
 	/* Statistics: */
 	struct i915_scheduler_stats stats[I915_NUM_ENGINES];
@@ -133,6 +134,11 @@ enum {
 	I915_SF_DUMP_DETAILS        = (1 << 9),
 	I915_SF_DUMP_DEPENDENCIES   = (1 << 10),
 	I915_SF_DUMP_SEQNO          = (1 << 11),
+
+	I915_SF_DUMP_MASK           = I915_SF_DUMP_FORCE        |
+				      I915_SF_DUMP_DETAILS      |
+				      I915_SF_DUMP_DEPENDENCIES |
+				      I915_SF_DUMP_SEQNO,
 };
 const char *i915_scheduler_flag_str(uint32_t flags);
 

@@ -192,6 +192,10 @@ int i915_scheduler_init(struct drm_device *dev)
 	scheduler->priority_level_preempt = 900;
 	scheduler->min_flying             = 2;
 	scheduler->file_queue_max         = 64;
+	scheduler->dump_flags             = I915_SF_DUMP_FORCE   |
+					    I915_SF_DUMP_DETAILS |
+					    I915_SF_DUMP_SEQNO   |
+					    I915_SF_DUMP_DEPENDENCIES;
 
 	dev_priv->scheduler = scheduler;
 
@@ -1394,10 +1398,7 @@ static int i915_scheduler_dump_all_locked(struct drm_device *dev,
 	int r, ret = 0;
 
 	for_each_engine(engine, dev_priv) {
-		scheduler->flags[engine->id] |= I915_SF_DUMP_FORCE   |
-						I915_SF_DUMP_DETAILS |
-						I915_SF_DUMP_SEQNO   |
-						I915_SF_DUMP_DEPENDENCIES;
+		scheduler->flags[engine->id] |= scheduler->dump_flags & I915_SF_DUMP_MASK;
 		r = i915_scheduler_dump_locked(engine, msg);
 		if (ret == 0)
 			ret = r;
