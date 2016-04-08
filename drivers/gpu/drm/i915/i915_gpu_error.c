@@ -619,10 +619,12 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				err_printf(m, "  seqno 0x%08x, ringbuf 0x%llx "
 					      "head 0x%08x tail 0x%08x, "
 					      "emitted %ld, %d submissions, "
+					      "sched %c "
 					      "ctx_desc 0x%08x_%08x\n",
 					erq->seqno, erq->ringbuffer_gtt,
 					erq->head, erq->tail,
 					erq->jiffies, erq->submission_count,
+					erq->scheduler_state,
 					upper_32_bits(erq->ctx_desc),
 					lower_32_bits(erq->ctx_desc));
 			}
@@ -1339,6 +1341,8 @@ static void i915_gem_record_rings(struct drm_device *dev,
 
 		count = 0;
 		list_for_each_entry(request, &engine->request_list, list) {
+			struct i915_scheduler_queue_entry *sqe =
+							request->scheduler_qe;
 			struct intel_context *ctx = request->ctx;
 			struct drm_i915_error_request *erq;
 
@@ -1370,6 +1374,8 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			erq->submission_count = request->elsp_submitted;
 			erq->ringbuffer_gtt =
 				i915_gem_obj_ggtt_offset(request->ringbuf->obj);
+			erq->scheduler_state = !sqe ? 'u' :
+				i915_scheduler_queue_status_chr(sqe->status);
 		}
 	}
 }

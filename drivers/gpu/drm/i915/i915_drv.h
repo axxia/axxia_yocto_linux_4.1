@@ -552,6 +552,7 @@ struct drm_i915_error_state {
 			u32 tail;
 			u32 submission_count;
 			u64 ringbuffer_gtt;
+			char scheduler_state;
 		} *requests;
 
 		struct {
