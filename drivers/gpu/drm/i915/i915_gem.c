@@ -1182,6 +1182,7 @@ static int __i915_spin_request(struct drm_i915_gem_request *req, int state)
 {
 	unsigned long timeout;
 	unsigned cpu;
+	uint32_t seqno;
 
 	/* When waiting for high frequency requests, e.g. during synchronous
 	 * rendering split between the CPU and GPU, the finite amount of time
@@ -1197,12 +1198,14 @@ static int __i915_spin_request(struct drm_i915_gem_request *req, int state)
 		return -EBUSY;
 
 	/* Only spin if we know the GPU is processing this request */
-	if (!i915_gem_request_started(req, true))
+	seqno = req->engine->get_seqno(req->engine, true);
+	if (!i915_seqno_passed(seqno, req->previous_seqno))
 		return -EAGAIN;
 
 	timeout = local_clock_us(&cpu) + 5;
 	while (!need_resched()) {
-		if (i915_gem_request_completed(req, true))
+		seqno = req->engine->get_seqno(req->engine, true);
+		if (i915_seqno_passed(seqno, req->seqno))
 			return 0;
 
 		if (signal_pending_state(state, current))
@@ -1214,7 +1217,8 @@ static int __i915_spin_request(struct drm_i915_gem_request *req, int state)
 		cpu_relax_lowlatency();
 	}
 
-	if (i915_gem_request_completed(req, false))
+	seqno = req->engine->get_seqno(req->engine, false);
+	if (i915_seqno_passed(seqno, req->seqno))
 		return 0;
 
 	return -EAGAIN;
@@ -2668,11 +2672,13 @@ static void i915_set_reset_status(struct drm_i915_private *dev_priv,
 	}
 }
 
-void i915_gem_request_free(struct kref *req_ref)
+static void i915_gem_request_free(struct fence *req_fence)
 {
-	struct drm_i915_gem_request *req = container_of(req_ref,
-						 typeof(*req), ref);
+	struct drm_i915_gem_request *req = container_of(req_fence,
+						 typeof(*req), fence);
 	struct intel_context *ctx = req->ctx;
+
+	WARN_ON(!mutex_is_locked(&req->engine->dev->struct_mutex));
 
 	if (req->file_priv)
 		i915_gem_request_remove_from_client(req);
@@ -2686,6 +2692,45 @@ void i915_gem_request_free(struct kref *req_ref)
 
 	kmem_cache_free(req->i915->requests, req);
 }
+
+static bool i915_gem_request_enable_signaling(struct fence *req_fence)
+{
+	/* Interrupt driven fences are not implemented yet.*/
+	WARN(true, "This should not be called!");
+	return true;
+}
+
+static bool i915_gem_request_is_completed(struct fence *req_fence)
+{
+	struct drm_i915_gem_request *req = container_of(req_fence,
+						 typeof(*req), fence);
+	u32 seqno;
+
+	seqno = req->engine->get_seqno(req->engine, false/*lazy_coherency*/);
+
+	return i915_seqno_passed(seqno, req->seqno);
+}
+
+static const char *i915_gem_request_get_driver_name(struct fence *req_fence)
+{
+	return "i915";
+}
+
+static const char *i915_gem_request_get_timeline_name(struct fence *req_fence)
+{
+	struct drm_i915_gem_request *req = container_of(req_fence,
+						 typeof(*req), fence);
+	return req->engine->name;
+}
+
+static const struct fence_ops i915_gem_request_fops = {
+	.enable_signaling	= i915_gem_request_enable_signaling,
+	.signaled		= i915_gem_request_is_completed,
+	.wait			= fence_default_wait,
+	.release		= i915_gem_request_free,
+	.get_driver_name	= i915_gem_request_get_driver_name,
+	.get_timeline_name	= i915_gem_request_get_timeline_name,
+};
 
 static inline int
 __i915_gem_request_alloc(struct intel_engine_cs *engine,
@@ -2709,7 +2754,6 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (ret)
 		goto err;
 
-	kref_init(&req->ref);
 	req->i915 = dev_priv;
 	req->engine = engine;
 	req->ctx  = ctx;
@@ -2723,6 +2767,9 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 		i915_gem_context_unreference(req->ctx);
 		goto err;
 	}
+
+	fence_init(&req->fence, &i915_gem_request_fops, &engine->fence_lock,
+		   engine->fence_context, req->seqno);
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
@@ -4822,7 +4869,7 @@ i915_gem_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
-	int ret, j;
+	int ret, j, fence_base;
 
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
 		return -EIO;
@@ -4891,9 +4938,13 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (ret)
 		goto out;
 
+	fence_base = fence_context_alloc(I915_NUM_ENGINES);
+
 	/* Now it is safe to go back round and do everything else: */
 	for_each_engine(engine, dev_priv) {
 		struct drm_i915_gem_request *req;
+
+		engine->fence_context = fence_base + engine->id;
 
 		req = i915_gem_request_alloc(engine, NULL);
 		if (IS_ERR(req)) {

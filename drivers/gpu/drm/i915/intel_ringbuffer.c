@@ -2250,6 +2250,7 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&engine->request_list);
 	INIT_LIST_HEAD(&engine->execlist_queue);
 	INIT_LIST_HEAD(&engine->buffers);
+	spin_lock_init(&engine->fence_lock);
 	i915_gem_batch_pool_init(dev, &engine->batch_pool);
 	memset(engine->semaphore.sync_seqno, 0,
 	       sizeof(engine->semaphore.sync_seqno));
