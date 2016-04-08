@@ -1477,6 +1477,9 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 		fence_signal_locked(&request->fence);
 	}
 
+	if (request->scheduler_qe)
+		i915_scheduler_clean_node(request->scheduler_qe);
+
 	i915_gem_request_unreference(request);
 }
 
