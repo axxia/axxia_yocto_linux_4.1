@@ -47,6 +47,7 @@
 #include <linux/dma_remapping.h>
 #include <linux/reservation.h>
 #include <linux/dma-buf.h>
+#include "i915_scheduler.h"
 
 /* Primary plane formats for gen <= 3 */
 static const uint32_t i8xx_primary_formats[] = {
@@ -11246,6 +11247,8 @@ static bool use_mmio_flip(struct intel_engine_cs *engine,
 	else if (i915.use_mmio_flip > 0)
 		return true;
 	else if (i915.enable_execlists)
+		return true;
+	else if (i915_scheduler_is_enabled(engine->dev))
 		return true;
 	else if (obj->base.dma_buf &&
 		 !reservation_object_test_signaled_rcu(obj->base.dma_buf->resv,
