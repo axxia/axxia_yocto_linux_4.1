@@ -386,6 +386,8 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	memset(&desc, 0, sizeof(desc));
 
 	desc.attribute = GUC_CTX_DESC_ATTR_ACTIVE | GUC_CTX_DESC_ATTR_KERNEL;
+	if (client->priority <= GUC_CTX_PRIORITY_HIGH)
+		desc.attribute |= GUC_CTX_DESC_ATTR_PREEMPT;
 	desc.context_id = client->ctx_index;
 	desc.priority = client->priority;
 	desc.db_id = client->doorbell_id;
@@ -566,6 +568,9 @@ int i915_guc_submit(struct i915_guc_client *client,
 	struct intel_guc *guc = client->guc;
 	unsigned int engine_id = rq->engine->guc_id;
 	int q_ret, b_ret;
+
+	if (WARN_ON(engine_id >= I915_NUM_ENGINES))
+		return -ENXIO;
 
 	q_ret = guc_add_workqueue_item(client, rq);
 	if (q_ret == 0)
@@ -940,8 +945,13 @@ int i915_guc_submission_enable(struct drm_device *dev)
 		DRM_ERROR("Failed to create execbuf guc_client\n");
 		return -ENOMEM;
 	}
-
 	guc->execbuf_client = client;
+
+	/* 2nd client for preemptive submission */
+	client = guc_client_alloc(dev, GUC_CTX_PRIORITY_KMD_HIGH, ctx);
+	if (!client)
+		DRM_ERROR("Failed to create preemptive guc_client\n");
+	guc->preempt_client = client;
 
 	host2guc_sample_forcewake(guc, client);
 
@@ -953,6 +963,8 @@ void i915_guc_submission_disable(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
 
+	guc_client_free(dev, guc->preempt_client);
+	guc->preempt_client = NULL;
 	guc_client_free(dev, guc->execbuf_client);
 	guc->execbuf_client = NULL;
 }

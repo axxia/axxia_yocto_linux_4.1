@@ -2733,6 +2733,7 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc guc;
 	struct i915_guc_client client = {};
+	struct i915_guc_client preempt = {};
 	struct intel_engine_cs *engine;
 	u64 total = 0;
 
@@ -2746,6 +2747,8 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	guc = dev_priv->guc;
 	if (guc.execbuf_client)
 		client = *guc.execbuf_client;
+	if (guc.preempt_client)
+		preempt = *guc.preempt_client;
 
 	mutex_unlock(&dev->struct_mutex);
 
@@ -2766,6 +2769,9 @@ static int i915_guc_info(struct seq_file *m, void *data)
 
 	seq_printf(m, "\nGuC execbuf client @ %p:\n", guc.execbuf_client);
 	i915_guc_client_info(m, dev_priv, &client);
+
+	seq_printf(m, "\nGuC preempt client @ %p:\n", guc.preempt_client);
+	i915_guc_client_info(m, dev_priv, &preempt);
 
 	/* Add more as required ... */
 

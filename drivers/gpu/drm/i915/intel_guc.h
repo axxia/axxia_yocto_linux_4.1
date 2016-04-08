@@ -97,6 +97,7 @@ struct intel_guc {
 	struct ida ctx_ids;
 
 	struct i915_guc_client *execbuf_client;
+	struct i915_guc_client *preempt_client;
 
 	DECLARE_BITMAP(doorbell_bitmap, GUC_MAX_DOORBELLS);
 	uint32_t db_cacheline;		/* Cyclic counter mod pagesize	*/
