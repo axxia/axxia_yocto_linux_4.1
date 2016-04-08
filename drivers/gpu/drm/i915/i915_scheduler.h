@@ -144,6 +144,7 @@ void i915_scheduler_clean_node(struct i915_scheduler_queue_entry *node);
 int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe);
 bool i915_scheduler_notify_request(struct drm_i915_gem_request *req);
 void i915_scheduler_wakeup(struct drm_device *dev);
+bool i915_scheduler_is_engine_flying(struct intel_engine_cs *engine);
 void i915_scheduler_work_handler(struct work_struct *work);
 int i915_scheduler_flush(struct intel_engine_cs *engine, bool is_locked);
 int i915_scheduler_flush_stamp(struct intel_engine_cs *engine,

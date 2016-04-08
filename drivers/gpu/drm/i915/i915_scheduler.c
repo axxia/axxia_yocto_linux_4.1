@@ -1702,3 +1702,36 @@ void i915_scheduler_closefile(struct drm_device *dev, struct drm_file *file)
 
 	spin_unlock_irq(&scheduler->lock);
 }
+
+/**
+ * i915_scheduler_is_engine_flying - does the given engine have in flight batches?
+ * @engine: Engine to query
+ * Used by TDR to distinguish hung engines (not moving but with work to do)
+ * from idle engines (not moving because there is nothing to do). Returns true
+ * if the given engine has batches currently executing on the hardware.
+ */
+bool i915_scheduler_is_engine_flying(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct i915_scheduler *scheduler = dev_priv->scheduler;
+	struct i915_scheduler_queue_entry *node;
+	unsigned long flags;
+	bool found = false;
+
+	/* With the scheduler in bypass mode, no information can be returned. */
+	if (!i915.enable_scheduler)
+		return true;
+
+	spin_lock_irqsave(&scheduler->lock, flags);
+
+	for_each_scheduler_node(node, engine->id) {
+		if (I915_SQS_IS_FLYING(node)) {
+			found = true;
+			break;
+		}
+	}
+
+	spin_unlock_irqrestore(&scheduler->lock, flags);
+
+	return found;
+}
