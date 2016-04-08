@@ -11610,7 +11610,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	 * into the display plane and skip any waits.
 	 */
 	if (!mmio_flip) {
-		ret = i915_gem_object_sync(obj, engine, &request);
+		ret = i915_gem_object_sync(obj, engine, &request, false);
 		if (ret)
 			goto cleanup_pending;
 	}

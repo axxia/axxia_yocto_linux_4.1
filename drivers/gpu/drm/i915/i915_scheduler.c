@@ -1659,6 +1659,25 @@ bool i915_scheduler_is_mutex_required(struct drm_i915_gem_request *req)
 }
 
 /**
+ * i915_scheduler_is_request_batch_buffer - is this request related to a
+ * batch buffer object?
+ * @req: request to be queried
+ *
+ * Returns true if the given request is for a batch buffer. False means it
+ * is for something else - page flip, context initialisation, etc.
+ */
+bool i915_scheduler_is_request_batch_buffer(struct drm_i915_gem_request *req)
+{
+	if (req->scheduler_qe == NULL)
+		return false;
+
+	if (req->scheduler_qe->params.batch_obj == NULL)
+		return false;
+
+	return true;
+}
+
+/**
  * i915_scheduler_closefile - notify the scheduler that a DRM file handle
  * has been closed.
  * @dev: DRM device

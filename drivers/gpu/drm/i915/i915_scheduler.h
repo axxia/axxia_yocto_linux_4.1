@@ -159,6 +159,7 @@ int i915_scheduler_dump(struct intel_engine_cs *engine,
 			const char *msg);
 int i915_scheduler_dump_all(struct drm_device *dev, const char *msg);
 bool i915_scheduler_is_mutex_required(struct drm_i915_gem_request *req);
+bool i915_scheduler_is_request_batch_buffer(struct drm_i915_gem_request *req);
 int i915_scheduler_query_stats(struct intel_engine_cs *engine,
 			       struct i915_scheduler_stats_nodes *stats);
 bool i915_scheduler_file_queue_wait(struct drm_file *file);

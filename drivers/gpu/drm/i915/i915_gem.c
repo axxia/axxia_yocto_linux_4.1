@@ -3583,7 +3583,7 @@ static int
 __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		       struct intel_engine_cs *to,
 		       struct drm_i915_gem_request *from_req,
-		       struct drm_i915_gem_request **to_req)
+		       struct drm_i915_gem_request **to_req, bool to_batch)
 {
 	struct intel_engine_cs *from;
 	int ret;
@@ -3593,6 +3593,14 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		return 0;
 
 	if (i915_gem_request_completed(from_req))
+		return 0;
+
+	/*
+	 * The scheduler will manage inter-ring object dependencies
+	 * as long as both to and from requests are scheduler managed
+	 * (i.e. batch buffers).
+	 */
+	if (to_batch && i915_scheduler_is_request_batch_buffer(from_req))
 		return 0;
 
 	if (!i915_semaphore_is_enabled(obj->base.dev)) {
@@ -3653,6 +3661,8 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
  * @to_req: request we wish to use the object for. See below.
  *          This will be allocated and returned if a request is
  *          required but not passed in.
+ * @to_batch: is the sync request on behalf of batch buffer submission?
+ * If so then the scheduler can (potentially) manage the synchronisation.
  *
  * This code is meant to abstract object synchronization with the GPU.
  * Calling with NULL implies synchronizing the object with the CPU
@@ -3683,7 +3693,7 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 int
 i915_gem_object_sync(struct drm_i915_gem_object *obj,
 		     struct intel_engine_cs *to,
-		     struct drm_i915_gem_request **to_req)
+		     struct drm_i915_gem_request **to_req, bool to_batch)
 {
 	const bool readonly = obj->base.pending_write_domain == 0;
 	struct drm_i915_gem_request *req[I915_NUM_ENGINES];
@@ -3705,7 +3715,7 @@ i915_gem_object_sync(struct drm_i915_gem_object *obj,
 				req[n++] = obj->last_read_req[i];
 	}
 	for (i = 0; i < n; i++) {
-		ret = __i915_gem_object_sync(obj, to, req[i], to_req);
+		ret = __i915_gem_object_sync(obj, to, req[i], to_req, to_batch);
 		if (ret)
 			return ret;
 	}
