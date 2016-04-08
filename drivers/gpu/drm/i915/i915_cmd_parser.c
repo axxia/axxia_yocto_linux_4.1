@@ -199,7 +199,7 @@ static const struct drm_i915_cmd_descriptor render_cmds[] = {
 	      },
 	      {
 			.offset = 1,
-		        .mask = (PIPE_CONTROL_GLOBAL_GTT_IVB |
+		        .mask = (PIPE_CONTROL_GEN7_GLOBAL_GTT |
 				 PIPE_CONTROL_STORE_DATA_INDEX),
 			.expected = 0,
 			.condition_offset = 1,

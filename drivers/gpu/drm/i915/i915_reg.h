@@ -479,7 +479,8 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   DISPLAY_PLANE_B           (1<<20)
 #define GFX_OP_PIPE_CONTROL(len)	((0x3<<29)|(0x3<<27)|(0x2<<24)|((len)-2))
 #define   PIPE_CONTROL_FLUSH_L3				(1<<27)
-#define   PIPE_CONTROL_GLOBAL_GTT_IVB			(1<<24) /* gen7+ */
+#define   PIPE_CONTROL_LLC_FB_FLUSH			(1<<26)
+#define   PIPE_CONTROL_GEN7_GLOBAL_GTT			(1<<24)	/* gen7+ */
 #define   PIPE_CONTROL_MMIO_WRITE			(1<<23)
 #define   PIPE_CONTROL_STORE_DATA_INDEX			(1<<21)
 #define   PIPE_CONTROL_CS_STALL				(1<<20)
@@ -488,20 +489,21 @@ static inline bool i915_mmio_reg_valid(i915_reg_t reg)
 #define   PIPE_CONTROL_QW_WRITE				(1<<14)
 #define   PIPE_CONTROL_POST_SYNC_OP_MASK                (3<<14)
 #define   PIPE_CONTROL_DEPTH_STALL			(1<<13)
-#define   PIPE_CONTROL_WRITE_FLUSH			(1<<12)
+#define   PIPE_CONTROL_WRITE_FLUSH			(1<<12)	/* gen5 */
 #define   PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH	(1<<12) /* gen6+ */
 #define   PIPE_CONTROL_INSTRUCTION_CACHE_INVALIDATE	(1<<11) /* MBZ on Ironlake */
 #define   PIPE_CONTROL_TEXTURE_CACHE_INVALIDATE		(1<<10) /* GM45+ only */
 #define   PIPE_CONTROL_INDIRECT_STATE_DISABLE		(1<<9)
 #define   PIPE_CONTROL_NOTIFY				(1<<8)
-#define   PIPE_CONTROL_FLUSH_ENABLE			(1<<7) /* gen7+ */
-#define   PIPE_CONTROL_DC_FLUSH_ENABLE			(1<<5)
+#define   PIPE_CONTROL_POSTSYNC_FLUSH			(1<<7)	/* gen7+ */
+#define   PIPE_CONTROL_L3_DC_FLUSH			(1<<5)
 #define   PIPE_CONTROL_VF_CACHE_INVALIDATE		(1<<4)
 #define   PIPE_CONTROL_CONST_CACHE_INVALIDATE		(1<<3)
 #define   PIPE_CONTROL_STATE_CACHE_INVALIDATE		(1<<2)
 #define   PIPE_CONTROL_STALL_AT_SCOREBOARD		(1<<1)
 #define   PIPE_CONTROL_DEPTH_CACHE_FLUSH		(1<<0)
-#define   PIPE_CONTROL_GLOBAL_GTT (1<<2) /* in addr dword */
+
+#define   PIPE_CONTROL_GLOBAL_GTT 	(1<<2)	/* in addr dword (gen6-) */
 
 /*
  * Commands used only by the command parser

@@ -332,8 +332,8 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req,
 	if (flush_domains) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
-		flags |= PIPE_CONTROL_DC_FLUSH_ENABLE;
-		flags |= PIPE_CONTROL_FLUSH_ENABLE;
+		flags |= PIPE_CONTROL_L3_DC_FLUSH;
+		flags |= PIPE_CONTROL_POSTSYNC_FLUSH;
 	}
 	if (invalidate_domains) {
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
@@ -347,7 +347,7 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req,
 		 * TLB invalidate requires a post-sync write.
 		 */
 		flags |= PIPE_CONTROL_QW_WRITE;
-		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+		flags |= PIPE_CONTROL_GEN7_GLOBAL_GTT;
 
 		flags |= PIPE_CONTROL_STALL_AT_SCOREBOARD;
 
@@ -405,8 +405,8 @@ gen8_render_ring_flush(struct drm_i915_gem_request *req,
 	if (flush_domains) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
-		flags |= PIPE_CONTROL_DC_FLUSH_ENABLE;
-		flags |= PIPE_CONTROL_FLUSH_ENABLE;
+		flags |= PIPE_CONTROL_L3_DC_FLUSH;
+		flags |= PIPE_CONTROL_POSTSYNC_FLUSH;
 	}
 	if (invalidate_domains) {
 		flags |= PIPE_CONTROL_TLB_INVALIDATE;
@@ -416,7 +416,7 @@ gen8_render_ring_flush(struct drm_i915_gem_request *req,
 		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_QW_WRITE;
-		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+		flags |= PIPE_CONTROL_GEN7_GLOBAL_GTT;
 
 		/* WaCsStallBeforeStateCacheInvalidate:bdw,chv */
 		ret = gen8_emit_pipe_control(req,
@@ -1305,9 +1305,9 @@ static int gen8_rcs_signal(struct drm_i915_gem_request *signaller_req,
 
 		seqno = i915_gem_request_get_seqno(signaller_req);
 		intel_ring_emit(signaller, GFX_OP_PIPE_CONTROL(6));
-		intel_ring_emit(signaller, PIPE_CONTROL_GLOBAL_GTT_IVB |
+		intel_ring_emit(signaller, PIPE_CONTROL_GEN7_GLOBAL_GTT |
 					   PIPE_CONTROL_QW_WRITE |
-					   PIPE_CONTROL_FLUSH_ENABLE);
+					   PIPE_CONTROL_POSTSYNC_FLUSH);
 		intel_ring_emit(signaller, lower_32_bits(gtt_offset));
 		intel_ring_emit(signaller, upper_32_bits(gtt_offset));
 		intel_ring_emit(signaller, seqno);

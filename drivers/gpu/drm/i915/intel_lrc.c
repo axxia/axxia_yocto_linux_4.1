@@ -1136,7 +1136,7 @@ gen8_emit_pipe_control_qw_store_index(struct drm_i915_gem_request *request,
 
 	cmd = GFX_OP_PIPE_CONTROL(6);
 
-	opts = PIPE_CONTROL_GLOBAL_GTT_IVB;	/* Address via GGTT	*/
+	opts = PIPE_CONTROL_GEN7_GLOBAL_GTT;	/* Address via GGTT	*/
 	opts |= PIPE_CONTROL_STORE_DATA_INDEX;	/* Index into HWSP	*/
 	opts |= PIPE_CONTROL_CS_STALL;		/* Stall CS until done	*/
 	opts |= PIPE_CONTROL_QW_WRITE;		/* Write QWord		*/
@@ -1570,7 +1570,7 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 
 	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
 	wa_ctx_emit(batch, index, (PIPE_CONTROL_CS_STALL |
-				   PIPE_CONTROL_DC_FLUSH_ENABLE));
+				   PIPE_CONTROL_L3_DC_FLUSH));
 	wa_ctx_emit(batch, index, 0);
 	wa_ctx_emit(batch, index, 0);
 	wa_ctx_emit(batch, index, 0);
@@ -1657,7 +1657,7 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
 
 	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
 	wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
-				   PIPE_CONTROL_GLOBAL_GTT_IVB |
+				   PIPE_CONTROL_GEN7_GLOBAL_GTT |
 				   PIPE_CONTROL_CS_STALL |
 				   PIPE_CONTROL_QW_WRITE));
 	wa_ctx_emit(batch, index, scratch_addr);
@@ -2145,8 +2145,8 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 	if (flush_domains) {
 		flags |= PIPE_CONTROL_RENDER_TARGET_CACHE_FLUSH;
 		flags |= PIPE_CONTROL_DEPTH_CACHE_FLUSH;
-		flags |= PIPE_CONTROL_DC_FLUSH_ENABLE;
-		flags |= PIPE_CONTROL_FLUSH_ENABLE;
+		flags |= PIPE_CONTROL_L3_DC_FLUSH;
+		flags |= PIPE_CONTROL_POSTSYNC_FLUSH;
 	}
 
 	if (invalidate_domains) {
@@ -2157,7 +2157,7 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 		flags |= PIPE_CONTROL_CONST_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_STATE_CACHE_INVALIDATE;
 		flags |= PIPE_CONTROL_QW_WRITE;
-		flags |= PIPE_CONTROL_GLOBAL_GTT_IVB;
+		flags |= PIPE_CONTROL_GEN7_GLOBAL_GTT;
 
 		/*
 		 * On GEN9: before VF_CACHE_INVALIDATE we need to emit a NULL
