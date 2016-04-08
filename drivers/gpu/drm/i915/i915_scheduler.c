@@ -50,10 +50,13 @@ bool i915_scheduler_is_enabled(struct drm_device *dev)
 
 const char *i915_qe_state_str(struct i915_scheduler_queue_entry *node)
 {
+	uint32_t sched_flags = node->params.request->scheduler_flags;
 	static char	str[50];
 	char		*ptr = str;
 
 	*(ptr++) = node->bumped ? 'B' : '-',
+	*(ptr++) = (sched_flags & I915_REQ_SF_PREEMPT) ? 'P' : '-';
+	*(ptr++) = (sched_flags & I915_REQ_SF_WAS_PREEMPT) ? 'p' : '-';
 	*(ptr++) = i915_gem_request_completed(node->params.request) ? 'C' : '-';
 
 	*ptr = 0;
@@ -75,6 +78,12 @@ char i915_scheduler_queue_status_chr(enum i915_scheduler_queue_status status)
 
 	case I915_SQS_FLYING:
 	return 'F';
+
+	case I915_SQS_OVERTAKING:
+	return 'O';
+
+	case I915_SQS_PREEMPTED:
+	return 'P';
 
 	case I915_SQS_COMPLETE:
 	return 'C';
@@ -106,6 +115,12 @@ const char *i915_scheduler_queue_status_str(
 
 	case I915_SQS_FLYING:
 	return "Flying";
+
+	case I915_SQS_OVERTAKING:
+	return "Overtaking";
+
+	case I915_SQS_PREEMPTED:
+	return "Preempted";
 
 	case I915_SQS_COMPLETE:
 	return "Complete";
@@ -245,6 +260,7 @@ static void i915_scheduler_node_fly(struct i915_scheduler_queue_entry *node)
 	struct drm_i915_private *dev_priv = node->params.dev->dev_private;
 	struct i915_scheduler *scheduler = dev_priv->scheduler;
 	struct intel_engine_cs *engine = node->params.engine;
+	struct drm_i915_gem_request *req = node->params.request;
 
 	assert_scheduler_lock_held(scheduler);
 
@@ -257,7 +273,10 @@ static void i915_scheduler_node_fly(struct i915_scheduler_queue_entry *node)
 	 */
 	list_add(&node->link, &scheduler->node_queue[engine->id]);
 
-	node->status = I915_SQS_FLYING;
+	if (req->scheduler_flags & I915_REQ_SF_PREEMPT)
+		node->status = I915_SQS_OVERTAKING;
+	else
+		node->status = I915_SQS_FLYING;
 
 	trace_i915_scheduler_fly(engine, node);
 	trace_i915_scheduler_node_state_change(engine, node);
@@ -739,7 +758,7 @@ int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe)
 	struct i915_scheduler *scheduler = dev_priv->scheduler;
 	struct intel_engine_cs *engine = qe->params.engine;
 	struct i915_scheduler_queue_entry *node;
-	bool not_flying;
+	bool not_flying, want_preempt;
 	int i, e;
 	int incomplete;
 
@@ -817,6 +836,25 @@ int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe)
 	not_flying = i915_scheduler_count_flying(scheduler, engine) <
 						 scheduler->min_flying;
 
+	want_preempt = node->priority >= scheduler->priority_level_preempt;
+
+	if (!i915.enable_preemption)
+		want_preempt = false;
+
+	/* Pre-emption is not yet implemented in non-execlist mode */
+	if (!i915.enable_execlists)
+		want_preempt = false;
+
+	/* Pre-emption is not yet implemented in non-GUC mode */
+	if (!i915.enable_guc_submission)
+		want_preempt = false;
+
+	if (want_preempt) {
+		node->params.request->scheduler_flags |=
+			I915_REQ_SF_WAS_PREEMPT | I915_REQ_SF_PREEMPT;
+		scheduler->stats[engine->id].preempts_queued++;
+	}
+
 	scheduler->stats[engine->id].queued++;
 
 	trace_i915_scheduler_queue(engine, node);
@@ -824,7 +862,7 @@ int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe)
 
 	spin_unlock_irq(&scheduler->lock);
 
-	if (not_flying)
+	if (not_flying || want_preempt)
 		i915_scheduler_submit(engine);
 
 	return 0;

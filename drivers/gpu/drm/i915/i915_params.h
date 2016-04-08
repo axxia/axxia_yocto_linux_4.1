@@ -53,6 +53,7 @@ struct i915_params {
 	int edp_vswing;
 	unsigned int inject_load_failure;
 	int enable_scheduler;
+	int enable_preemption;
 	int hpd_sense_invert;
 	/* leave bools at the end to not create holes */
 	bool enable_hangcheck;

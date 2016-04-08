@@ -62,6 +62,7 @@ struct i915_params i915 __read_mostly = {
 	.hpd_sense_invert = -1,
 	.enable_ipc = 0,
 	.enable_scheduler = 1,
+	.enable_preemption = 0,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -230,3 +231,6 @@ MODULE_PARM_DESC(enable_ipc,
 		 "Enable Isochronous Priority Control (default: false)");
 module_param_named_unsafe(enable_scheduler, i915.enable_scheduler, int, 0600);
 MODULE_PARM_DESC(enable_scheduler, "Enable scheduler (0 = disable, 1 = enable [default])");
+
+module_param_named_unsafe(enable_preemption, i915.enable_preemption, int, 0600);
+MODULE_PARM_DESC(enable_preemption, "Enable pre-emption within scheduler  (0 = disable [default], 1 = enable)");
