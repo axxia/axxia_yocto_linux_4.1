@@ -135,7 +135,7 @@ host2guc_preempt(struct i915_guc_client *client,
 {
 	struct drm_i915_private *dev_priv = ring->dev->dev_private;
 	struct intel_guc *guc = &dev_priv->guc;
-	uint32_t engine_id = ring->guc_id;
+	uint32_t engine_id = ring->id;
 	struct drm_i915_gem_object *ctx_obj = ctx->engine[engine_id].state;
 	struct intel_ringbuffer *ringbuf = ctx->engine[engine_id].ringbuf;
 	struct guc_process_desc *desc;
@@ -164,7 +164,7 @@ host2guc_preempt(struct i915_guc_client *client,
 		  HOST2GUC_PREEMPT_OPTION_IMMEDIATE |		/* submit before return			*/
 		  HOST2GUC_PREEMPT_OPTION_DROP_WORK_Q |		/* drop wq for client data[5]		*/
 		  HOST2GUC_PREEMPT_OPTION_DROP_SUBMIT_Q;	/* drop submitted (engine, priority)	*/
-	data[3] = engine_id;					/* target engine			*/
+	data[3] = ring->guc_id;					/* target engine			*/
 	data[4] = guc->execbuf_client->priority;		/* victim priority			*/
 	data[5] = guc->execbuf_client->ctx_index;		/* victim ctx/wq			*/
 	data[6] = i915_gem_obj_ggtt_offset(ctx_obj) + LRC_GUCSHR_PN*PAGE_SIZE;
@@ -635,11 +635,14 @@ int i915_guc_submit(struct i915_guc_client *client,
 		    struct drm_i915_gem_request *rq)
 {
 	bool preemptive = client->priority <= GUC_CTX_PRIORITY_HIGH;
-	unsigned int engine_id = rq->engine->guc_id;
+	unsigned int engine_id = rq->engine->id;
+	unsigned int guc_id = rq->engine->guc_id;
 	struct intel_guc *guc = client->guc;
 	int q_ret, b_ret;
 
 	if (WARN_ON(engine_id >= I915_NUM_ENGINES))
+		return -ENXIO;
+	if (WARN_ON(guc_id >= GUC_MAX_ENGINES_NUM))
 		return -ENXIO;
 
 	q_ret = guc_add_workqueue_item(client, rq);
@@ -650,7 +653,7 @@ int i915_guc_submit(struct i915_guc_client *client,
 			b_ret = guc_ring_doorbell(client);
 	}
 
-	client->submissions[engine_id] += 1;
+	client->submissions[guc_id] += 1;
 	if (q_ret) {
 		client->q_fail += 1;
 		client->retcode = q_ret;
@@ -662,15 +665,15 @@ int i915_guc_submit(struct i915_guc_client *client,
 		rq->elsp_submitted += 1;
 	}
 	if (preemptive) {
-		guc->preemptions[engine_id] += 1;
-		guc->last_preempt[engine_id] = rq->seqno;
+		guc->preemptions[guc_id] += 1;
+		guc->last_preempt[guc_id] = rq->seqno;
 		if (q_ret)
-			guc->preempt_failures[engine_id] += 1;
+			guc->preempt_failures[guc_id] += 1;
 	} else {
-		guc->submissions[engine_id] += 1;
-		guc->last_seqno[engine_id] = rq->seqno;
+		guc->submissions[guc_id] += 1;
+		guc->last_seqno[guc_id] = rq->seqno;
 		if (q_ret)
-			guc->failures[engine_id] += 1;
+			guc->failures[guc_id] += 1;
 	}
 
 	return q_ret;
