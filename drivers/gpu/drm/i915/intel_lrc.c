@@ -1570,6 +1570,14 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 
 	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
 	wa_ctx_emit(batch, index, (PIPE_CONTROL_CS_STALL |
+				   PIPE_CONTROL_STALL_AT_SCOREBOARD));
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+
+	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
+	wa_ctx_emit(batch, index, (PIPE_CONTROL_CS_STALL |
 				   PIPE_CONTROL_L3_DC_FLUSH));
 	wa_ctx_emit(batch, index, 0);
 	wa_ctx_emit(batch, index, 0);
@@ -1580,6 +1588,14 @@ static inline int gen8_emit_flush_coherentl3_wa(struct intel_engine_cs *engine,
 				   MI_SRM_LRM_GLOBAL_GTT));
 	wa_ctx_emit_reg(batch, index, GEN8_L3SQCREG4);
 	wa_ctx_emit(batch, index, engine->scratch.gtt_offset + 256);
+	wa_ctx_emit(batch, index, 0);
+
+	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
+	wa_ctx_emit(batch, index, (PIPE_CONTROL_CS_STALL |
+				   PIPE_CONTROL_POSTSYNC_FLUSH));
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
 	wa_ctx_emit(batch, index, 0);
 
 	return index;
@@ -1656,10 +1672,27 @@ static int gen8_init_indirectctx_bb(struct intel_engine_cs *engine,
 	scratch_addr = engine->scratch.gtt_offset + 2*CACHELINE_BYTES;
 
 	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
-	wa_ctx_emit(batch, index, (PIPE_CONTROL_FLUSH_L3 |
-				   PIPE_CONTROL_GEN7_GLOBAL_GTT |
-				   PIPE_CONTROL_CS_STALL |
-				   PIPE_CONTROL_QW_WRITE));
+	wa_ctx_emit(batch, index, (PIPE_CONTROL_CS_STALL |
+				   PIPE_CONTROL_STALL_AT_SCOREBOARD));
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+
+	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
+	wa_ctx_emit(batch, index, (PIPE_CONTROL_CS_STALL |
+				   PIPE_CONTROL_L3_DC_FLUSH |
+				   PIPE_CONTROL_FLUSH_L3));
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+	wa_ctx_emit(batch, index, 0);
+
+	wa_ctx_emit(batch, index, GFX_OP_PIPE_CONTROL(6));
+	wa_ctx_emit(batch, index, (PIPE_CONTROL_CS_STALL |
+				   PIPE_CONTROL_POSTSYNC_FLUSH |
+				   PIPE_CONTROL_QW_WRITE |
+				   PIPE_CONTROL_GEN7_GLOBAL_GTT));
 	wa_ctx_emit(batch, index, scratch_addr);
 	wa_ctx_emit(batch, index, 0);
 	wa_ctx_emit(batch, index, 0);
@@ -2173,7 +2206,8 @@ static int gen8_emit_flush_render(struct drm_i915_gem_request *request,
 
 	if (vf_flush_wa) {
 		intel_logical_ring_emit(ringbuf, GFX_OP_PIPE_CONTROL(6));
-		intel_logical_ring_emit(ringbuf, 0);
+		intel_logical_ring_emit(ringbuf, (PIPE_CONTROL_CS_STALL |
+						  PIPE_CONTROL_STALL_AT_SCOREBOARD));
 		intel_logical_ring_emit(ringbuf, 0);
 		intel_logical_ring_emit(ringbuf, 0);
 		intel_logical_ring_emit(ringbuf, 0);

@@ -293,15 +293,18 @@ gen7_render_ring_cs_stall_wa(struct drm_i915_gem_request *req)
 	struct intel_engine_cs *engine = req->engine;
 	int ret;
 
-	ret = intel_ring_begin(req, 4);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(engine, GFX_OP_PIPE_CONTROL(4));
+	intel_ring_emit(engine, GFX_OP_PIPE_CONTROL(5));
 	intel_ring_emit(engine, PIPE_CONTROL_CS_STALL |
 			      PIPE_CONTROL_STALL_AT_SCOREBOARD);
 	intel_ring_emit(engine, 0);
 	intel_ring_emit(engine, 0);
+	intel_ring_emit(engine, 0);
+	intel_ring_emit(engine, MI_NOOP);
+
 	intel_ring_advance(engine);
 
 	return 0;
@@ -358,14 +361,17 @@ gen7_render_ring_flush(struct drm_i915_gem_request *req,
 		gen7_render_ring_cs_stall_wa(req);
 	}
 
-	ret = intel_ring_begin(req, 4);
+	ret = intel_ring_begin(req, 6);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(engine, GFX_OP_PIPE_CONTROL(4));
+	intel_ring_emit(engine, GFX_OP_PIPE_CONTROL(5));
 	intel_ring_emit(engine, flags);
 	intel_ring_emit(engine, scratch_addr);
 	intel_ring_emit(engine, 0);
+	intel_ring_emit(engine, 0);
+	intel_ring_emit(engine, MI_NOOP);
+
 	intel_ring_advance(engine);
 
 	return 0;
@@ -388,6 +394,7 @@ gen8_emit_pipe_control(struct drm_i915_gem_request *req,
 	intel_ring_emit(engine, 0);
 	intel_ring_emit(engine, 0);
 	intel_ring_emit(engine, 0);
+
 	intel_ring_advance(engine);
 
 	return 0;
