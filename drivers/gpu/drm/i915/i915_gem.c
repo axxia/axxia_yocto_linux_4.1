@@ -1231,7 +1231,9 @@ static int __i915_spin_request(struct drm_i915_gem_request *req, int state)
  * __i915_wait_request - wait until execution of request has finished
  * @req: duh!
  * @reset_counter: reset sequence associated with the given request
- * @interruptible: do an interruptible wait (normally yes)
+ * @flags: flags to define the nature of wait
+ *    I915_WAIT_INTERRUPTIBLE - do an interruptible wait (normally yes)
+ *    I915_WAIT_LOCKED - caller is holding struct_mutex
  * @timeout: in - how long to wait (NULL forever); out - how much time remaining
  *
  * Note: It is of utmost importance that the passed in seqno and reset_counter
@@ -1246,20 +1248,22 @@ static int __i915_spin_request(struct drm_i915_gem_request *req, int state)
  */
 int __i915_wait_request(struct drm_i915_gem_request *req,
 			unsigned reset_counter,
-			bool interruptible,
+			uint32_t flags,
 			s64 *timeout,
 			struct intel_rps_client *rps)
 {
 	struct intel_engine_cs *engine = i915_gem_request_get_engine(req);
 	struct drm_device *dev = engine->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	bool interruptible = flags & I915_WAIT_REQUEST_INTERRUPTIBLE;
 	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
 	uint32_t seqno;
 	DEFINE_WAIT(wait);
 	unsigned long timeout_expire;
 	s64 before = 0; /* Only to silence a compiler warning. */
-	int ret;
+	int ret = 0;
 
+	might_sleep();
 	WARN(!intel_irqs_enabled(dev_priv), "IRQs disabled");
 
 	if (i915_gem_request_completed(req))
@@ -1312,6 +1316,19 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			if (ret == 0)
 				ret = -EAGAIN;
 			break;
+		}
+
+		if (flags & I915_WAIT_REQUEST_LOCKED) {
+			/*
+			 * If this request is being processed by the scheduler
+			 * then it is unsafe to sleep with the mutex lock held
+			 * as the scheduler may require the lock in order to
+			 * progress the request.
+			 */
+			if (i915_scheduler_is_mutex_required(req)) {
+				ret = -EAGAIN;
+				break;
+			}
 		}
 
 		if (i915_gem_request_completed(req)) {
@@ -1515,6 +1532,7 @@ i915_wait_request(struct drm_i915_gem_request *req)
 	struct drm_i915_private *dev_priv;
 	bool interruptible;
 	int ret;
+	uint32_t flags;
 
 	BUG_ON(req == NULL);
 
@@ -1528,9 +1546,13 @@ i915_wait_request(struct drm_i915_gem_request *req)
 	if (ret)
 		return ret;
 
+	flags = I915_WAIT_REQUEST_LOCKED;
+	if (interruptible)
+		flags |= I915_WAIT_REQUEST_INTERRUPTIBLE;
+
 	ret = __i915_wait_request(req,
 				  atomic_read(&dev_priv->gpu_error.reset_counter),
-				  interruptible, NULL, NULL);
+				  flags, NULL, NULL);
 	if (ret)
 		return ret;
 
@@ -1642,7 +1664,8 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 
 	mutex_unlock(&dev->struct_mutex);
 	for (i = 0; ret == 0 && i < n; i++)
-		ret = __i915_wait_request(requests[i], reset_counter, true,
+		ret = __i915_wait_request(requests[i], reset_counter,
+					  I915_WAIT_REQUEST_INTERRUPTIBLE,
 					  NULL, rps);
 	mutex_lock(&dev->struct_mutex);
 
@@ -3514,7 +3537,8 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 
 	for (i = 0; i < n; i++) {
 		if (ret == 0)
-			ret = __i915_wait_request(req[i], reset_counter, true,
+			ret = __i915_wait_request(req[i], reset_counter,
+						  I915_WAIT_REQUEST_INTERRUPTIBLE,
 						  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
 						  to_rps_client(file));
 		i915_gem_request_unreference(req[i]);
@@ -3545,11 +3569,15 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 
 	if (!i915_semaphore_is_enabled(obj->base.dev)) {
 		struct drm_i915_private *i915 = to_i915(obj->base.dev);
+		uint32_t flags;
+
+		flags = I915_WAIT_REQUEST_LOCKED;
+		if (i915->mm.interruptible)
+			flags |= I915_WAIT_REQUEST_INTERRUPTIBLE;
+
 		ret = __i915_wait_request(from_req,
 					  atomic_read(&i915->gpu_error.reset_counter),
-					  i915->mm.interruptible,
-					  NULL,
-					  &i915->rps.semaphores);
+					  flags, NULL, &i915->rps.semaphores);
 		if (ret)
 			return ret;
 
@@ -4531,7 +4559,8 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (target == NULL)
 		return 0;
 
-	ret = __i915_wait_request(target, reset_counter, true, NULL, NULL);
+	ret = __i915_wait_request(target, reset_counter,
+				  I915_WAIT_REQUEST_INTERRUPTIBLE, NULL, NULL);
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 

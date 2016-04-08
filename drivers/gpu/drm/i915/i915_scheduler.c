@@ -930,6 +930,32 @@ void i915_scheduler_work_handler(struct work_struct *work)
 }
 
 /**
+ * i915_scheduler_is_mutex_required - query if it is safe to hold the mutex
+ * lock while waiting for the given request.
+ * @req: request to be queried
+ *
+ * Looks up the given request in the scheduler's internal queue and reports
+ * on whether the scheduler will need to acquire the driver's mutex lock in
+ * order for the that request to complete.
+ */
+bool i915_scheduler_is_mutex_required(struct drm_i915_gem_request *req)
+{
+	struct drm_i915_private *dev_priv = req->engine->dev->dev_private;
+	struct i915_scheduler *scheduler = dev_priv->scheduler;
+
+	if (!scheduler)
+		return false;
+
+	if (req->scheduler_qe == NULL)
+		return false;
+
+	if (I915_SQS_IS_QUEUED(req->scheduler_qe))
+		return true;
+
+	return false;
+}
+
+/**
  * i915_scheduler_closefile - notify the scheduler that a DRM file handle
  * has been closed.
  * @dev: DRM device

@@ -3121,9 +3121,14 @@ void __i915_add_request(struct drm_i915_gem_request *req,
 	__i915_add_request(req, NULL, false)
 int __i915_wait_request(struct drm_i915_gem_request *req,
 			unsigned reset_counter,
-			bool interruptible,
+			uint32_t flags,
 			s64 *timeout,
 			struct intel_rps_client *rps);
+
+/* flags used by users of __i915_wait_request */
+#define I915_WAIT_REQUEST_INTERRUPTIBLE  (1 << 0)
+#define I915_WAIT_REQUEST_LOCKED         (1 << 1)
+
 int __must_check i915_wait_request(struct drm_i915_gem_request *req);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int __must_check
