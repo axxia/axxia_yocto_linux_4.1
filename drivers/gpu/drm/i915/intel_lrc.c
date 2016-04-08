@@ -694,10 +694,7 @@ static int execlists_move_to_gpu(struct drm_i915_gem_request *req,
 	if (flush_domains & I915_GEM_DOMAIN_GTT)
 		wmb();
 
-	/* Unconditionally invalidate gpu caches and ensure that we do flush
-	 * any residual writes from the previous batch.
-	 */
-	return logical_ring_invalidate_all_caches(req);
+	return 0;
 }
 
 int intel_logical_ring_alloc_request_extras(struct drm_i915_gem_request *request)
@@ -993,6 +990,18 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 	if (ret)
 		return ret;
 
+	i915_gem_execbuffer_move_to_active(vmas, params->request);
+
+	/* To be split into two functions here... */
+
+	/*
+	 * Unconditionally invalidate gpu caches and ensure that we do flush
+	 * any residual writes from the previous batch.
+	 */
+	ret = logical_ring_invalidate_all_caches(params->request);
+	if (ret)
+		return ret;
+
 	if (engine == &dev_priv->engine[RCS] &&
 	    instp_mode != dev_priv->relative_constants_mode) {
 		ret = intel_logical_ring_begin(params->request, 4);
@@ -1017,7 +1026,6 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 
 	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
 
-	i915_gem_execbuffer_move_to_active(vmas, params->request);
 	i915_gem_execbuffer_retire_commands(params);
 
 	return 0;

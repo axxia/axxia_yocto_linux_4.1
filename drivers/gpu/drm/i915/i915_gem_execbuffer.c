@@ -969,10 +969,7 @@ i915_gem_execbuffer_move_to_gpu(struct drm_i915_gem_request *req,
 	if (flush_domains & I915_GEM_DOMAIN_GTT)
 		wmb();
 
-	/* Unconditionally invalidate gpu caches and ensure that we do flush
-	 * any residual writes from the previous batch.
-	 */
-	return intel_ring_invalidate_all_caches(req);
+	return 0;
 }
 
 static bool
@@ -1240,17 +1237,6 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 	u32 instp_mask;
 	int ret;
 
-	ret = i915_gem_execbuffer_move_to_gpu(params->request, vmas);
-	if (ret)
-		return ret;
-
-	ret = i915_switch_context(params->request);
-	if (ret)
-		return ret;
-
-	WARN(params->ctx->ppgtt && params->ctx->ppgtt->pd_dirty_rings & (1<<engine->id),
-	     "%s didn't clear reload\n", engine->name);
-
 	instp_mode = args->flags & I915_EXEC_CONSTANTS_MASK;
 	instp_mask = I915_EXEC_CONSTANTS_MASK;
 	switch (instp_mode) {
@@ -1283,6 +1269,30 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 		DRM_DEBUG("execbuf with unknown constants: %d\n", instp_mode);
 		return -EINVAL;
 	}
+
+	ret = i915_gem_execbuffer_move_to_gpu(params->request, vmas);
+	if (ret)
+		return ret;
+
+	i915_gem_execbuffer_move_to_active(vmas, params->request);
+
+	/* To be split into two functions here... */
+
+	/*
+	 * Unconditionally invalidate gpu caches and ensure that we do flush
+	 * any residual writes from the previous batch.
+	 */
+	ret = intel_ring_invalidate_all_caches(params->request);
+	if (ret)
+		return ret;
+
+	/* Switch to the correct context for the batch */
+	ret = i915_switch_context(params->request);
+	if (ret)
+		return ret;
+
+	WARN(params->ctx->ppgtt && params->ctx->ppgtt->pd_dirty_rings & (1<<engine->id),
+	     "%s didn't clear reload\n", engine->name);
 
 	if (engine == &dev_priv->engine[RCS] &&
 	    instp_mode != dev_priv->relative_constants_mode) {
@@ -1320,7 +1330,6 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 	trace_i915_gem_ring_dispatch(params->request, params->dispatch_flags);
 
-	i915_gem_execbuffer_move_to_active(vmas, params->request);
 	i915_gem_execbuffer_retire_commands(params);
 
 	return 0;
