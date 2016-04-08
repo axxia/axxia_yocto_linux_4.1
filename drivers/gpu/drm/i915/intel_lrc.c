@@ -2813,6 +2813,14 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 	WARN_ON(ctx->legacy_hw_ctx.rcs_state != NULL);
 	WARN_ON(ctx->engine[engine->id].state);
 
+	/* Don't submit non-scheduler requests while the scheduler is busy */
+	if (i915_scheduler_is_engine_busy(engine)) {
+		mutex_unlock(&dev->struct_mutex);
+		msleep(1);
+		mutex_lock(&dev->struct_mutex);
+		return -EAGAIN;
+	}
+
 	context_size = round_up(intel_lr_context_size(engine), 4096);
 
 	/* One extra page as the sharing data between driver and GuC */

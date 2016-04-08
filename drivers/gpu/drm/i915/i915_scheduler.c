@@ -1880,6 +1880,19 @@ bool i915_scheduler_is_engine_preempting(struct intel_engine_cs *engine)
 }
 
 /**
+ * i915_scheduler_is_engine_busy - is the scheduler busy on the given engine?
+ * @engine: Engine to query
+ * Returns true if the scheduler is busy and cannot immediately perform
+ * operations such as submitting a batch buffer to the hardware or false
+ * if it is not.
+ */
+bool i915_scheduler_is_engine_busy(struct intel_engine_cs *engine)
+{
+	/* Currently only pre-emption ties up the scheduler. */
+	return i915_scheduler_is_engine_preempting(engine);
+}
+
+/**
  * i915_scheduler_is_engine_flying - does the given engine have in flight batches?
  * @engine: Engine to query
  * Used by TDR to distinguish hung engines (not moving but with work to do)
