@@ -5462,6 +5462,8 @@ i915_gem_load_init(struct drm_device *dev)
 			  i915_gem_retire_work_handler);
 	INIT_DELAYED_WORK(&dev_priv->mm.idle_work,
 			  i915_gem_idle_work_handler);
+	INIT_WORK(&dev_priv->mm.scheduler_work,
+				i915_scheduler_work_handler);
 	init_waitqueue_head(&dev_priv->gpu_error.reset_queue);
 
 	dev_priv->relative_constants_mode = I915_EXEC_CONSTANTS_REL_GENERAL;

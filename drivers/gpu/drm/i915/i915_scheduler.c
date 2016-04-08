@@ -712,7 +712,9 @@ static int i915_scheduler_remove_dependent(struct i915_scheduler *scheduler,
  */
 void i915_scheduler_wakeup(struct drm_device *dev)
 {
-	/* XXX: Need to call i915_scheduler_remove() via work handler. */
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	queue_work(dev_priv->wq, &dev_priv->mm.scheduler_work);
 }
 
 /**
@@ -842,7 +844,7 @@ static bool i915_scheduler_remove(struct i915_scheduler *scheduler,
 	return do_submit;
 }
 
-void i915_scheduler_process_work(struct intel_engine_cs *engine)
+static void i915_scheduler_process_work(struct intel_engine_cs *engine)
 {
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 	struct i915_scheduler *scheduler = dev_priv->scheduler;
@@ -886,6 +888,26 @@ void i915_scheduler_process_work(struct intel_engine_cs *engine)
 
 	if (do_submit)
 		intel_runtime_pm_put(dev_priv);
+}
+
+/**
+ * i915_scheduler_work_handler - scheduler's work handler callback.
+ * @work: Work structure
+ * A lot of the scheduler's work must be done asynchronously in response to
+ * an interrupt or other event. However, that work cannot be done at
+ * interrupt time or in the context of the event signaller (which might in
+ * fact be an interrupt). Thus a worker thread is required. This function
+ * will cause the thread to wake up and do its processing.
+ */
+void i915_scheduler_work_handler(struct work_struct *work)
+{
+	struct intel_engine_cs *engine;
+	struct drm_i915_private *dev_priv;
+
+	dev_priv = container_of(work, struct drm_i915_private, mm.scheduler_work);
+
+	for_each_engine(engine, dev_priv)
+		i915_scheduler_process_work(engine);
 }
 
 /**

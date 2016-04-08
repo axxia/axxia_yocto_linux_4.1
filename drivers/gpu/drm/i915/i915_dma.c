@@ -1433,6 +1433,9 @@ int i915_driver_unload(struct drm_device *dev)
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_INIT);
 
+	/* Cancel the scheduler work handler, which should be idle now. */
+	cancel_work_sync(&dev_priv->mm.scheduler_work);
+
 	i915_driver_unregister(dev_priv);
 
 	drm_vblank_cleanup(dev);

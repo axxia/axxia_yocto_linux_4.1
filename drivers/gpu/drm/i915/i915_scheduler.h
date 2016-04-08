@@ -101,5 +101,6 @@ void i915_scheduler_clean_node(struct i915_scheduler_queue_entry *node);
 int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe);
 bool i915_scheduler_notify_request(struct drm_i915_gem_request *req);
 void i915_scheduler_wakeup(struct drm_device *dev);
+void i915_scheduler_work_handler(struct work_struct *work);
 
 #endif  /* _I915_SCHEDULER_H_ */
