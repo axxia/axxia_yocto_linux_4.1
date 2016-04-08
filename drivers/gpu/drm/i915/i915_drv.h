@@ -534,7 +534,8 @@ struct drm_i915_error_state {
 			int page_count;
 			u64 gtt_offset;
 			u32 *pages[0];
-		} *ringbuffer, *batchbuffer, *wa_batchbuffer, *ctx, *hws_page;
+		} *req_ringbuffer, *hw_ringbuffer, *batchbuffer,
+		  *wa_batchbuffer, *ctx, *hws_page;
 
 		struct drm_i915_error_object *wa_ctx;
 

@@ -473,8 +473,15 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 			}
 		}
 
-		if ((obj = error->ring[i].ringbuffer)) {
+		if ((obj = error->ring[i].req_ringbuffer)) {
 			err_printf(m, "%s --- ringbuffer = 0x%08x\n",
+				   dev_priv->engine[i].name,
+				   lower_32_bits(obj->gtt_offset));
+			print_error_obj(m, obj);
+		}
+
+		if ((obj = error->ring[i].hw_ringbuffer)) {
+			err_printf(m, "%s --- HW ringbuffer = 0x%08x\n",
 				   dev_priv->engine[i].name,
 				   lower_32_bits(obj->gtt_offset));
 			print_error_obj(m, obj);
@@ -612,7 +619,8 @@ static void i915_error_state_free(struct kref *error_ref)
 	for (i = 0; i < ARRAY_SIZE(error->ring); i++) {
 		i915_error_object_free(error->ring[i].batchbuffer);
 		i915_error_object_free(error->ring[i].wa_batchbuffer);
-		i915_error_object_free(error->ring[i].ringbuffer);
+		i915_error_object_free(error->ring[i].req_ringbuffer);
+		i915_error_object_free(error->ring[i].hw_ringbuffer);
 		i915_error_object_free(error->ring[i].hws_page);
 		i915_error_object_free(error->ring[i].ctx);
 		kfree(error->ring[i].requests);
@@ -1027,19 +1035,27 @@ static void i915_gem_record_active_context(struct intel_engine_cs *engine,
 {
 	struct drm_i915_private *dev_priv = engine->dev->dev_private;
 	struct drm_i915_gem_object *obj;
-
-	/* Currently render ring is the only HW context user */
-	if (engine->id != RCS || !error->ccid)
-		return;
+	u64 base;
 
 	list_for_each_entry(obj, &dev_priv->mm.bound_list, global_list) {
 		if (!i915_gem_obj_ggtt_bound(obj))
 			continue;
 
-		if ((error->ccid & PAGE_MASK) == i915_gem_obj_ggtt_offset(obj)) {
-			ering->ctx = i915_error_ggtt_object_create(dev_priv, obj);
-			break;
+		base = i915_gem_obj_ggtt_offset(obj);
+
+		if (base == ering->start) {
+			ering->hw_ringbuffer = i915_error_ggtt_object_create(dev_priv, obj);
+			continue;
 		}
+
+		if (!error->ccid)
+			continue;
+
+		if (i915.enable_execlists)
+			base += LRC_PPHWSP_PN * PAGE_SIZE;
+
+		if (base == (error->ccid & PAGE_MASK))
+			ering->ctx = i915_error_ggtt_object_create(dev_priv, obj);
 	}
 }
 
@@ -1114,7 +1130,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		error->ring[i].cpu_ring_head = rbuf->head;
 		error->ring[i].cpu_ring_tail = rbuf->tail;
 
-		error->ring[i].ringbuffer =
+		error->ring[i].req_ringbuffer =
 			i915_error_ggtt_object_create(dev_priv, rbuf->obj);
 
 		error->ring[i].hws_page =
