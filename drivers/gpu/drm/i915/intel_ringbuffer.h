@@ -356,6 +356,7 @@ struct  intel_engine_cs {
 	spinlock_t fence_lock;
 	struct list_head fence_signal_list;
 	struct list_head fence_unsignal_list;
+	uint32_t last_irq_seqno;
 };
 
 static inline bool

@@ -1376,6 +1376,7 @@ out:
 			 * request has not actually been fully processed yet.
 			 */
 			spin_lock_irq(&req->engine->fence_lock);
+			req->engine->last_irq_seqno = 0;
 			i915_gem_request_notify(req->engine, true);
 			spin_unlock_irq(&req->engine->fence_lock);
 		}
@@ -2532,6 +2533,8 @@ i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 
 		for (j = 0; j < ARRAY_SIZE(engine->semaphore.sync_seqno); j++)
 			engine->semaphore.sync_seqno[j] = 0;
+
+		engine->last_irq_seqno = 0;
 	}
 
 	return 0;
@@ -2861,11 +2864,22 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 		return;
 	}
 
+	/*
+	 * Check for a new seqno. If it hasn't actually changed then early
+	 * exit without even grabbing the spinlock. Note that this is safe
+	 * because any corruption of last_irq_seqno merely results in doing
+	 * the full processing when there is potentially no work to be done.
+	 * It can never lead to not processing work that does need to happen.
+	 */
+	seqno = engine->get_seqno(engine, false);
+	trace_i915_gem_request_notify(engine, seqno);
+	if (seqno == engine->last_irq_seqno)
+		return;
+
 	if (!fence_locked)
 		spin_lock_irqsave(&engine->fence_lock, flags);
 
-	seqno = engine->get_seqno(engine, false);
-	trace_i915_gem_request_notify(engine, seqno);
+	engine->last_irq_seqno = seqno;
 
 	list_for_each_entry_safe(req, req_next, &engine->fence_signal_list, signal_link) {
 		if (!req->cancelled) {
@@ -3179,7 +3193,10 @@ static void i915_gem_reset_engine_cleanup(struct drm_i915_private *dev_priv,
 	 * Tidy up anything left over. This includes a call to
 	 * i915_gem_request_notify() which will make sure that any requests
 	 * that were on the signal pending list get also cleaned up.
+	 * NB: The seqno cache must be cleared otherwise the notify call will
+	 * simply return immediately.
 	 */
+	engine->last_irq_seqno = 0;
 	i915_gem_retire_requests_ring(engine);
 
 	/* Having flushed all requests from all queues, we know that all
