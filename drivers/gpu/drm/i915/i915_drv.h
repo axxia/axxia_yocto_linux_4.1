@@ -530,6 +530,8 @@ struct drm_i915_error_state {
 		u32 execlist_csb[6];
 		u32 execlist_ctx[6];
 
+		u64 ctx_desc;
+
 		struct drm_i915_error_object {
 			int page_count;
 			u64 gtt_offset;
@@ -540,7 +542,7 @@ struct drm_i915_error_state {
 		struct drm_i915_error_object *wa_ctx;
 
 		struct drm_i915_error_request {
-			uint64_t ctx_desc;
+			u64 ctx_desc;
 			long jiffies;
 			u32 seqno;
 			u32 tail;
