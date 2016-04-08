@@ -488,6 +488,8 @@ static int i915_scheduler_queue_execbuffer_bypass(struct i915_scheduler_queue_en
 	struct i915_scheduler *scheduler = dev_priv->scheduler;
 	int ret;
 
+	intel_ring_reserved_space_cancel(qe->params.request->ringbuf);
+
 	scheduler->flags[qe->params.engine->id] |= I915_SF_SUBMITTING;
 	ret = dev_priv->gt.execbuf_final(&qe->params);
 	scheduler->flags[qe->params.engine->id] &= ~I915_SF_SUBMITTING;
@@ -559,6 +561,8 @@ int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe)
 	node->status = I915_SQS_QUEUED;
 	node->stamp  = jiffies;
 	i915_gem_request_reference(node->params.request);
+
+	intel_ring_reserved_space_cancel(node->params.request->ringbuf);
 
 	WARN_ON(node->params.request->scheduler_qe);
 	node->params.request->scheduler_qe = node;

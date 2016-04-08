@@ -1298,18 +1298,22 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 	/* The mutex must be acquired before calling this function */
 	WARN_ON(!mutex_is_locked(&params->dev->struct_mutex));
 
+	ret = intel_ring_reserve_space(req);
+	if (ret)
+		goto error;
+
 	/*
 	 * Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
 	ret = intel_ring_invalidate_all_caches(req);
 	if (ret)
-		return ret;
+		goto error;
 
 	/* Switch to the correct context for the batch */
 	ret = i915_switch_context(req);
 	if (ret)
-		return ret;
+		goto error;
 
 	WARN(params->ctx->ppgtt && params->ctx->ppgtt->pd_dirty_rings & (1<<engine->id),
 	     "%s didn't clear reload\n", engine->name);
@@ -1318,7 +1322,7 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 	    params->instp_mode != dev_priv->relative_constants_mode) {
 		ret = intel_ring_begin(req, 4);
 		if (ret)
-			return ret;
+			goto error;
 
 		intel_ring_emit(engine, MI_NOOP);
 		intel_ring_emit(engine, MI_LOAD_REGISTER_IMM(1));
@@ -1332,7 +1336,7 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 	if (params->args_flags & I915_EXEC_GEN7_SOL_RESET) {
 		ret = i915_reset_gen7_sol_offsets(params->dev, req);
 		if (ret)
-			return ret;
+			goto error;
 	}
 
 	exec_len   = params->args_batch_len;
@@ -1346,13 +1350,17 @@ int i915_gem_ringbuffer_submission_final(struct i915_execbuffer_params *params)
 					  exec_start, exec_len,
 					  params->dispatch_flags);
 	if (ret)
-		return ret;
+		goto error;
 
 	trace_i915_gem_ring_dispatch(req, params->dispatch_flags);
 
 	i915_gem_execbuffer_retire_commands(params);
 
-	return 0;
+error:
+	if (ret)
+		intel_ring_reserved_space_cancel(req->ringbuf);
+
+	return ret;
 }
 
 /**

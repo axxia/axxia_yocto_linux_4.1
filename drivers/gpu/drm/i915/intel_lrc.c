@@ -1015,13 +1015,17 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 	/* The mutex must be acquired before calling this function */
 	WARN_ON(!mutex_is_locked(&params->dev->struct_mutex));
 
+	ret = intel_logical_ring_reserve_space(req);
+	if (ret)
+		goto err;
+
 	/*
 	 * Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
 	ret = logical_ring_invalidate_all_caches(req);
 	if (ret)
-		return ret;
+		goto err;
 
 	if (engine == &dev_priv->engine[RCS] &&
 	    params->instp_mode != dev_priv->relative_constants_mode) {
@@ -1043,13 +1047,18 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 
 	ret = engine->emit_bb_start(req, exec_start, params->dispatch_flags);
 	if (ret)
-		return ret;
+		goto err;
 
 	trace_i915_gem_ring_dispatch(req, params->dispatch_flags);
 
 	i915_gem_execbuffer_retire_commands(params);
 
 	return 0;
+
+err:
+	intel_ring_reserved_space_cancel(params->request->ringbuf);
+
+	return ret;
 }
 
 void intel_execlists_retire_requests(struct intel_engine_cs *engine)
