@@ -2679,6 +2679,10 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 		WARN_ON(request->seqno != dev_priv->last_seqno);
 	}
 
+	/* Notify the scheduler, if it doesn't already track this request */
+	if (!request->scheduler_qe)
+		i915_scheduler_fly_request(request);
+
 	/* Record the position of the start of the request so that
 	 * should we detect the updated seqno part-way through the
 	 * GPU processing the request, we never over-estimate the

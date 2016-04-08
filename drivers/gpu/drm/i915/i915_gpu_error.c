@@ -1376,6 +1376,8 @@ static void i915_gem_record_rings(struct drm_device *dev,
 				i915_gem_obj_ggtt_offset(request->ringbuf->obj);
 			erq->scheduler_state = !sqe ? 'u' :
 				i915_scheduler_queue_status_chr(sqe->status);
+			if (request->scheduler_flags & I915_REQ_SF_UNTRACKED)
+				erq->scheduler_state = 'U';
 		}
 	}
 }

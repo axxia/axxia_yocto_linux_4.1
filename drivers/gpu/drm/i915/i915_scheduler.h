@@ -190,6 +190,7 @@ bool i915_scheduler_is_engine_flying(struct intel_engine_cs *engine);
 bool i915_scheduler_is_engine_preempting(struct intel_engine_cs *engine);
 bool i915_scheduler_is_engine_busy(struct intel_engine_cs *engine);
 void i915_scheduler_work_handler(struct work_struct *work);
+void i915_scheduler_fly_request(struct drm_i915_gem_request *req);
 int i915_scheduler_flush(struct intel_engine_cs *engine, bool is_locked);
 int i915_scheduler_flush_stamp(struct intel_engine_cs *engine,
 			       unsigned long stamp, bool is_locked);

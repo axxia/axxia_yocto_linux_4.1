@@ -290,6 +290,29 @@ static void i915_scheduler_node_fly(struct i915_scheduler_queue_entry *node)
 	}
 }
 
+/* An untracked request is being launched ... */
+void i915_scheduler_fly_request(struct drm_i915_gem_request *req)
+{
+	struct drm_i915_private *dev_priv = req->i915;
+	struct i915_scheduler *scheduler = dev_priv->scheduler;
+
+	WARN_ON(!mutex_is_locked(&dev_priv->dev->struct_mutex));
+
+	/* This shouldn't happen */
+	WARN_ON(i915_scheduler_is_engine_busy(req->engine));
+
+	/* We don't expect to see nodes that are already tracked */
+	if (!WARN_ON(req->scheduler_qe)) {
+		/*
+		 * Untracked node (e.g. context initialisation batch buffer),
+		 * must not be inside scheduler submission path.
+		 */
+		WARN_ON((scheduler->flags[req->engine->id] & I915_SF_SUBMITTING));
+		scheduler->stats[req->engine->id].non_batch++;
+		req->scheduler_flags |= I915_REQ_SF_UNTRACKED;
+	}
+}
+
 static uint32_t i915_scheduler_count_flying(struct i915_scheduler *scheduler,
 					    struct intel_engine_cs *engine)
 {
