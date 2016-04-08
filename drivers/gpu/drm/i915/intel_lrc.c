@@ -2124,6 +2124,8 @@ logical_ring_init(struct drm_device *dev, struct intel_engine_cs *engine)
 	engine->dev = dev;
 	INIT_LIST_HEAD(&engine->active_list);
 	INIT_LIST_HEAD(&engine->request_list);
+	INIT_LIST_HEAD(&engine->fence_signal_list);
+	INIT_LIST_HEAD(&engine->fence_unsignal_list);
 	INIT_LIST_HEAD(&engine->delayed_free_list);
 	spin_lock_init(&engine->fence_lock);
 	spin_lock_init(&engine->delayed_free_lock);

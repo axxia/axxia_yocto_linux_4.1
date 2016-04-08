@@ -2253,7 +2253,12 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 struct drm_i915_gem_request {
 	/** Underlying object for implementing the signal/wait stuff. */
 	struct fence fence;
+	struct list_head signal_link;
+	struct list_head unsignal_link;
 	struct list_head delayed_free_link;
+	bool cancelled;
+	bool irq_enabled;
+	bool signal_requested;
 
 	/** On Which ring this request was generated */
 	struct drm_i915_private *i915;
@@ -2339,6 +2344,9 @@ struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct intel_context *ctx);
 void i915_gem_request_cancel(struct drm_i915_gem_request *req);
+void i915_gem_request_enable_interrupt(struct drm_i915_gem_request *req,
+				       bool fence_locked);
+void i915_gem_request_notify(struct intel_engine_cs *ring, bool fence_locked);
 
 int i915_create_fence_timeline(struct drm_device *dev,
 			       struct intel_context *ctx,

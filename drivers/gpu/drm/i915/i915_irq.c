@@ -1001,6 +1001,8 @@ static void notify_ring(struct intel_engine_cs *engine)
 
 	trace_i915_gem_request_notify(engine);
 
+	i915_gem_request_notify(engine, false);
+
 	wake_up_all(&engine->irq_queue);
 }
 

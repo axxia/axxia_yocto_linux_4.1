@@ -2250,6 +2250,8 @@ static int intel_init_ring_buffer(struct drm_device *dev,
 	INIT_LIST_HEAD(&engine->request_list);
 	INIT_LIST_HEAD(&engine->execlist_queue);
 	INIT_LIST_HEAD(&engine->buffers);
+	INIT_LIST_HEAD(&engine->fence_signal_list);
+	INIT_LIST_HEAD(&engine->fence_unsignal_list);
 	INIT_LIST_HEAD(&engine->delayed_free_list);
 	spin_lock_init(&engine->fence_lock);
 	spin_lock_init(&engine->delayed_free_lock);

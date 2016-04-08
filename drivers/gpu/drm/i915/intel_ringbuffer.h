@@ -354,6 +354,8 @@ struct  intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 
 	spinlock_t fence_lock;
+	struct list_head fence_signal_list;
+	struct list_head fence_unsignal_list;
 };
 
 static inline bool

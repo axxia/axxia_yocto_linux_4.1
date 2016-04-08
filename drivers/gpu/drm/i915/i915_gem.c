@@ -40,6 +40,8 @@
 
 #define RQ_BUG_ON(expr)
 
+static void i915_gem_request_submit(struct drm_i915_gem_request *req);
+
 static void i915_gem_object_flush_gtt_write_domain(struct drm_i915_gem_object *obj);
 static void i915_gem_object_flush_cpu_write_domain(struct drm_i915_gem_object *obj);
 static void
@@ -1250,18 +1252,14 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	struct intel_engine_cs *engine = i915_gem_request_get_engine(req);
 	struct drm_device *dev = engine->dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	const bool irq_test_in_progress =
-		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_engine_flag(engine);
 	int state = interruptible ? TASK_INTERRUPTIBLE : TASK_UNINTERRUPTIBLE;
+	uint32_t seqno;
 	DEFINE_WAIT(wait);
 	unsigned long timeout_expire;
 	s64 before = 0; /* Only to silence a compiler warning. */
 	int ret;
 
 	WARN(!intel_irqs_enabled(dev_priv), "IRQs disabled");
-
-	if (list_empty(&req->list))
-		return 0;
 
 	if (i915_gem_request_completed(req))
 		return 0;
@@ -1288,14 +1286,16 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	trace_i915_gem_request_wait_begin(req);
 
 	/* Optimistic spin for the next jiffie before touching IRQs */
-	ret = __i915_spin_request(req, state);
-	if (ret == 0)
-		goto out;
-
-	if (!irq_test_in_progress && WARN_ON(!engine->irq_get(engine))) {
-		ret = -ENODEV;
-		goto out;
+	if (req->seqno) {
+		ret = __i915_spin_request(req, state);
+		if (ret == 0)
+			goto out;
 	}
+
+	/*
+	 * Enable interrupt completion of the request.
+	 */
+	fence_enable_sw_signaling(&req->fence);
 
 	for (;;) {
 		struct timer_list timer;
@@ -1316,6 +1316,19 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 		if (i915_gem_request_completed(req)) {
 			ret = 0;
 			break;
+		}
+
+		if (req->seqno) {
+			/*
+			 * There is quite a lot of latency in the user interrupt
+			 * path. So do an explicit seqno check and potentially
+			 * remove all that delay.
+			 */
+			seqno = engine->get_seqno(engine, false);
+			if (i915_seqno_passed(seqno, req->seqno)) {
+				ret = 0;
+				break;
+			}
 		}
 
 		if (signal_pending_state(state, current)) {
@@ -1344,13 +1357,29 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			destroy_timer_on_stack(&timer);
 		}
 	}
-	if (!irq_test_in_progress)
-		engine->irq_put(engine);
 
 	finish_wait(&engine->irq_queue, &wait);
 
 out:
 	trace_i915_gem_request_wait_end(req);
+
+	if ((ret == 0) && (req->seqno)) {
+		seqno = engine->get_seqno(engine, false);
+		if (i915_seqno_passed(seqno, req->seqno) &&
+		    !i915_gem_request_completed(req)) {
+			/*
+			 * Make sure the request is marked as completed before
+			 * returning. NB: Need to acquire the spinlock around
+			 * the whole call to avoid a race condition with the
+			 * interrupt handler is running concurrently and could
+			 * cause this invocation to early exit even though the
+			 * request has not actually been fully processed yet.
+			 */
+			spin_lock_irq(&req->engine->fence_lock);
+			i915_gem_request_notify(req->engine, true);
+			spin_unlock_irq(&req->engine->fence_lock);
+		}
+	}
 
 	if (timeout) {
 		s64 tres = *timeout - (ktime_get_raw_ns() - before);
@@ -1429,6 +1458,22 @@ static void i915_gem_request_retire(struct drm_i915_gem_request *request)
 
 	list_del_init(&request->list);
 	i915_gem_request_remove_from_client(request);
+
+	/*
+	 * In case the request is still in the signal pending list,
+	 * e.g. due to being cancelled by TDR, preemption, etc.
+	 */
+	if (!list_empty(&request->signal_link)) {
+		/*
+		 * The request must be marked as cancelled and the underlying
+		 * fence as failed. NB: There is no explicit fence fail API,
+		 * there is only a manual poke and signal.
+		 */
+		request->cancelled = true;
+		/* How to propagate to any associated sync_fence??? */
+		request->fence.status = -EIO;
+		fence_signal_locked(&request->fence);
+	}
 
 	i915_gem_request_unreference(request);
 }
@@ -2589,6 +2634,12 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 */
 	request->postfix = intel_ring_get_tail(ringbuf);
 
+	/*
+	 * Add the fence to the pending list before emitting the commands to
+	 * generate a seqno notification interrupt.
+	 */
+	i915_gem_request_submit(request);
+
 	if (i915.enable_execlists)
 		ret = engine->emit_request(request);
 	else {
@@ -2706,25 +2757,139 @@ static void i915_gem_request_free(struct drm_i915_gem_request *req)
 		i915_gem_context_unreference(ctx);
 	}
 
+	if (req->irq_enabled)
+		req->engine->irq_put(req->engine);
+
 	kmem_cache_free(req->i915->requests, req);
+}
+
+/*
+ * The request is about to be submitted to the hardware so add the fence to
+ * the list of signalable fences.
+ *
+ * NB: This does not necessarily enable interrupts yet. That only occurs on
+ * demand when the request is actually waited on. However, adding it to the
+ * list early ensures that there is no race condition where the interrupt
+ * could pop out prematurely and thus be completely lost. The race is merely
+ * that the interrupt must be manually checked for after being enabled.
+ */
+static void i915_gem_request_submit(struct drm_i915_gem_request *req)
+{
+	/*
+	 * Always enable signal processing for the request's fence object
+	 * before that request is submitted to the hardware. Thus there is no
+	 * race condition whereby the interrupt could pop out before the
+	 * request has been added to the signal list. Hence no need to check
+	 * for completion, undo the list add and return false.
+	 */
+	i915_gem_request_reference(req);
+	spin_lock_irq(&req->engine->fence_lock);
+	WARN_ON(!list_empty(&req->signal_link));
+	list_add_tail(&req->signal_link, &req->engine->fence_signal_list);
+	spin_unlock_irq(&req->engine->fence_lock);
+
+	/*
+	 * NB: Interrupts are only enabled on demand. Thus there is still a
+	 * race where the request could complete before the interrupt has
+	 * been enabled. Thus care must be taken at that point.
+	 */
+
+	/* Have interrupts already been requested? */
+	if (req->signal_requested)
+		i915_gem_request_enable_interrupt(req, false);
+}
+
+/*
+ * The request is being actively waited on, so enable interrupt based
+ * completion signalling.
+ */
+void i915_gem_request_enable_interrupt(struct drm_i915_gem_request *req,
+				       bool fence_locked)
+{
+	struct drm_i915_private *dev_priv = to_i915(req->engine->dev);
+	const bool irq_test_in_progress =
+		ACCESS_ONCE(dev_priv->gpu_error.test_irq_rings) & intel_engine_flag(req->engine);
+
+	if (req->irq_enabled)
+		return;
+
+	if (irq_test_in_progress)
+		return;
+
+	if (!WARN_ON(!req->engine->irq_get(req->engine)))
+		req->irq_enabled = true;
+
+	/*
+	 * Because the interrupt is only enabled on demand, there is a race
+	 * where the interrupt can fire before anyone is looking for it. So
+	 * do an explicit check for missed interrupts.
+	 */
+	i915_gem_request_notify(req->engine, fence_locked);
 }
 
 static bool i915_gem_request_enable_signaling(struct fence *req_fence)
 {
-	/* Interrupt driven fences are not implemented yet.*/
-	WARN(true, "This should not be called!");
+	struct drm_i915_gem_request *req = container_of(req_fence,
+						 typeof(*req), fence);
+
+	/*
+	 * No need to actually enable interrupt based processing until the
+	 * request has been submitted to the hardware. At which point
+	 * 'i915_gem_request_submit()' is called. So only really enable
+	 * signalling in there. Just set a flag to say that interrupts are
+	 * wanted when the request is eventually submitted. On the other hand
+	 * if the request has already been submitted then interrupts do need
+	 * to be enabled now.
+	 */
+
+	req->signal_requested = true;
+
+	if (!list_empty(&req->signal_link))
+		i915_gem_request_enable_interrupt(req, true);
+
 	return true;
 }
 
-static bool i915_gem_request_is_completed(struct fence *req_fence)
+void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 {
-	struct drm_i915_gem_request *req = container_of(req_fence,
-						 typeof(*req), fence);
+	struct drm_i915_gem_request *req, *req_next;
+	unsigned long flags;
 	u32 seqno;
 
-	seqno = req->engine->get_seqno(req->engine, false/*lazy_coherency*/);
+	if (list_empty(&engine->fence_signal_list))
+		return;
 
-	return i915_seqno_passed(seqno, req->seqno);
+	if (!fence_locked)
+		spin_lock_irqsave(&engine->fence_lock, flags);
+
+	seqno = engine->get_seqno(engine, false);
+
+	list_for_each_entry_safe(req, req_next, &engine->fence_signal_list, signal_link) {
+		if (!req->cancelled) {
+			if (!i915_seqno_passed(seqno, req->seqno))
+				break;
+		}
+
+		/*
+		 * Start by removing the fence from the signal list otherwise
+		 * the retire code can run concurrently and get confused.
+		 */
+		list_del_init(&req->signal_link);
+
+		if (!req->cancelled)
+			fence_signal_locked(&req->fence);
+
+		if (req->irq_enabled) {
+			req->engine->irq_put(req->engine);
+			req->irq_enabled = false;
+		}
+
+		/* Can't unreference here because that might grab fence_lock */
+		list_add_tail(&req->unsignal_link, &engine->fence_unsignal_list);
+	}
+
+	if (!fence_locked)
+		spin_unlock_irqrestore(&engine->fence_lock, flags);
 }
 
 static const char *i915_gem_request_get_driver_name(struct fence *req_fence)
@@ -2767,7 +2932,6 @@ static void i915_gem_request_fence_value_str(struct fence *req_fence,
 
 static const struct fence_ops i915_gem_request_fops = {
 	.enable_signaling	= i915_gem_request_enable_signaling,
-	.signaled		= i915_gem_request_is_completed,
 	.wait			= fence_default_wait,
 	.release		= i915_gem_request_release,
 	.get_driver_name	= i915_gem_request_get_driver_name,
@@ -2852,6 +3016,7 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 		goto err;
 	}
 
+	INIT_LIST_HEAD(&req->signal_link);
 	fence_init(&req->fence, &i915_gem_request_fops, &engine->fence_lock,
 		   ctx->engine[engine->id].fence_timeline.fence_context,
 		   i915_fence_timeline_get_next_seqno(&ctx->engine[engine->id].fence_timeline));
@@ -2913,6 +3078,11 @@ i915_gem_request_alloc(struct intel_engine_cs *engine,
 void i915_gem_request_cancel(struct drm_i915_gem_request *req)
 {
 	intel_ring_reserved_space_cancel(req->ringbuf);
+
+	req->cancelled = true;
+	/* How to propagate to any associated sync_fence??? */
+	req->fence.status = -EINVAL;
+	fence_signal_locked(&req->fence);
 
 	i915_gem_request_unreference(req);
 }
@@ -3000,6 +3170,13 @@ static void i915_gem_reset_engine_cleanup(struct drm_i915_private *dev_priv,
 		i915_gem_request_retire(request);
 	}
 
+	/*
+	 * Tidy up anything left over. This includes a call to
+	 * i915_gem_request_notify() which will make sure that any requests
+	 * that were on the signal pending list get also cleaned up.
+	 */
+	i915_gem_retire_requests_ring(engine);
+
 	/* Having flushed all requests from all queues, we know that all
 	 * ringbuffers must now be empty. However, since we do not reclaim
 	 * all space when retiring the request (to prevent HEADs colliding
@@ -3047,6 +3224,13 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 
 	WARN_ON(i915_verify_lists(engine->dev));
 
+	/*
+	 * If no-one has waited on a request recently then interrupts will
+	 * not have been enabled and thus no requests will ever be marked as
+	 * completed. So do an interrupt check now.
+	 */
+	i915_gem_request_notify(engine, false);
+
 	/* Retire requests first as we use it above for the early return.
 	 * If we retire requests last, we may use a later seqno and so clear
 	 * the requests lists without clearing the active list, leading to
@@ -3086,6 +3270,15 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 		     i915_gem_request_completed(engine->trace_irq_req))) {
 		engine->irq_put(engine);
 		i915_gem_request_assign(&engine->trace_irq_req, NULL);
+	}
+
+	/* Tidy up any requests that were recently signalled */
+	spin_lock_irq(&engine->fence_lock);
+	list_splice_init(&engine->fence_unsignal_list, &list_head);
+	spin_unlock_irq(&engine->fence_lock);
+	list_for_each_entry_safe(req, req_next, &list_head, unsignal_link) {
+		list_del(&req->unsignal_link);
+		i915_gem_request_unreference(req);
 	}
 
 	/* Really free any requests that were recently unreferenced */
@@ -5162,6 +5355,8 @@ init_engine_lists(struct intel_engine_cs *engine)
 {
 	INIT_LIST_HEAD(&engine->active_list);
 	INIT_LIST_HEAD(&engine->request_list);
+	INIT_LIST_HEAD(&engine->fence_signal_list);
+	INIT_LIST_HEAD(&engine->fence_unsignal_list);
 	INIT_LIST_HEAD(&engine->delayed_free_list);
 }
 
