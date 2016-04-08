@@ -1196,6 +1196,7 @@ bool i915_scheduler_file_queue_wait(struct drm_file *file)
 		 * still be correct and that case is not rare enough to add
 		 * jiffy based inter-engine checks.
 		 */
+		req = NULL;
 		for_each_engine(engine, dev_priv) {
 			for_each_scheduler_node(node, engine->id) {
 				if (I915_SQS_IS_COMPLETE(node))
