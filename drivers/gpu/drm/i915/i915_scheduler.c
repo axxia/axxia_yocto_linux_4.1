@@ -42,6 +42,9 @@ bool i915_scheduler_is_enabled(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	if (!i915.enable_scheduler)
+		return false;
+
 	return dev_priv->scheduler != NULL;
 }
 
@@ -569,7 +572,7 @@ int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe)
 	int incomplete;
 
 	/* Bypass the scheduler and send the buffer immediately? */
-	if (1/*!i915.enable_scheduler*/)
+	if (!i915.enable_scheduler)
 		return i915_scheduler_queue_execbuffer_bypass(qe);
 
 	node = kmalloc(sizeof(*node), GFP_KERNEL);
