@@ -1950,7 +1950,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 	struct intel_engine_cs *engine;
 	struct intel_context *ctx;
 	enum intel_engine_id id;
-	int ret;
+	int ret, count = 0;
 
 	ret = mutex_lock_interruptible(&dev->struct_mutex);
 	if (ret)
@@ -1965,6 +1965,7 @@ static int i915_context_status(struct seq_file *m, void *unused)
 		describe_ctx(m, ctx);
 		if (ctx == dev_priv->kernel_context)
 			seq_printf(m, "(kernel context) ");
+		count++;
 
 		if (i915.enable_execlists) {
 			seq_putc(m, '\n');
@@ -1987,6 +1988,8 @@ static int i915_context_status(struct seq_file *m, void *unused)
 
 		seq_putc(m, '\n');
 	}
+
+	seq_printf(m, "Total: %d contexts\n", count);
 
 	mutex_unlock(&dev->struct_mutex);
 
