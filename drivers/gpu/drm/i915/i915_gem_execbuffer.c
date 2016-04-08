@@ -1801,6 +1801,9 @@ pre_mutex_err:
 	/* intel_gpu_busy should also get a ref, so it will free when the device
 	 * is really idle. */
 	intel_runtime_pm_put(dev_priv);
+
+	dev_priv->scheduler->stats[engine->id].exec_early++;
+
 	return ret;
 }
 
