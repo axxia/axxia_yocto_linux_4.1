@@ -161,6 +161,41 @@ gen4_render_ring_flush(struct drm_i915_gem_request *req,
 	return 0;
 }
 
+/*
+ * Emit a PIPE_CONTROL opcode with the supplied flags.
+ * This routine will fill in the scratch address & data (which may
+ * be ignored, if the flags don't include a post-sync operation).
+ * Workarounds are the responsibility of the caller.
+ */
+static int
+gen6_pipecontrol_emit(struct drm_i915_gem_request *req, u32 flags)
+{
+	struct intel_engine_cs *engine = req->engine;
+	u32 scratch_addr;
+	int ret;
+
+	ret = intel_ring_begin(req, 6);
+	if (ret)
+		return ret;
+
+	/* GEN6 PIPE_CONTROL has the GTT bit in the address */
+	scratch_addr = engine->scratch.gtt_offset;
+	scratch_addr |= PIPE_CONTROL_GLOBAL_GTT;
+	scratch_addr += 2 * CACHELINE_BYTES;
+
+	intel_ring_emit(engine, GFX_OP_PIPE_CONTROL(5));
+	intel_ring_emit(engine, flags);
+	intel_ring_emit(engine, scratch_addr);		/* address */
+	intel_ring_emit(engine, 0);			/* low dword */
+	intel_ring_emit(engine, 0);			/* high dword */
+
+	intel_ring_emit(engine, MI_NOOP);
+
+	intel_ring_advance(engine);
+
+	return 0;
+}
+
 /**
  * Emits a PIPE_CONTROL with a non-zero post-sync operation, for
  * implementing two workarounds on gen6.  From section 1.4.7.1
@@ -199,53 +234,24 @@ gen4_render_ring_flush(struct drm_i915_gem_request *req,
  * really our business.  That leaves only stall at scoreboard.
  */
 static int
-intel_emit_post_sync_nonzero_flush(struct drm_i915_gem_request *req)
+gen6_pipecontrol_workarounds_emit(struct drm_i915_gem_request *req)
 {
-	struct intel_engine_cs *engine = req->engine;
-	u32 scratch_addr = engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
 
-	ret = intel_ring_begin(req, 6);
+	ret = gen6_pipecontrol_emit(req, PIPE_CONTROL_CS_STALL |
+					 PIPE_CONTROL_STALL_AT_SCOREBOARD);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(engine, GFX_OP_PIPE_CONTROL(5));
-	intel_ring_emit(engine, PIPE_CONTROL_CS_STALL |
-			PIPE_CONTROL_STALL_AT_SCOREBOARD);
-	intel_ring_emit(engine, scratch_addr | PIPE_CONTROL_GLOBAL_GTT); /* address */
-	intel_ring_emit(engine, 0); /* low dword */
-	intel_ring_emit(engine, 0); /* high dword */
-	intel_ring_emit(engine, MI_NOOP);
-	intel_ring_advance(engine);
-
-	ret = intel_ring_begin(req, 6);
-	if (ret)
-		return ret;
-
-	intel_ring_emit(engine, GFX_OP_PIPE_CONTROL(5));
-	intel_ring_emit(engine, PIPE_CONTROL_QW_WRITE);
-	intel_ring_emit(engine, scratch_addr | PIPE_CONTROL_GLOBAL_GTT); /* address */
-	intel_ring_emit(engine, 0);
-	intel_ring_emit(engine, 0);
-	intel_ring_emit(engine, MI_NOOP);
-	intel_ring_advance(engine);
-
-	return 0;
+	return gen6_pipecontrol_emit(req, PIPE_CONTROL_QW_WRITE);
 }
 
 static int
 gen6_render_ring_flush(struct drm_i915_gem_request *req,
 		       u32 invalidate_domains, u32 flush_domains)
 {
-	struct intel_engine_cs *engine = req->engine;
 	u32 flags = 0;
-	u32 scratch_addr = engine->scratch.gtt_offset + 2 * CACHELINE_BYTES;
 	int ret;
-
-	/* Force SNB workarounds for PIPE_CONTROL flushes */
-	ret = intel_emit_post_sync_nonzero_flush(req);
-	if (ret)
-		return ret;
 
 	/* Just flush everything.  Experiments have shown that reducing the
 	 * number of bits based on the write domains has little performance
@@ -273,17 +279,12 @@ gen6_render_ring_flush(struct drm_i915_gem_request *req,
 		flags |= PIPE_CONTROL_QW_WRITE | PIPE_CONTROL_CS_STALL;
 	}
 
-	ret = intel_ring_begin(req, 4);
+	/* Force SNB workarounds for PIPE_CONTROL flushes */
+	ret = gen6_pipecontrol_workarounds_emit(req);
 	if (ret)
 		return ret;
 
-	intel_ring_emit(engine, GFX_OP_PIPE_CONTROL(4));
-	intel_ring_emit(engine, flags);
-	intel_ring_emit(engine, scratch_addr | PIPE_CONTROL_GLOBAL_GTT);
-	intel_ring_emit(engine, 0);
-	intel_ring_advance(engine);
-
-	return 0;
+	return gen6_pipecontrol_emit(req, flags);
 }
 
 static int
