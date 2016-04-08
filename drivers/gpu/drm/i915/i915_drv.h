@@ -2389,6 +2389,7 @@ struct drm_i915_gem_request {
 	struct pid *pid;
 
 	struct i915_scheduler_queue_entry *scheduler_qe;
+	uint32_t scheduler_flags;
 
 	/**
 	 * The ELSP only accepts two elements at a time, so we queue

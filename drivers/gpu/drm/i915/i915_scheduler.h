@@ -25,6 +25,16 @@
 #ifndef _I915_SCHEDULER_H_
 #define _I915_SCHEDULER_H_
 
+/* Flag bits for drm_i915_gem_request::scheduler_flags */
+enum {
+	/* Request not submitted via scheduler */
+	I915_REQ_SF_UNTRACKED        = (1 << 0),
+	/* Request was originally preemptive */
+	I915_REQ_SF_WAS_PREEMPT      = (1 << 1),
+	/* Request is preemptive */
+	I915_REQ_SF_PREEMPT          = (1 << 2),
+};
+
 enum i915_scheduler_queue_status {
 	/* Limbo: */
 	I915_SQS_NONE = 0,
@@ -34,6 +44,10 @@ enum i915_scheduler_queue_status {
 	I915_SQS_POPPED,
 	/* Sent to hardware for processing: */
 	I915_SQS_FLYING,
+	/* Sent to hardware for high-priority processing: */
+	I915_SQS_OVERTAKING,
+	/* Previously submitted, but not completed */
+	I915_SQS_PREEMPTED,
 	/* Finished processing on the hardware: */
 	I915_SQS_COMPLETE,
 	/* Killed by watchdog or catastrophic submission failure: */
@@ -45,10 +59,19 @@ char i915_scheduler_queue_status_chr(enum i915_scheduler_queue_status status);
 const char *i915_scheduler_queue_status_str(
 				enum i915_scheduler_queue_status status);
 
-#define I915_SQS_IS_QUEUED(node)	(((node)->status == I915_SQS_QUEUED))
-#define I915_SQS_IS_FLYING(node)	(((node)->status == I915_SQS_FLYING))
+#define I915_SQS_IS_QUEUED(node)	(((node)->status == I915_SQS_QUEUED) || \
+					 ((node)->status == I915_SQS_PREEMPTED))
+#define I915_SQS_IS_FLYING(node)	(((node)->status == I915_SQS_FLYING) || \
+					 ((node)->status == I915_SQS_OVERTAKING))
 #define I915_SQS_IS_COMPLETE(node)	(((node)->status == I915_SQS_COMPLETE) || \
 					 ((node)->status == I915_SQS_DEAD))
+
+#define I915_SQS_CASE_QUEUED		I915_SQS_QUEUED:		\
+					case I915_SQS_PREEMPTED
+#define I915_SQS_CASE_FLYING		I915_SQS_FLYING:		\
+					case I915_SQS_OVERTAKING
+#define I915_SQS_CASE_COMPLETE		I915_SQS_COMPLETE:		\
+					case I915_SQS_DEAD
 
 struct i915_scheduler_obj_entry {
 	struct drm_i915_gem_object *obj;
@@ -87,8 +110,14 @@ struct i915_scheduler_stats {
 	/* Batch buffer counts: */
 	uint32_t queued;
 	uint32_t submitted;
+	uint32_t preempted;
 	uint32_t completed;
 	uint32_t expired;
+
+	uint32_t preempts_queued;
+	uint32_t preempts_submitted;
+	uint32_t preempts_completed;
+	uint32_t max_preempted;
 
 	/* Other stuff: */
 	uint32_t flush_obj;
@@ -98,6 +127,8 @@ struct i915_scheduler_stats {
 	uint32_t flush_bump;
 	uint32_t flush_submit;
 
+	uint32_t non_batch;
+	uint32_t non_batch_done;
 	uint32_t exec_early;
 	uint32_t exec_again;
 	uint32_t exec_dead;
@@ -128,6 +159,10 @@ enum {
 	/* Internal state */
 	I915_SF_INTERRUPTS_ENABLED  = (1 << 0),
 	I915_SF_SUBMITTING          = (1 << 1),
+
+	/* Preemption-related state */
+	I915_SF_PREEMPTING          = (1 << 4),
+	I915_SF_PREEMPTED           = (1 << 5),
 
 	/* Dump/debug flags */
 	I915_SF_DUMP_FORCE          = (1 << 8),

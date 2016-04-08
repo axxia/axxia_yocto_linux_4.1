@@ -3693,6 +3693,7 @@ static int i915_scheduler_info(struct seq_file *m, void *unused)
 	struct intel_engine_cs *engine;
 	char   str[50 * (I915_NUM_ENGINES + 1)], name[50], *ptr;
 	int ret, i, e;
+	uint32_t pa[I915_NUM_ENGINES], pd[I915_NUM_ENGINES];
 
 	ret = mutex_lock_interruptible(&dev->mode_config.mutex);
 	if (ret)
@@ -3709,15 +3710,32 @@ static int i915_scheduler_info(struct seq_file *m, void *unused)
 		seq_printf(m, "%s\n", str);				\
 	} while (0)
 
+	for_each_engine_id(engine, dev_priv, e) {
+		pa[e] = intel_read_status_page(engine,
+						I915_PREEMPTIVE_ACTIVE_SEQNO);
+		pd[e] = intel_read_status_page(engine,
+						I915_PREEMPTIVE_DONE_SEQNO);
+	}
+
 	PRINT_VAR("Engine name:",           "s", dev_priv->engine[e].name);
 	PRINT_VAR("  Engine seqno",         "d", engine->get_seqno(engine, false));
+	PRINT_VAR("  Preemption active",    "d", pa[e]);
+	PRINT_VAR("  Preemption done",      "d", pd[e]);
 	seq_putc(m, '\n');
 
 	seq_puts(m, "Batch submissions:\n");
 	PRINT_VAR("  Queued",               "u", stats[e].queued);
 	PRINT_VAR("  Submitted",            "u", stats[e].submitted);
+	PRINT_VAR("  Preempted",            "u", stats[e].preempted);
 	PRINT_VAR("  Completed",            "u", stats[e].completed);
 	PRINT_VAR("  Expired",              "u", stats[e].expired);
+	seq_putc(m, '\n');
+
+	seq_puts(m, "Preemptions:\n");
+	PRINT_VAR("  Preempts queued",      "u", stats[e].preempts_queued);
+	PRINT_VAR("  Preempts submitted",   "u", stats[e].preempts_submitted);
+	PRINT_VAR("  Preempts completed",   "u", stats[e].preempts_completed);
+	PRINT_VAR("  Max preempted",        "u", stats[e].max_preempted);
 	seq_putc(m, '\n');
 
 	seq_puts(m, "Flush counts:\n");
@@ -3730,6 +3748,8 @@ static int i915_scheduler_info(struct seq_file *m, void *unused)
 	seq_putc(m, '\n');
 
 	seq_puts(m, "Miscellaneous:\n");
+	PRINT_VAR("  Non batch launched",   "u", stats[e].non_batch);
+	PRINT_VAR("  Non batch landed",     "u", stats[e].non_batch_done);
 	PRINT_VAR("  ExecEarly retry",      "u", stats[e].exec_early);
 	PRINT_VAR("  ExecFinal requeue",    "u", stats[e].exec_again);
 	PRINT_VAR("  ExecFinal killed",     "u", stats[e].exec_dead);
