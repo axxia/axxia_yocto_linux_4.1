@@ -2251,14 +2251,9 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
  * initial reference taken using kref_init
  */
 struct drm_i915_gem_request {
-	/**
-	 * Underlying object for implementing the signal/wait stuff.
-	 * NB: Never return this fence object to user land! It is unsafe to
-	 * let anything outside of the i915 driver get hold of the fence
-	 * object as the clean up when decrementing the reference count
-	 * requires holding the driver mutex lock.
-	 */
+	/** Underlying object for implementing the signal/wait stuff. */
 	struct fence fence;
+	struct list_head delayed_free_link;
 
 	/** On Which ring this request was generated */
 	struct drm_i915_private *i915;
@@ -2380,21 +2375,10 @@ i915_gem_request_reference(struct drm_i915_gem_request *req)
 static inline void
 i915_gem_request_unreference(struct drm_i915_gem_request *req)
 {
-	WARN_ON(!mutex_is_locked(&req->engine->dev->struct_mutex));
-	fence_put(&req->fence);
-}
-
-static inline void
-i915_gem_request_unreference__unlocked(struct drm_i915_gem_request *req)
-{
-	struct drm_device *dev;
-
 	if (!req)
 		return;
 
-	dev = req->engine->dev;
-	if (kref_put_mutex(&req->fence.refcount, fence_release, &dev->struct_mutex))
-		mutex_unlock(&dev->struct_mutex);
+	fence_put(&req->fence);
 }
 
 static inline void i915_gem_request_assign(struct drm_i915_gem_request **pdst,

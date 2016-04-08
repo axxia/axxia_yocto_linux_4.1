@@ -306,6 +306,13 @@ struct  intel_engine_cs {
 	 */
 	u32 last_submitted_seqno;
 
+	/*
+	 * Deferred free list to allow unreferencing requests from interrupt
+	 * contexts and from outside of the i915 driver.
+	 */
+	struct list_head delayed_free_list;
+	spinlock_t delayed_free_lock;
+
 	bool gpu_caches_dirty;
 
 	wait_queue_head_t irq_queue;

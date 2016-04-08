@@ -2672,10 +2672,26 @@ static void i915_set_reset_status(struct drm_i915_private *dev_priv,
 	}
 }
 
-static void i915_gem_request_free(struct fence *req_fence)
+static void i915_gem_request_release(struct fence *req_fence)
 {
 	struct drm_i915_gem_request *req = container_of(req_fence,
 						 typeof(*req), fence);
+	struct intel_engine_cs *engine = req->engine;
+	struct drm_i915_private *dev_priv = to_i915(engine->dev);
+
+	/*
+	 * Need to add the request to a deferred dereference list to be
+	 * processed at a mutex lock safe time.
+	 */
+	spin_lock(&engine->delayed_free_lock);
+	list_add_tail(&req->delayed_free_link, &engine->delayed_free_list);
+	spin_unlock(&engine->delayed_free_lock);
+
+	queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
+}
+
+static void i915_gem_request_free(struct drm_i915_gem_request *req)
+{
 	struct intel_context *ctx = req->ctx;
 
 	WARN_ON(!mutex_is_locked(&req->engine->dev->struct_mutex));
@@ -2753,7 +2769,7 @@ static const struct fence_ops i915_gem_request_fops = {
 	.enable_signaling	= i915_gem_request_enable_signaling,
 	.signaled		= i915_gem_request_is_completed,
 	.wait			= fence_default_wait,
-	.release		= i915_gem_request_free,
+	.release		= i915_gem_request_release,
 	.get_driver_name	= i915_gem_request_get_driver_name,
 	.get_timeline_name	= i915_gem_request_get_timeline_name,
 	.fence_value_str	= i915_gem_request_fence_value_str,
@@ -3026,6 +3042,9 @@ void i915_gem_reset(struct drm_device *dev)
 void
 i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 {
+	struct drm_i915_gem_request *req, *req_next;
+	LIST_HEAD(list_head);
+
 	WARN_ON(i915_verify_lists(engine->dev));
 
 	/* Retire requests first as we use it above for the early return.
@@ -3067,6 +3086,15 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 		     i915_gem_request_completed(engine->trace_irq_req))) {
 		engine->irq_put(engine);
 		i915_gem_request_assign(&engine->trace_irq_req, NULL);
+	}
+
+	/* Really free any requests that were recently unreferenced */
+	spin_lock(&engine->delayed_free_lock);
+	list_splice_init(&engine->delayed_free_list, &list_head);
+	spin_unlock(&engine->delayed_free_lock);
+	list_for_each_entry_safe(req, req_next, &list_head, delayed_free_link) {
+		list_del(&req->delayed_free_link);
+		i915_gem_request_free(req);
 	}
 
 	WARN_ON(i915_verify_lists(engine->dev));
@@ -3256,7 +3284,7 @@ i915_gem_wait_ioctl(struct drm_device *dev, void *data, struct drm_file *file)
 			ret = __i915_wait_request(req[i], reset_counter, true,
 						  args->timeout_ns > 0 ? &args->timeout_ns : NULL,
 						  to_rps_client(file));
-		i915_gem_request_unreference__unlocked(req[i]);
+		i915_gem_request_unreference(req[i]);
 	}
 	return ret;
 
@@ -4274,7 +4302,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	if (ret == 0)
 		queue_delayed_work(dev_priv->wq, &dev_priv->mm.retire_work, 0);
 
-	i915_gem_request_unreference__unlocked(target);
+	i915_gem_request_unreference(target);
 
 	return ret;
 }
@@ -5134,6 +5162,7 @@ init_engine_lists(struct intel_engine_cs *engine)
 {
 	INIT_LIST_HEAD(&engine->active_list);
 	INIT_LIST_HEAD(&engine->request_list);
+	INIT_LIST_HEAD(&engine->delayed_free_list);
 }
 
 void
