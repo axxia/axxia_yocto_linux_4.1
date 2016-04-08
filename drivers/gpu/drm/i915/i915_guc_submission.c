@@ -78,9 +78,8 @@ static inline bool host2guc_action_response(struct drm_i915_private *dev_priv,
 static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 {
 	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	u32 status;
-	int i;
-	int ret;
+	u32 status, response;
+	int ret, i;
 
 	if (WARN_ON(len < 1 || len > 15))
 		return -EINVAL;
@@ -100,6 +99,8 @@ static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 
 	/* No HOST2GUC command should take longer than 10ms */
 	ret = wait_for_atomic(host2guc_action_response(dev_priv, &status), 10);
+	response = I915_READ(SOFT_SCRATCH(15));
+	dev_priv->guc.action_status = status;
 	if (status != GUC2HOST_STATUS_SUCCESS) {
 		/*
 		 * Either the GuC explicitly returned an error (which
@@ -109,15 +110,15 @@ static int host2guc_action(struct intel_guc *guc, u32 *data, u32 len)
 		if (ret != -ETIMEDOUT)
 			ret = -EIO;
 
-		DRM_ERROR("GUC: host2guc action 0x%X failed. ret=%d "
+		DRM_ERROR("GuC: host2guc action 0x%X failed. ret=%d "
 				"status=0x%08X response=0x%08X\n",
-				data[0], ret, status,
-				I915_READ(SOFT_SCRATCH(15)));
+				data[0], ret, status, response);
 
-		dev_priv->guc.action_fail += 1;
+		dev_priv->guc.action_fail_count += 1;
+		dev_priv->guc.action_fail_cmd = data[0];
+		dev_priv->guc.action_fail_status = status;
 		dev_priv->guc.action_err = ret;
 	}
-	dev_priv->guc.action_status = status;
 
 	intel_uncore_forcewake_put(dev_priv, FORCEWAKE_ALL);
 
@@ -139,7 +140,7 @@ host2guc_preempt(struct i915_guc_client *client,
 	struct intel_ringbuffer *ringbuf = ctx->engine[engine_id].ringbuf;
 	struct guc_process_desc *desc;
 	void *base;
-	u32 data[7];
+	u32 data[8];
 	int ret;
 
 	if (WARN_ON(!ctx_obj || !ringbuf))
@@ -642,8 +643,17 @@ int i915_guc_submit(struct i915_guc_client *client,
 		client->retcode = 0;
 		rq->elsp_submitted += 1;
 	}
-	guc->submissions[engine_id] += 1;
-	guc->last_seqno[engine_id] = rq->seqno;
+	if (preemptive) {
+		guc->preemptions[engine_id] += 1;
+		guc->last_preempt[engine_id] = rq->seqno;
+		if (q_ret)
+			guc->preempt_failures[engine_id] += 1;
+	} else {
+		guc->submissions[engine_id] += 1;
+		guc->last_seqno[engine_id] = rq->seqno;
+		if (q_ret)
+			guc->failures[engine_id] += 1;
+	}
 
 	return q_ret;
 }

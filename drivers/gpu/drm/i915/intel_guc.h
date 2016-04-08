@@ -106,11 +106,19 @@ struct intel_guc {
 	uint64_t action_count;		/* Total commands issued	*/
 	uint32_t action_cmd;		/* Last command word		*/
 	uint32_t action_status;		/* Last return status		*/
-	uint32_t action_fail;		/* Total number of failures	*/
-	int32_t action_err;		/* Last error code		*/
 
+	uint32_t action_fail_count;	/* Total number of failures	*/
+	uint32_t action_fail_cmd;	/* Last failed command		*/
+	uint32_t action_fail_status;	/* Last bad return status	*/
+	int32_t action_err;		/* Last (nonzero) error code	*/
+
+	/* Submission status & statistics */
 	uint64_t submissions[GUC_MAX_ENGINES_NUM];
 	uint32_t last_seqno[GUC_MAX_ENGINES_NUM];
+	uint32_t failures[GUC_MAX_ENGINES_NUM];
+	uint32_t preemptions[GUC_MAX_ENGINES_NUM];
+	uint32_t last_preempt[GUC_MAX_ENGINES_NUM];
+	uint32_t preempt_failures[GUC_MAX_ENGINES_NUM];
 };
 
 /* intel_guc_loader.c */

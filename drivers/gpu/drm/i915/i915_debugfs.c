@@ -2735,7 +2735,8 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	struct i915_guc_client client = {};
 	struct i915_guc_client preempt = {};
 	struct intel_engine_cs *engine;
-	u64 total = 0;
+	unsigned int i;
+	u64 total = 0, preempts = 0;
 
 	if (!HAS_GUC_SCHED(dev_priv->dev))
 		return 0;
@@ -2753,19 +2754,28 @@ static int i915_guc_info(struct seq_file *m, void *data)
 	mutex_unlock(&dev->struct_mutex);
 
 	seq_printf(m, "GuC total action count: %llu\n", guc.action_count);
-	seq_printf(m, "GuC action failure count: %u\n", guc.action_fail);
 	seq_printf(m, "GuC last action command: 0x%x\n", guc.action_cmd);
 	seq_printf(m, "GuC last action status: 0x%x\n", guc.action_status);
-	seq_printf(m, "GuC last action error code: %d\n", guc.action_err);
+
+	seq_printf(m, "GuC action failure count: %u\n", guc.action_fail_count);
+	seq_printf(m, "GuC last failed action: 0x%x\n", guc.action_fail_cmd);
+	seq_printf(m, "GuC last failed status: 0x%x\n", guc.action_fail_status);
+	seq_printf(m, "GuC last error code: %d\n", guc.action_err);
 
 	seq_printf(m, "\nGuC submissions:\n");
 	for_each_engine(engine, dev_priv) {
-		seq_printf(m, "\t%-24s: %10llu, last seqno 0x%08x\n",
-			engine->name, guc.submissions[engine->guc_id],
-			guc.last_seqno[engine->guc_id]);
-		total += guc.submissions[engine->guc_id];
+		i = engine->guc_id;
+		seq_printf(m, "\t%-24s: %10llu, last %-8s 0x%08x %9d\n",
+			engine->name, guc.submissions[i], "seqno",
+			guc.last_seqno[i], guc.last_seqno[i]);
+		seq_printf(m, "\t%-24s: %10u, last %-8s 0x%08x %9d\n",
+			"    preemptions", guc.preemptions[i], "preempt",
+			guc.last_preempt[i], guc.last_preempt[i]);
+		total += guc.submissions[i];
+		preempts += guc.preemptions[i];
 	}
-	seq_printf(m, "\t%s: %llu\n", "Total", total);
+	seq_printf(m, "\t%s: %10llu\n", "Total regular", total);
+	seq_printf(m, "\t%s: %10llu\n", "     preempts", preempts);
 
 	seq_printf(m, "\nGuC execbuf client @ %p:\n", guc.execbuf_client);
 	i915_guc_client_info(m, dev_priv, &client);
