@@ -28,20 +28,22 @@
 #include "i915_guc_reg.h"
 
 struct i915_guc_client {
-	struct drm_i915_gem_object *client_obj;
-	struct intel_context *owner;
 	struct intel_guc *guc;
+	struct intel_context *owner;
+	struct drm_i915_gem_object *client_obj;
+	uint64_t client_gtt;		/* GTT offset of client_obj	*/
 	uint32_t priority;
 	uint32_t ctx_index;
 
-	uint32_t proc_desc_offset;
-	uint32_t doorbell_offset;
-	uint32_t cookie;
+	uint32_t doorbell_offset;	/* offset within client obj	*/
+	uint32_t proc_desc_offset;	/* offset within client_obj	*/
+	uint32_t wq_offset;		/* offset within client_obj	*/
+	uint32_t wq_size;
+	uint32_t doorbell_cookie;
 	uint16_t doorbell_id;
 	uint16_t padding;		/* Maintain alignment		*/
 
-	uint32_t wq_offset;
-	uint32_t wq_size;
+	spinlock_t wq_lock;		/* Protects all data below	*/
 	uint32_t wq_tail;
 	uint32_t wq_head;
 

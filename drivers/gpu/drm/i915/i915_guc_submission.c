@@ -206,11 +206,11 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 
 	/* current cookie */
 	db_cmp.db_status = GUC_DOORBELL_ENABLED;
-	db_cmp.cookie = gc->cookie;
+	db_cmp.cookie = gc->doorbell_cookie;
 
 	/* cookie to be updated */
 	db_exc.db_status = GUC_DOORBELL_ENABLED;
-	db_exc.cookie = gc->cookie + 1;
+	db_exc.cookie = gc->doorbell_cookie + 1;
 	if (db_exc.cookie == 0)
 		db_exc.cookie = 1;
 
@@ -225,7 +225,7 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 		/* if the exchange was successfully executed */
 		if (db_ret.value_qw == db_cmp.value_qw) {
 			/* db was successfully rung */
-			gc->cookie = db_exc.cookie;
+			gc->doorbell_cookie = db_exc.cookie;
 			ret = 0;
 			break;
 		}
@@ -404,7 +404,7 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 		 */
 		obj = ctx->engine[id].state;
 		if (!obj)
-			break;	/* XXX: continue? */
+			continue;
 
 		ctx_desc = intel_lr_context_descriptor(ctx, engine);
 		lrc->context_desc = (u32)ctx_desc;
@@ -428,22 +428,16 @@ static void guc_init_ctx_desc(struct intel_guc *guc,
 	WARN_ON(desc.engines_used == 0);
 
 	/*
-	 * The CPU address is only needed at certain points, so kmap_atomic on
-	 * demand instead of storing it in the ctx descriptor.
+	 * The CPU address is only needed at certain points, so kmap_atomic
+	 * on demand instead of storing it in the ctx descriptor.
 	 * XXX: May make debug easier to have it mapped
 	 */
 	desc.db_trigger_cpu = 0;
-	desc.db_trigger_uk = client->doorbell_offset +
-		i915_gem_obj_ggtt_offset(client->client_obj);
-	desc.db_trigger_phy = client->doorbell_offset +
-		sg_dma_address(client->client_obj->pages->sgl);
-
-	desc.process_desc = client->proc_desc_offset +
-		i915_gem_obj_ggtt_offset(client->client_obj);
-
-	desc.wq_addr = client->wq_offset +
-		i915_gem_obj_ggtt_offset(client->client_obj);
-
+	desc.db_trigger_phy = sg_dma_address(client->client_obj->pages->sgl)
+						+ client->doorbell_offset;
+	desc.db_trigger_uk = client->client_gtt + client->doorbell_offset;
+	desc.process_desc = client->client_gtt + client->proc_desc_offset;
+	desc.wq_addr = client->client_gtt + client->wq_offset;
 	desc.wq_size = client->wq_size;
 
 	/*
@@ -729,6 +723,7 @@ static struct i915_guc_client *guc_client_alloc(struct drm_device *dev,
 		goto err;
 
 	client->client_obj = obj;
+	client->client_gtt = i915_gem_obj_ggtt_offset(obj);
 	client->wq_offset = GUC_DB_SIZE;
 	client->wq_size = GUC_WQ_SIZE;
 
