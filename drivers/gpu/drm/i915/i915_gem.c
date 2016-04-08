@@ -2605,6 +2605,11 @@ i915_gem_get_seqno(struct drm_device *dev, u32 *seqno)
 
 	/* reserve 0 for non-seqno */
 	if (dev_priv->next_seqno == 0) {
+		/*
+		 * Why is the full re-initialisation required? Is it only for
+		 * hardware semaphores? If so, could skip it in the case where
+		 * semaphores are disabled?
+		 */
 		int ret = i915_gem_init_seqno(dev, 0);
 		if (ret)
 			return ret;
@@ -2660,6 +2665,12 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 			ret = intel_ring_flush_all_caches(request);
 		/* Not allowed to fail! */
 		WARN(ret, "*_ring_flush_all_caches failed: %d!\n", ret);
+	}
+
+	/* Make the request's seqno 'live': */
+	if (!request->seqno) {
+		request->seqno = request->reserved_seqno;
+		WARN_ON(request->seqno != dev_priv->last_seqno);
 	}
 
 	/* Record the position of the start of the request so that
@@ -2916,6 +2927,9 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 
 	list_for_each_entry_safe(req, req_next, &engine->fence_signal_list, signal_link) {
 		if (!req->cancelled) {
+			/* How can this happen? */
+			WARN_ON(req->seqno == 0);
+
 			if (!i915_seqno_passed(seqno, req->seqno))
 				break;
 		}
@@ -3067,7 +3081,14 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	if (req == NULL)
 		return -ENOMEM;
 
-	ret = i915_gem_get_seqno(engine->dev, &req->seqno);
+	/*
+	 * Assign an identifier to track this request through the hardware
+	 * but don't make it live yet. It could change in the future if this
+	 * request gets overtaken. However, it still needs to be allocated
+	 * in advance because the point of submission must not fail and seqno
+	 * allocation can fail.
+	 */
+	ret = i915_gem_get_seqno(engine->dev, &req->reserved_seqno);
 	if (ret)
 		goto err;
 

@@ -2300,6 +2300,7 @@ struct drm_i915_gem_request {
 	  * has finished processing this request.
 	  */
 	u32 seqno;
+	u32 reserved_seqno;
 
 	/* Unique identifier which can be used for trace points & debug */
 	uint32_t uniq;

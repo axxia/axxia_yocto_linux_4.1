@@ -1015,6 +1015,20 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 	/* The mutex must be acquired before calling this function */
 	WARN_ON(!mutex_is_locked(&params->dev->struct_mutex));
 
+	/* Make sure the request's seqno is the latest and greatest: */
+	if (req->reserved_seqno != dev_priv->last_seqno) {
+		ret = i915_gem_get_seqno(engine->dev, &req->reserved_seqno);
+		if (ret)
+			return ret;
+	}
+	/*
+	 * And make it live because some of the execbuff submission code
+	 * requires the seqno to be available up front.
+	 */
+	WARN_ON(req->seqno);
+	req->seqno = req->reserved_seqno;
+	WARN_ON(req->seqno != dev_priv->last_seqno);
+
 	ret = intel_logical_ring_reserve_space(req);
 	if (ret)
 		goto err;
