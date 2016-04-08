@@ -522,6 +522,15 @@ static int i915_scheduler_submit(struct intel_engine_cs *engine)
 	WARN_ON(scheduler->flags[engine->id] & I915_SF_SUBMITTING);
 	scheduler->flags[engine->id] |= I915_SF_SUBMITTING;
 
+	/*
+	 * If pre-emption is in progress on an engine then no further work
+	 * may be submitted to that same engine. Come back later...
+	 */
+	if (i915_scheduler_is_engine_preempting(engine)) {
+		ret = -EAGAIN;
+		goto error;
+	}
+
 	/* First time around, complain if anything unexpected occurs: */
 	ret = i915_scheduler_pop_from_queue_locked(engine, &node);
 	if (ret)
@@ -564,7 +573,18 @@ static int i915_scheduler_submit(struct intel_engine_cs *engine)
 		 */
 		i915_scheduler_node_fly(node);
 
-		scheduler->stats[engine->id].submitted++;
+		if (req->scheduler_flags & I915_REQ_SF_PREEMPT) {
+			/*
+			 * If this batch is pre-emptive then it will tie the
+			 * hardware up at least until it has begun to be
+			 * executed. That is, if a pre-emption request is in
+			 * flight then no other work may be submitted until
+			 * it resolves.
+			 */
+			scheduler->flags[engine->id] |= I915_SF_PREEMPTING;
+			scheduler->stats[engine->id].preempts_submitted++;
+		} else
+			scheduler->stats[engine->id].submitted++;
 
 		spin_unlock_irq(&scheduler->lock);
 		ret = dev_priv->gt.execbuf_final(&node->params);
@@ -581,8 +601,10 @@ static int i915_scheduler_submit(struct intel_engine_cs *engine)
 			/*
 			 * Oh dear! Either the node is broken or the engine is
 			 * busy. So need to kill the node or requeue it and try
-			 * again later as appropriate.
+			 * again later as appropriate. Either way, clear the
+			 * pre-emption flag as it ain't happening.
 			 */
+			scheduler->flags[engine->id] &= ~I915_SF_PREEMPTING;
 
 			switch (-ret) {
 			case ENODEV:
@@ -623,6 +645,10 @@ static int i915_scheduler_submit(struct intel_engine_cs *engine)
 				break;
 			}
 		}
+
+		/* If pre-emption is now in progress then stop launching */
+		if (i915_scheduler_is_engine_preempting(engine))
+			break;
 
 		/* Keep launching until the sky is sufficiently full. */
 		flying = i915_scheduler_count_flying(scheduler, engine);
@@ -958,6 +984,11 @@ bool i915_scheduler_notify_request(struct drm_i915_gem_request *req)
 
 	/* Node was in flight so mark it as complete. */
 	if (req->cancelled) {
+		/* If a preemption was in progress, it won't complete now. */
+		if (node->status == I915_SQS_OVERTAKING)
+			scheduler->flags[req->engine->id] &=
+				    ~(I915_SF_PREEMPTING | I915_SF_PREEMPTED);
+
 		node->status = I915_SQS_DEAD;
 		scheduler->stats[req->engine->id].kill_flying++;
 	} else {
@@ -1818,6 +1849,34 @@ void i915_scheduler_closefile(struct drm_device *dev, struct drm_file *file)
 	}
 
 	spin_unlock_irq(&scheduler->lock);
+}
+
+/**
+ * i915_scheduler_is_engine_preempting - is a pre-emption event in progress?
+ * @engine: Engine to query
+ * Returns true if a pre-emption event is currently in progress (which would
+ * mean that various other operations may be unsafe) or false if not.
+ */
+bool i915_scheduler_is_engine_preempting(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct i915_scheduler *scheduler = dev_priv->scheduler;
+	uint32_t sched_flags = scheduler->flags[engine->id];
+
+	/*
+	 * The scheduler is prevented from sending batches to the hardware
+	 * while preemption is in progress (flag bit I915_SF_PREEMPTING).
+	 *
+	 * Post-preemption (I915_SF_PREEMPTED), the hardware engine will be
+	 * empty, and the scheduler therefore needs a chance to run the
+	 * delayed work task to retire completed work and restart submission
+	 *
+	 * Therefore, if either flag is set, the scheduler is busy.
+	 */
+	if (sched_flags & (I915_SF_PREEMPTING | I915_SF_PREEMPTED))
+		return true;
+
+	return false;
 }
 
 /**
