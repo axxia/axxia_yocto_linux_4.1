@@ -2633,7 +2633,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	struct intel_engine_cs *engine;
 	struct drm_i915_private *dev_priv;
 	struct intel_ringbuffer *ringbuf;
-	u32 request_start;
 	int ret;
 
 	if (WARN_ON(request == NULL))
@@ -2650,7 +2649,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 */
 	intel_ring_reserved_space_use(ringbuf);
 
-	request_start = intel_ring_get_tail(ringbuf);
 	/*
 	 * Emit any outstanding flushes - execbuf can fail to emit the flush
 	 * after having emitted the batchbuffer command. Hence we need to fix
@@ -2695,8 +2693,6 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	}
 	/* Not allowed to fail! */
 	WARN(ret, "emit|add_request failed: %d!\n", ret);
-
-	request->head = request_start;
 
 	/* Whilst this request exists, batch_obj will be on the
 	 * active_list, and so will hold the active reference. Only when this
@@ -3140,6 +3136,7 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 		i915_gem_request_cancel(req);
 		return ret;
 	}
+	req->head = intel_ring_get_tail(req->ringbuf);
 
 	*req_out = req;
 	return 0;
