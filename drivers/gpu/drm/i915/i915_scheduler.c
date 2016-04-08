@@ -205,7 +205,7 @@ int i915_scheduler_init(struct drm_device *dev)
 	scheduler->priority_level_max     = 1023;
 	scheduler->priority_level_bump    = 50;
 	scheduler->priority_level_preempt = 900;
-	scheduler->min_flying             = 2;
+	scheduler->min_flying             = 8;
 	scheduler->file_queue_max         = 64;
 	scheduler->dump_flags             = I915_SF_DUMP_FORCE   |
 					    I915_SF_DUMP_DETAILS |
