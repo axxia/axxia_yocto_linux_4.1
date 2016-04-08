@@ -472,7 +472,9 @@ void intel_ring_update_space(struct intel_ringbuffer *ringbuf);
 int intel_ring_space(struct intel_ringbuffer *ringbuf);
 bool intel_engine_stopped(struct intel_engine_cs *engine);
 
-int __must_check intel_engine_idle(struct intel_engine_cs *engine);
+#define intel_engine_idle(engine)           __intel_engine_idle((engine), false)
+#define intel_engine_idle_flush(engine)     __intel_engine_idle((engine), true)
+int __must_check __intel_engine_idle(struct intel_engine_cs *engine, bool flush);
 void intel_ring_init_seqno(struct intel_engine_cs *engine, u32 seqno);
 int intel_ring_flush_all_caches(struct drm_i915_gem_request *req);
 int intel_ring_invalidate_all_caches(struct drm_i915_gem_request *req);

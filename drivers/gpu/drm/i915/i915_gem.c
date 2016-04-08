@@ -3821,7 +3821,7 @@ int i915_gpu_idle(struct drm_device *dev)
 			i915_add_request_no_flush(req);
 		}
 
-		ret = intel_engine_idle(engine);
+		ret = intel_engine_idle_flush(engine);
 		if (ret)
 			return ret;
 	}

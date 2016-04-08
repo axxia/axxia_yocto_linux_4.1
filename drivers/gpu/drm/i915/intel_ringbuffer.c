@@ -2380,10 +2380,37 @@ static void __wrap_ring_buffer(struct intel_ringbuffer *ringbuf)
 	intel_ring_update_space(ringbuf);
 }
 
-int intel_engine_idle(struct intel_engine_cs *engine)
+/**
+ * __intel_ring_idle - Force the engine to be idle.
+ * @engine: Engine to be idled
+ * @flush: Should queued scheduler work also be flushed
+ * Waits for all outstanding requests that have been sent to the given engine
+ * to complete. Can optionally also force all unsent requests that are queued
+ * in the scheduler to be sent first.
+ * Returns zero on success otherwise a negative error code.
+ *
+ * NB: Flushing can lead to recursion if called at the wrong time. E.g. flush
+ * causes the scheduler to submit requests to the hardware, submitting
+ * requests requires allocating a new seqno, when the seqno wraps around it
+ * idles the engine, idling with flush causes the scheduler to submit requests...
+ */
+int __intel_engine_idle(struct intel_engine_cs *engine, bool flush)
 {
 	struct drm_i915_gem_request *req;
 	uint32_t flags;
+	int ret;
+
+	/*
+	 * NB: Must not flush the scheduler if this idle request is from
+	 * within an execbuff submission (i.e. due to 'get_seqno' calling
+	 * 'wrap_seqno' calling 'idle'). As that would lead to recursive
+	 * flushes!
+	 */
+	if (flush) {
+		ret = i915_scheduler_flush(engine, true);
+		if (ret)
+			return ret;
+	}
 
 	/* Wait upon the last request to be completed */
 	if (list_empty(&engine->request_list))
@@ -3198,7 +3225,7 @@ intel_stop_engine(struct intel_engine_cs *engine)
 	if (!intel_engine_initialized(engine))
 		return;
 
-	ret = intel_engine_idle(engine);
+	ret = intel_engine_idle_flush(engine);
 	if (ret && !i915_reset_in_progress(&to_i915(engine->dev)->gpu_error))
 		DRM_ERROR("failed to quiesce %s whilst cleaning up: %d\n",
 			  engine->name, ret);
