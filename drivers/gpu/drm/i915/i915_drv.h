@@ -377,6 +377,8 @@ struct drm_i915_file_private {
 	} rps;
 
 	unsigned int bsd_ring;
+
+	u32 scheduler_queue_length;
 };
 
 /* Used by dp and fdi links */

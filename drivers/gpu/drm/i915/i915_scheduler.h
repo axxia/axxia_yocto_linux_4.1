@@ -86,6 +86,7 @@ struct i915_scheduler {
 	int32_t priority_level_bump;
 	int32_t priority_level_preempt;
 	uint32_t min_flying;
+	uint32_t file_queue_max;
 };
 
 /* Flag bits for i915_scheduler::flags */
@@ -107,5 +108,6 @@ int i915_scheduler_flush(struct intel_engine_cs *engine, bool is_locked);
 int i915_scheduler_flush_stamp(struct intel_engine_cs *engine,
 			       unsigned long stamp, bool is_locked);
 bool i915_scheduler_is_mutex_required(struct drm_i915_gem_request *req);
+bool i915_scheduler_file_queue_wait(struct drm_file *file);
 
 #endif  /* _I915_SCHEDULER_H_ */

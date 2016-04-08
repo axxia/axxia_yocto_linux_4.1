@@ -77,6 +77,7 @@ int i915_scheduler_init(struct drm_device *dev)
 	scheduler->priority_level_bump    = 50;
 	scheduler->priority_level_preempt = 900;
 	scheduler->min_flying             = 2;
+	scheduler->file_queue_max         = 64;
 
 	dev_priv->scheduler = scheduler;
 
@@ -469,6 +470,28 @@ static int i915_scheduler_submit_unlocked(struct intel_engine_cs *engine)
 	return ret;
 }
 
+/**
+ * i915_scheduler_file_queue_inc - Increment the file's request queue count.
+ * @file: File object to process.
+ */
+static void i915_scheduler_file_queue_inc(struct drm_file *file)
+{
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+
+	file_priv->scheduler_queue_length++;
+}
+
+/**
+ * i915_scheduler_file_queue_dec - Decrement the file's request queue count.
+ * @file: File object to process.
+ */
+static void i915_scheduler_file_queue_dec(struct drm_file *file)
+{
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+
+	file_priv->scheduler_queue_length--;
+}
+
 static void i915_generate_dependencies(struct i915_scheduler *scheduler,
 				       struct i915_scheduler_queue_entry *node,
 				       uint32_t engine)
@@ -654,6 +677,8 @@ int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe)
 	}
 
 	list_add_tail(&node->link, &scheduler->node_queue[engine->id]);
+
+	i915_scheduler_file_queue_inc(node->params.file);
 
 	not_flying = i915_scheduler_count_flying(scheduler, engine) <
 						 scheduler->min_flying;
@@ -898,6 +923,12 @@ static bool i915_scheduler_remove(struct i915_scheduler *scheduler,
 		/* Strip the dependency info while the mutex is still locked */
 		i915_scheduler_remove_dependent(scheduler, node);
 
+		/* Likewise clean up the file pointer. */
+		if (node->params.file) {
+			i915_scheduler_file_queue_dec(node->params.file);
+			node->params.file = NULL;
+		}
+
 		continue;
 	}
 
@@ -987,6 +1018,91 @@ void i915_scheduler_work_handler(struct work_struct *work)
 
 	for_each_engine(engine, dev_priv)
 		i915_scheduler_process_work(engine);
+}
+
+/**
+ * i915_scheduler_file_queue_wait - Waits for space in the per file queue.
+ * @file: File object to process.
+ * This allows throttling of applications by limiting the total number of
+ * outstanding requests to a specified level. Once that limit is reached,
+ * this call will stall waiting on the oldest outstanding request. If it can
+ * not stall for any reason it returns true to mean that the queue is full
+ * and no more requests should be accepted.
+ */
+bool i915_scheduler_file_queue_wait(struct drm_file *file)
+{
+	struct drm_i915_file_private *file_priv = file->driver_priv;
+	struct drm_i915_private *dev_priv  = file_priv->dev_priv;
+	struct i915_scheduler *scheduler = dev_priv->scheduler;
+	struct drm_i915_gem_request *req = NULL;
+	struct i915_scheduler_queue_entry *node;
+	unsigned reset_counter;
+	int ret;
+	struct intel_engine_cs *engine;
+
+	if (file_priv->scheduler_queue_length < scheduler->file_queue_max)
+		return false;
+
+	do {
+		spin_lock_irq(&scheduler->lock);
+
+		/*
+		 * Find the first (i.e. oldest) request for this file. In the
+		 * case where an app is using multiple engines, this search
+		 * might be skewed by engine. However, worst case is an app has
+		 * queued ~60 requests to a high indexed engine and then one
+		 * request to a low indexed engine. In such a case, the driver
+		 * will wait for longer than necessary but operation will
+		 * still be correct and that case is not rare enough to add
+		 * jiffy based inter-engine checks.
+		 */
+		for_each_engine(engine, dev_priv) {
+			for_each_scheduler_node(node, engine->id) {
+				if (I915_SQS_IS_COMPLETE(node))
+					continue;
+
+				if (node->params.file != file)
+					continue;
+
+				req = node->params.request;
+				break;
+			}
+
+			if (req)
+				break;
+		}
+
+		if (!req) {
+			spin_unlock_irq(&scheduler->lock);
+			return false;
+		}
+
+		i915_gem_request_reference(req);
+
+		spin_unlock_irq(&scheduler->lock);
+
+		ret = i915_gem_check_wedge(&dev_priv->gpu_error, false);
+		if (ret)
+			goto err_unref;
+
+		reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
+
+		ret = __i915_wait_request(req, reset_counter,
+				   I915_WAIT_REQUEST_INTERRUPTIBLE, NULL, NULL);
+		if (ret)
+			goto err_unref;
+
+		/* Make sure the request's resources actually get cleared up */
+		i915_scheduler_process_work(req->engine);
+
+		i915_gem_request_unreference(req);
+	} while(file_priv->scheduler_queue_length >= scheduler->file_queue_max);
+
+	return false;
+
+err_unref:
+	i915_gem_request_unreference(req);
+	return true;
 }
 
 static int i915_scheduler_submit_max_priority(struct intel_engine_cs *engine,
@@ -1211,6 +1327,7 @@ void i915_scheduler_closefile(struct drm_device *dev, struct drm_file *file)
 						 node->status,
 						 engine->name);
 
+			i915_scheduler_file_queue_dec(node->params.file);
 			node->params.file = NULL;
 		}
 	}
