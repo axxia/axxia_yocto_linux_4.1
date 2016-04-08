@@ -41,6 +41,9 @@ enum i915_scheduler_queue_status {
 	/* Limit value for use with arrays/loops */
 	I915_SQS_MAX
 };
+char i915_scheduler_queue_status_chr(enum i915_scheduler_queue_status status);
+const char *i915_scheduler_queue_status_str(
+				enum i915_scheduler_queue_status status);
 
 #define I915_SQS_IS_QUEUED(node)	(((node)->status == I915_SQS_QUEUED))
 #define I915_SQS_IS_FLYING(node)	(((node)->status == I915_SQS_FLYING))
@@ -74,6 +77,7 @@ struct i915_scheduler_queue_entry {
 	/* List of all scheduler queue entry nodes */
 	struct list_head link;
 };
+const char *i915_qe_state_str(struct i915_scheduler_queue_entry *node);
 
 struct i915_scheduler {
 	struct list_head node_queue[I915_NUM_ENGINES];
@@ -91,9 +95,17 @@ struct i915_scheduler {
 
 /* Flag bits for i915_scheduler::flags */
 enum {
+	/* Internal state */
 	I915_SF_INTERRUPTS_ENABLED  = (1 << 0),
 	I915_SF_SUBMITTING          = (1 << 1),
+
+	/* Dump/debug flags */
+	I915_SF_DUMP_FORCE          = (1 << 8),
+	I915_SF_DUMP_DETAILS        = (1 << 9),
+	I915_SF_DUMP_DEPENDENCIES   = (1 << 10),
+	I915_SF_DUMP_SEQNO          = (1 << 11),
 };
+const char *i915_scheduler_flag_str(uint32_t flags);
 
 bool i915_scheduler_is_enabled(struct drm_device *dev);
 int i915_scheduler_init(struct drm_device *dev);
@@ -107,6 +119,9 @@ void i915_scheduler_work_handler(struct work_struct *work);
 int i915_scheduler_flush(struct intel_engine_cs *engine, bool is_locked);
 int i915_scheduler_flush_stamp(struct intel_engine_cs *engine,
 			       unsigned long stamp, bool is_locked);
+int i915_scheduler_dump(struct intel_engine_cs *engine,
+			const char *msg);
+int i915_scheduler_dump_all(struct drm_device *dev, const char *msg);
 bool i915_scheduler_is_mutex_required(struct drm_i915_gem_request *req);
 bool i915_scheduler_file_queue_wait(struct drm_file *file);
 
