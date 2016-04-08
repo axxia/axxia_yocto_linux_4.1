@@ -2946,7 +2946,8 @@ static void i915_gem_request_fence_value_str(struct fence *req_fence,
 
 	req = container_of(req_fence, typeof(*req), fence);
 
-	snprintf(str, size, "%d [%d]", req->fence.seqno, req->seqno);
+	snprintf(str, size, "%d [%d:%d]", req->fence.seqno, req->uniq,
+		 req->seqno);
 }
 
 static const struct fence_ops i915_gem_request_fops = {
@@ -3023,6 +3024,7 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 
 	req->i915 = dev_priv;
 	req->engine = engine;
+	req->uniq = dev_priv->request_uniq++;
 	req->ctx  = ctx;
 	i915_gem_context_reference(req->ctx);
 

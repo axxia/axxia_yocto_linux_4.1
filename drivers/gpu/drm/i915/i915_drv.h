@@ -2007,6 +2007,8 @@ struct drm_i915_private {
 
 	struct intel_encoder *dig_port_map[I915_MAX_PORTS];
 
+	uint32_t request_uniq;
+
 	/*
 	 * NOTE: This is the dri1/ums dungeon, don't add stuff here. Your patch
 	 * will be rejected. Instead look for a better place.
@@ -2284,6 +2286,9 @@ struct drm_i915_gem_request {
 	  * has finished processing this request.
 	  */
 	u32 seqno;
+
+	/* Unique identifier which can be used for trace points & debug */
+	uint32_t uniq;
 
 	/** Position in the ringbuffer of the start of the request */
 	u32 head;

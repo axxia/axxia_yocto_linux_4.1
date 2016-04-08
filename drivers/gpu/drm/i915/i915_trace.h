@@ -458,6 +458,7 @@ TRACE_EVENT(i915_gem_ring_sync_to,
 			     __field(u32, dev)
 			     __field(u32, sync_from)
 			     __field(u32, sync_to)
+			     __field(u32, uniq_to)
 			     __field(u32, seqno)
 			     ),
 
@@ -465,13 +466,14 @@ TRACE_EVENT(i915_gem_ring_sync_to,
 			   __entry->dev = from->dev->primary->index;
 			   __entry->sync_from = from->id;
 			   __entry->sync_to = to_req->engine->id;
+			   __entry->uniq_to = to_req->uniq;
 			   __entry->seqno = i915_gem_request_get_seqno(req);
 			   ),
 
-	    TP_printk("dev=%u, sync-from=%u, sync-to=%u, seqno=%u",
+	    TP_printk("dev=%u, sync-from=%u, sync-to=%u, seqno=%u, to_uniq=%u",
 		      __entry->dev,
 		      __entry->sync_from, __entry->sync_to,
-		      __entry->seqno)
+		      __entry->seqno, __entry->uniq_to)
 );
 
 TRACE_EVENT(i915_gem_ring_dispatch,
@@ -481,6 +483,7 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
+			     __field(u32, uniq)
 			     __field(u32, seqno)
 			     __field(u32, flags)
 			     ),
@@ -490,13 +493,15 @@ TRACE_EVENT(i915_gem_ring_dispatch,
 						i915_gem_request_get_engine(req);
 			   __entry->dev = engine->dev->primary->index;
 			   __entry->ring = engine->id;
+			   __entry->uniq = req->uniq;
 			   __entry->seqno = i915_gem_request_get_seqno(req);
 			   __entry->flags = flags;
 			   i915_trace_irq_get(engine, req);
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u, flags=%x",
-		      __entry->dev, __entry->ring, __entry->seqno, __entry->flags)
+	    TP_printk("dev=%u, ring=%u, uniq=%u, seqno=%u, flags=%x",
+		      __entry->dev, __entry->ring, __entry->uniq,
+		      __entry->seqno, __entry->flags)
 );
 
 TRACE_EVENT(i915_gem_ring_flush,
@@ -506,6 +511,7 @@ TRACE_EVENT(i915_gem_ring_flush,
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
+			     __field(u32, uniq)
 			     __field(u32, invalidate)
 			     __field(u32, flush)
 			     ),
@@ -513,12 +519,13 @@ TRACE_EVENT(i915_gem_ring_flush,
 	    TP_fast_assign(
 			   __entry->dev = req->engine->dev->primary->index;
 			   __entry->ring = req->engine->id;
+			   __entry->uniq = req->uniq;
 			   __entry->invalidate = invalidate;
 			   __entry->flush = flush;
 			   ),
 
-	    TP_printk("dev=%u, ring=%x, invalidate=%04x, flush=%04x",
-		      __entry->dev, __entry->ring,
+	    TP_printk("dev=%u, ring=%x, request=%u, invalidate=%04x, flush=%04x",
+		      __entry->dev, __entry->ring, __entry->uniq,
 		      __entry->invalidate, __entry->flush)
 );
 
@@ -529,6 +536,7 @@ DECLARE_EVENT_CLASS(i915_gem_request,
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
+			     __field(u32, uniq)
 			     __field(u32, seqno)
 			     ),
 
@@ -537,11 +545,13 @@ DECLARE_EVENT_CLASS(i915_gem_request,
 						i915_gem_request_get_engine(req);
 			   __entry->dev = engine->dev->primary->index;
 			   __entry->ring = engine->id;
+			   __entry->uniq = req ? req->uniq : 0;
 			   __entry->seqno = i915_gem_request_get_seqno(req);
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u",
-		      __entry->dev, __entry->ring, __entry->seqno)
+	    TP_printk("dev=%u, ring=%u, uniq=%u, seqno=%u",
+		      __entry->dev, __entry->ring, __entry->uniq,
+		      __entry->seqno)
 );
 
 DEFINE_EVENT(i915_gem_request, i915_gem_request_add,
@@ -590,6 +600,7 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
+			     __field(u32, uniq)
 			     __field(u32, seqno)
 			     __field(bool, blocking)
 			     ),
@@ -605,13 +616,14 @@ TRACE_EVENT(i915_gem_request_wait_begin,
 						i915_gem_request_get_engine(req);
 			   __entry->dev = engine->dev->primary->index;
 			   __entry->ring = engine->id;
+			   __entry->uniq = req ? req->uniq : 0;
 			   __entry->seqno = i915_gem_request_get_seqno(req);
 			   __entry->blocking =
 				     mutex_is_locked(&engine->dev->struct_mutex);
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u, blocking=%s",
-		      __entry->dev, __entry->ring,
+	    TP_printk("dev=%u, ring=%u, uniq=%u, seqno=%u, blocking=%s",
+		      __entry->dev, __entry->ring, __entry->uniq,
 		      __entry->seqno, __entry->blocking ?  "yes (NB)" : "no")
 );
 
