@@ -3261,6 +3261,8 @@ static void i915_gem_reset_engine_cleanup(struct drm_i915_private *dev_priv,
 		buffer->last_retired_head = buffer->tail;
 		intel_ring_update_space(buffer);
 	}
+
+	i915_scheduler_reset_cleanup(engine);
 }
 
 void i915_gem_reset(struct drm_device *dev)

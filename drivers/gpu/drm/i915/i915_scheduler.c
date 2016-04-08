@@ -793,6 +793,17 @@ void i915_scheduler_clean_node(struct i915_scheduler_queue_entry *node)
 	}
 }
 
+void i915_scheduler_reset_cleanup(struct intel_engine_cs *engine)
+{
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct i915_scheduler *scheduler = dev_priv->scheduler;
+
+	if (scheduler->flags[engine->id] & I915_SF_INTERRUPTS_ENABLED) {
+		engine->irq_put(engine);
+		scheduler->flags[engine->id] &= ~I915_SF_INTERRUPTS_ENABLED;
+	}
+}
+
 static bool i915_scheduler_remove(struct i915_scheduler *scheduler,
 				  struct intel_engine_cs *engine,
 				  struct list_head *remove)
