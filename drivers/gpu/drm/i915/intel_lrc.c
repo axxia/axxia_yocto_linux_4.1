@@ -2679,6 +2679,14 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 		goto error_ringbuf;
 	}
 
+	/* Create a per context timeline for fences */
+	ret = i915_create_fence_timeline(dev, ctx, engine);
+	if (ret) {
+		DRM_ERROR("Fence timeline creation failed for engine %s, ctx %p\n",
+			  engine->name, ctx);
+		goto error_ringbuf;
+	}
+
 	ctx->engine[engine->id].ringbuf = ringbuf;
 	ctx->engine[engine->id].state = ctx_obj;
 

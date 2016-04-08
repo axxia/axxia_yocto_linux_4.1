@@ -279,6 +279,20 @@ i915_gem_create_context(struct drm_device *dev,
 	if (IS_ERR(ctx))
 		return ctx;
 
+	if (!i915.enable_execlists) {
+		struct intel_engine_cs *engine;
+
+		/* Create a per context timeline for fences */
+		for_each_engine(engine, to_i915(dev)) {
+			ret = i915_create_fence_timeline(dev, ctx, engine);
+			if (ret) {
+				DRM_ERROR("Fence timeline creation failed for legacy %s: %p\n",
+					  engine->name, ctx);
+				goto err_destroy;
+			}
+		}
+	}
+
 	if (is_global_default_ctx && ctx->legacy_hw_ctx.rcs_state) {
 		/* We may need to do things with the shrinker which
 		 * require us to immediately switch back to the default

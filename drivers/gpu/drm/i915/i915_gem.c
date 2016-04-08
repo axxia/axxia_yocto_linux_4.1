@@ -2718,9 +2718,35 @@ static const char *i915_gem_request_get_driver_name(struct fence *req_fence)
 
 static const char *i915_gem_request_get_timeline_name(struct fence *req_fence)
 {
-	struct drm_i915_gem_request *req = container_of(req_fence,
-						 typeof(*req), fence);
-	return req->engine->name;
+	struct drm_i915_gem_request *req;
+	struct i915_fence_timeline *timeline;
+
+	req = container_of(req_fence, typeof(*req), fence);
+	timeline = &req->ctx->engine[req->engine->id].fence_timeline;
+
+	return timeline->name;
+}
+
+static void i915_gem_request_timeline_value_str(struct fence *req_fence,
+						char *str, int size)
+{
+	struct drm_i915_gem_request *req;
+
+	req = container_of(req_fence, typeof(*req), fence);
+
+	/* Last signalled timeline value ??? */
+	snprintf(str, size, "? [%d]"/*, timeline->value*/,
+		 req->engine->get_seqno(req->engine, true));
+}
+
+static void i915_gem_request_fence_value_str(struct fence *req_fence,
+					     char *str, int size)
+{
+	struct drm_i915_gem_request *req;
+
+	req = container_of(req_fence, typeof(*req), fence);
+
+	snprintf(str, size, "%d [%d]", req->fence.seqno, req->seqno);
 }
 
 static const struct fence_ops i915_gem_request_fops = {
@@ -2730,7 +2756,49 @@ static const struct fence_ops i915_gem_request_fops = {
 	.release		= i915_gem_request_free,
 	.get_driver_name	= i915_gem_request_get_driver_name,
 	.get_timeline_name	= i915_gem_request_get_timeline_name,
+	.fence_value_str	= i915_gem_request_fence_value_str,
+	.timeline_value_str	= i915_gem_request_timeline_value_str,
 };
+
+int i915_create_fence_timeline(struct drm_device *dev,
+			       struct intel_context *ctx,
+			       struct intel_engine_cs *engine)
+{
+	struct i915_fence_timeline *timeline;
+
+	timeline = &ctx->engine[engine->id].fence_timeline;
+
+	if (timeline->engine)
+		return 0;
+
+	timeline->fence_context = fence_context_alloc(1);
+
+	/*
+	 * Start the timeline from seqno 0 as this is a special value
+	 * that is reserved for invalid sync points.
+	 */
+	timeline->next       = 1;
+	timeline->ctx        = ctx;
+	timeline->engine     = engine;
+
+	snprintf(timeline->name, sizeof(timeline->name), "%d>%s:%d",
+		 timeline->fence_context, engine->name, ctx->user_handle);
+
+	return 0;
+}
+
+static unsigned i915_fence_timeline_get_next_seqno(struct i915_fence_timeline *timeline)
+{
+	unsigned seqno;
+
+	seqno = timeline->next;
+
+	/* Reserve zero for invalid */
+	if (++timeline->next == 0)
+		timeline->next = 1;
+
+	return seqno;
+}
 
 static inline int
 __i915_gem_request_alloc(struct intel_engine_cs *engine,
@@ -2769,7 +2837,8 @@ __i915_gem_request_alloc(struct intel_engine_cs *engine,
 	}
 
 	fence_init(&req->fence, &i915_gem_request_fops, &engine->fence_lock,
-		   engine->fence_context, req->seqno);
+		   ctx->engine[engine->id].fence_timeline.fence_context,
+		   i915_fence_timeline_get_next_seqno(&ctx->engine[engine->id].fence_timeline));
 
 	/*
 	 * Reserve space in the ring buffer for all the commands required to
@@ -4869,7 +4938,7 @@ i915_gem_init_hw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_engine_cs *engine;
-	int ret, j, fence_base;
+	int ret, j;
 
 	if (INTEL_INFO(dev)->gen < 6 && !intel_enable_gtt())
 		return -EIO;
@@ -4938,13 +5007,9 @@ i915_gem_init_hw(struct drm_device *dev)
 	if (ret)
 		goto out;
 
-	fence_base = fence_context_alloc(I915_NUM_ENGINES);
-
 	/* Now it is safe to go back round and do everything else: */
 	for_each_engine(engine, dev_priv) {
 		struct drm_i915_gem_request *req;
-
-		engine->fence_context = fence_base + engine->id;
 
 		req = i915_gem_request_alloc(engine, NULL);
 		if (IS_ERR(req)) {

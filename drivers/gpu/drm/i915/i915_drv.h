@@ -805,6 +805,15 @@ struct i915_ctx_hang_stats {
 	bool banned;
 };
 
+struct i915_fence_timeline {
+	char        name[32];
+	unsigned    fence_context;
+	unsigned    next;
+
+	struct intel_context *ctx;
+	struct intel_engine_cs *engine;
+};
+
 /* This must match up with the value previously used for execbuf2.rsvd1. */
 #define DEFAULT_CONTEXT_HANDLE 0
 
@@ -852,6 +861,7 @@ struct intel_context {
 		struct i915_vma *lrc_vma;
 		u64 lrc_desc;
 		uint32_t *lrc_reg_state;
+		struct i915_fence_timeline fence_timeline;
 	} engine[I915_NUM_ENGINES];
 
 	struct list_head link;
@@ -2243,13 +2253,10 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 struct drm_i915_gem_request {
 	/**
 	 * Underlying object for implementing the signal/wait stuff.
-	 * NB: Never call fence_later() or return this fence object to user
-	 * land! Due to lazy allocation, scheduler re-ordering, pre-emption,
-	 * etc., there is no guarantee at all about the validity or
-	 * sequentiality of the fence's seqno! It is also unsafe to let
-	 * anything outside of the i915 driver get hold of the fence object
-	 * as the clean up when decrementing the reference count requires
-	 * holding the driver mutex lock.
+	 * NB: Never return this fence object to user land! It is unsafe to
+	 * let anything outside of the i915 driver get hold of the fence
+	 * object as the clean up when decrementing the reference count
+	 * requires holding the driver mutex lock.
 	 */
 	struct fence fence;
 
@@ -2337,6 +2344,10 @@ struct drm_i915_gem_request * __must_check
 i915_gem_request_alloc(struct intel_engine_cs *engine,
 		       struct intel_context *ctx);
 void i915_gem_request_cancel(struct drm_i915_gem_request *req);
+
+int i915_create_fence_timeline(struct drm_device *dev,
+			       struct intel_context *ctx,
+			       struct intel_engine_cs *ring);
 
 static inline bool i915_gem_request_completed(struct drm_i915_gem_request *req)
 {
