@@ -521,6 +521,15 @@ struct drm_i915_error_state {
 		u32 rc_psmi; /* sleep state */
 		u32 semaphore_mboxes[I915_NUM_ENGINES - 1];
 
+		/* Execlists */
+		u32 execlist_status;
+		u32 execlist_ctx_id;
+		u32 execlist_csb_raw_pointer;
+		u32 execlist_csb_write_pointer;
+		u32 execlist_csb_read_pointer;
+		u32 execlist_csb[6];
+		u32 execlist_ctx[6];
+
 		struct drm_i915_error_object {
 			int page_count;
 			u64 gtt_offset;
