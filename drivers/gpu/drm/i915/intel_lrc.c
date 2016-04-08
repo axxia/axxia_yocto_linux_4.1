@@ -2860,5 +2860,7 @@ void intel_lr_context_reset(struct drm_device *dev,
 
 		ringbuf->head = 0;
 		ringbuf->tail = 0;
+		ringbuf->last_retired_head = -1;
+		intel_ring_update_space(ringbuf);
 	}
 }
