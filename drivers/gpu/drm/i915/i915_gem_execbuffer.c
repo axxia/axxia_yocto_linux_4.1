@@ -1275,6 +1275,8 @@ i915_gem_ringbuffer_submission(struct i915_execbuffer_params *params,
 
 	i915_gem_execbuffer_move_to_active(vmas, params->request);
 
+	trace_i915_gem_ring_queue(engine, params);
+
 	qe = container_of(params, typeof(*qe), params);
 	ret = i915_scheduler_queue_execbuffer(qe);
 	if (ret)

@@ -9,6 +9,7 @@
 #include "i915_drv.h"
 #include "intel_drv.h"
 #include "intel_ringbuffer.h"
+#include "i915_scheduler.h"
 
 #undef TRACE_SYSTEM
 #define TRACE_SYSTEM i915
@@ -813,6 +814,201 @@ TRACE_EVENT(switch_mm,
 
 	TP_printk("dev=%u, ring=%u, ctx=%p, ctx_vm=%p",
 		  __entry->dev, __entry->ring, __entry->to, __entry->vm)
+);
+
+TRACE_EVENT(i915_scheduler_queue,
+	    TP_PROTO(struct intel_engine_cs *engine,
+		     struct i915_scheduler_queue_entry *node),
+	    TP_ARGS(engine, node),
+
+	    TP_STRUCT__entry(
+			     __field(u32, engine)
+			     __field(u32, uniq)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->engine = engine->id;
+			   __entry->uniq   = node ? node->params.request->uniq  : 0;
+			   __entry->seqno  = node ? node->params.request->seqno : 0;
+			   ),
+
+	    TP_printk("engine=%d, uniq=%d, seqno=%d",
+		      __entry->engine, __entry->uniq, __entry->seqno)
+);
+
+TRACE_EVENT(i915_scheduler_fly,
+	    TP_PROTO(struct intel_engine_cs *engine,
+		     struct i915_scheduler_queue_entry *node),
+	    TP_ARGS(engine, node),
+
+	    TP_STRUCT__entry(
+			     __field(u32, engine)
+			     __field(u32, uniq)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->engine = engine->id;
+			   __entry->uniq   = node ? node->params.request->uniq  : 0;
+			   __entry->seqno  = node ? node->params.request->seqno : 0;
+			   ),
+
+	    TP_printk("engine=%d, uniq=%d, seqno=%d",
+		      __entry->engine, __entry->uniq, __entry->seqno)
+);
+
+TRACE_EVENT(i915_scheduler_unfly,
+	    TP_PROTO(struct intel_engine_cs *engine,
+		     struct i915_scheduler_queue_entry *node),
+	    TP_ARGS(engine, node),
+
+	    TP_STRUCT__entry(
+			     __field(u32, engine)
+			     __field(u32, uniq)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->engine = engine->id;
+			   __entry->uniq   = node ? node->params.request->uniq  : 0;
+			   __entry->seqno  = node ? node->params.request->seqno : 0;
+			   ),
+
+	    TP_printk("engine=%d, uniq=%d, seqno=%d",
+		      __entry->engine, __entry->uniq, __entry->seqno)
+);
+
+TRACE_EVENT(i915_scheduler_landing,
+	    TP_PROTO(struct drm_i915_gem_request *req),
+	    TP_ARGS(req),
+
+	    TP_STRUCT__entry(
+			     __field(u32, engine)
+			     __field(u32, uniq)
+			     __field(u32, seqno)
+			     __field(u32, status)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->engine = req->engine->id;
+			   __entry->uniq   = req->uniq;
+			   __entry->seqno  = req->seqno;
+			   __entry->status = req->scheduler_qe ?
+						req->scheduler_qe->status : ~0U;
+			   ),
+
+	    TP_printk("engine=%d, uniq=%d, seqno=%d, status=%d",
+		      __entry->engine, __entry->uniq, __entry->seqno,
+		      __entry->status)
+);
+
+TRACE_EVENT(i915_scheduler_remove,
+	    TP_PROTO(struct intel_engine_cs *engine,
+		     u32 min_seqno, bool do_submit),
+	    TP_ARGS(engine, min_seqno, do_submit),
+
+	    TP_STRUCT__entry(
+			     __field(u32, engine)
+			     __field(u32, min_seqno)
+			     __field(bool, do_submit)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->engine    = engine->id;
+			   __entry->min_seqno = min_seqno;
+			   __entry->do_submit = do_submit;
+			   ),
+
+	    TP_printk("engine=%d, min_seqno = %d, do_submit=%d",
+		      __entry->engine, __entry->min_seqno, __entry->do_submit)
+);
+
+TRACE_EVENT(i915_scheduler_destroy,
+	    TP_PROTO(struct intel_engine_cs *engine,
+		     struct i915_scheduler_queue_entry *node),
+	    TP_ARGS(engine, node),
+
+	    TP_STRUCT__entry(
+			     __field(u32, engine)
+			     __field(u32, uniq)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->engine = engine->id;
+			   __entry->uniq   = node ? node->params.request->uniq  : 0;
+			   __entry->seqno  = node ? node->params.request->seqno : 0;
+			   ),
+
+	    TP_printk("engine=%d, uniq=%d, seqno=%d",
+		      __entry->engine, __entry->uniq, __entry->seqno)
+);
+
+TRACE_EVENT(i915_scheduler_pop_from_queue,
+	    TP_PROTO(struct intel_engine_cs *engine,
+		     struct i915_scheduler_queue_entry *node),
+	    TP_ARGS(engine, node),
+
+	    TP_STRUCT__entry(
+			     __field(u32, engine)
+			     __field(u32, uniq)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->engine = engine->id;
+			   __entry->uniq   = node ? node->params.request->uniq  : 0;
+			   __entry->seqno  = node ? node->params.request->seqno : 0;
+			   ),
+
+	    TP_printk("engine=%d, uniq=%d, seqno=%d",
+		      __entry->engine, __entry->uniq, __entry->seqno)
+);
+
+TRACE_EVENT(i915_scheduler_node_state_change,
+	    TP_PROTO(struct intel_engine_cs *engine,
+		     struct i915_scheduler_queue_entry *node),
+	    TP_ARGS(engine, node),
+
+	    TP_STRUCT__entry(
+			     __field(u32, engine)
+			     __field(u32, uniq)
+			     __field(u32, seqno)
+			     __field(u32, status)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->engine  = engine->id;
+			   __entry->uniq    = node ? node->params.request->uniq  : 0;
+			   __entry->seqno   = node->params.request->seqno;
+			   __entry->status  = node->status;
+			   ),
+
+	    TP_printk("engine=%d, uniq=%d, seqno=%d, status=%d",
+		      __entry->engine, __entry->uniq, __entry->seqno,
+		      __entry->status)
+);
+
+TRACE_EVENT(i915_gem_ring_queue,
+	    TP_PROTO(struct intel_engine_cs *ring,
+		     struct i915_execbuffer_params *params),
+	    TP_ARGS(ring, params),
+
+	    TP_STRUCT__entry(
+			     __field(u32, ring)
+			     __field(u32, uniq)
+			     __field(u32, seqno)
+			     ),
+
+	    TP_fast_assign(
+			   __entry->ring  = ring->id;
+			   __entry->uniq  = params->request->uniq;
+			   __entry->seqno = params->request->seqno;
+			   ),
+
+	    TP_printk("ring=%d, uniq=%d, seqno=%d", __entry->ring,
+		      __entry->uniq, __entry->seqno)
 );
 
 #endif /* _I915_TRACE_H_ */

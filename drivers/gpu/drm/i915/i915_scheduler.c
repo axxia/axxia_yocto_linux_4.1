@@ -95,6 +95,8 @@ static void i915_scheduler_node_requeue(struct i915_scheduler_queue_entry *node)
 	/* Seqno will be reassigned on relaunch */
 	node->params.request->seqno = 0;
 	node->status = I915_SQS_QUEUED;
+	trace_i915_scheduler_unfly(node->params.engine, node);
+	trace_i915_scheduler_node_state_change(node->params.engine, node);
 }
 
 /*
@@ -105,7 +107,11 @@ static void i915_scheduler_node_kill(struct i915_scheduler_queue_entry *node)
 {
 	WARN_ON(I915_SQS_IS_COMPLETE(node));
 
+	if (I915_SQS_IS_FLYING(node))
+		trace_i915_scheduler_unfly(node->params.engine, node);
+
 	node->status = I915_SQS_DEAD;
+	trace_i915_scheduler_node_state_change(node->params.engine, node);
 }
 
 /* Mark a node as in flight on the hardware. */
@@ -127,6 +133,9 @@ static void i915_scheduler_node_fly(struct i915_scheduler_queue_entry *node)
 	list_add(&node->link, &scheduler->node_queue[engine->id]);
 
 	node->status = I915_SQS_FLYING;
+
+	trace_i915_scheduler_fly(engine, node);
+	trace_i915_scheduler_node_state_change(engine, node);
 
 	if (!(scheduler->flags[engine->id] & I915_SF_INTERRUPTS_ENABLED)) {
 		bool success = true;
@@ -286,6 +295,8 @@ static int i915_scheduler_pop_from_queue_locked(struct intel_engine_cs *engine,
 		INIT_LIST_HEAD(&best->link);
 		best->status = I915_SQS_POPPED;
 
+		trace_i915_scheduler_node_state_change(engine, best);
+
 		ret = 0;
 	} else {
 		/* Can only get here if:
@@ -302,6 +313,8 @@ static int i915_scheduler_pop_from_queue_locked(struct intel_engine_cs *engine,
 				  (int) engine->id);
 		}
 	}
+
+	trace_i915_scheduler_pop_from_queue(engine, best);
 
 	*pop_node = best;
 	return ret;
@@ -511,6 +524,8 @@ static int i915_scheduler_queue_execbuffer_bypass(struct i915_scheduler_queue_en
 	struct i915_scheduler *scheduler = dev_priv->scheduler;
 	int ret;
 
+	trace_i915_scheduler_queue(qe->params.engine, qe);
+
 	intel_ring_reserved_space_cancel(qe->params.request->ringbuf);
 
 	scheduler->flags[qe->params.engine->id] |= I915_SF_SUBMITTING;
@@ -643,6 +658,9 @@ int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe)
 	not_flying = i915_scheduler_count_flying(scheduler, engine) <
 						 scheduler->min_flying;
 
+	trace_i915_scheduler_queue(engine, node);
+	trace_i915_scheduler_node_state_change(engine, node);
+
 	spin_unlock_irq(&scheduler->lock);
 
 	if (not_flying)
@@ -672,6 +690,8 @@ bool i915_scheduler_notify_request(struct drm_i915_gem_request *req)
 	struct i915_scheduler_queue_entry *node = req->scheduler_qe;
 	unsigned long flags;
 
+	trace_i915_scheduler_landing(req);
+
 	if (!node)
 		return false;
 
@@ -684,6 +704,8 @@ bool i915_scheduler_notify_request(struct drm_i915_gem_request *req)
 		node->status = I915_SQS_DEAD;
 	else
 		node->status = I915_SQS_COMPLETE;
+
+	trace_i915_scheduler_node_state_change(req->engine, node);
 
 	spin_unlock_irqrestore(&scheduler->lock, flags);
 
@@ -892,6 +914,8 @@ static bool i915_scheduler_remove(struct i915_scheduler *scheduler,
 	/* Launch more packets now? */
 	do_submit = (queued > 0) && (flying < scheduler->min_flying);
 
+	trace_i915_scheduler_remove(engine, min_seqno, do_submit);
+
 	spin_unlock_irq(&scheduler->lock);
 
 	return do_submit;
@@ -926,6 +950,8 @@ static void i915_scheduler_process_work(struct intel_engine_cs *engine)
 	while (!list_empty(&remove)) {
 		node = list_first_entry(&remove, typeof(*node), link);
 		list_del(&node->link);
+
+		trace_i915_scheduler_destroy(engine, node);
 
 		/* Free up all the DRM references */
 		i915_scheduler_clean_node(node);
