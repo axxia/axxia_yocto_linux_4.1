@@ -493,17 +493,19 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				err_printf(m, " (submitted by %s [%d])",
 					   error->ring[i].comm,
 					   error->ring[i].pid);
-			err_printf(m, " --- gtt_offset = 0x%08x %08x\n",
+			err_printf(m, " --- gtt_offset = 0x%08x %08x; %d pages\n",
 				   upper_32_bits(obj->gtt_offset),
-				   lower_32_bits(obj->gtt_offset));
+				   lower_32_bits(obj->gtt_offset),
+				   obj->page_count);
 			print_error_obj(m, obj);
 		}
 
 		obj = error->ring[i].wa_batchbuffer;
 		if (obj) {
-			err_printf(m, "%s (w/a) --- gtt_offset = 0x%08x\n",
+			err_printf(m, "%s (w/a) --- gtt_offset = 0x%08x; %d pages\n",
 				   dev_priv->engine[i].name,
-				   lower_32_bits(obj->gtt_offset));
+				   lower_32_bits(obj->gtt_offset),
+				   obj->page_count);
 			print_error_obj(m, obj);
 		}
 
@@ -524,18 +526,20 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		}
 
 		if ((obj = error->ring[i].req_ringbuffer)) {
-			err_printf(m, "%s --- ringbuffer = 0x%08x (ctx_desc 0x%08x_%08x)\n",
+			err_printf(m, "%s --- ringbuffer = 0x%08x; %d pages (ctx_desc 0x%08x_%08x)\n",
 				   dev_priv->engine[i].name,
 				   lower_32_bits(obj->gtt_offset),
+				   obj->page_count,
 				   upper_32_bits(error->ring[i].ctx_desc),
 				   lower_32_bits(error->ring[i].ctx_desc));
 			print_error_obj(m, obj);
 		}
 
 		if ((obj = error->ring[i].hw_ringbuffer)) {
-			err_printf(m, "%s --- HW ringbuffer = 0x%08x\n",
+			err_printf(m, "%s --- HW ringbuffer = 0x%08x; %d pages\n",
 				   dev_priv->engine[i].name,
-				   lower_32_bits(obj->gtt_offset));
+				   lower_32_bits(obj->gtt_offset),
+				   obj->page_count);
 			print_error_obj(m, obj);
 		}
 
@@ -584,9 +588,10 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		}
 
 		if ((obj = error->ring[i].ctx)) {
-			err_printf(m, "%s --- HW Context = 0x%08x\n",
+			err_printf(m, "%s --- HW Context = 0x%08x; %d pages\n",
 				   dev_priv->engine[i].name,
-				   lower_32_bits(obj->gtt_offset));
+				   lower_32_bits(obj->gtt_offset),
+				   obj->page_count);
 			print_error_obj(m, obj);
 		}
 	}
