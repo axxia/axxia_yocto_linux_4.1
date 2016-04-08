@@ -999,8 +999,6 @@ static void notify_ring(struct intel_engine_cs *engine)
 	if (!intel_engine_initialized(engine))
 		return;
 
-	trace_i915_gem_request_notify(engine);
-
 	i915_gem_request_notify(engine, false);
 
 	wake_up_all(&engine->irq_queue);

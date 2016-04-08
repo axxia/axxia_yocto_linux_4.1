@@ -550,23 +550,27 @@ DEFINE_EVENT(i915_gem_request, i915_gem_request_add,
 );
 
 TRACE_EVENT(i915_gem_request_notify,
-	    TP_PROTO(struct intel_engine_cs *engine),
-	    TP_ARGS(engine),
+	    TP_PROTO(struct intel_engine_cs *engine, uint32_t seqno),
+	    TP_ARGS(engine, seqno),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
 			     __field(u32, seqno)
+			     __field(bool, is_empty)
 			     ),
 
 	    TP_fast_assign(
 			   __entry->dev = engine->dev->primary->index;
 			   __entry->ring = engine->id;
-			   __entry->seqno = engine->get_seqno(engine, false);
+			   __entry->seqno = seqno;
+			   __entry->is_empty =
+					list_empty(&engine->fence_signal_list);
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u",
-		      __entry->dev, __entry->ring, __entry->seqno)
+	    TP_printk("dev=%u, ring=%u, seqno=%u, empty=%d",
+		      __entry->dev, __entry->ring, __entry->seqno,
+		      __entry->is_empty)
 );
 
 DEFINE_EVENT(i915_gem_request, i915_gem_request_retire,
