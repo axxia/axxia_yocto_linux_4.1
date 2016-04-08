@@ -458,28 +458,43 @@ intel_write_status_page(struct intel_engine_cs *engine,
  * chosen carefully to meet those requirements. The list below shows the
  * currently-known alignment requirements:
  *
- *	I915_GEM_SCRATCH_INDEX	    must be EVEN (QWord aligned)
- *	I915_GEM_HWS_INDEX	    must be EVEN (QWord aligned), but also bit 3
- *				    must be ZERO, so that the resulting address
- *				    has a 0 in bit 5 (see BSpec for limitation
- *				    on MI_FLUSH_DW instruction).
+ *	I915_GEM_HWS_INDEX
+ *	I915_GEM_SCRATCH_INDEX
+ *		must be EVEN (QWord aligned) but ALSO bit 3 must be ZERO,
+ *		so that the resulting address has a 0 in bit 5 (due to H/W
+ *		limitation on MI_FLUSH_DW instruction with QWord data).
+ *
+ *	I915_BATCH_DONE_SEQNO
+ *	I915_PREEMPTIVE_DONE_SEQNO
+ *		must be EVEN (QWord aligned) but ALSO bit 3 must be ZERO,
+ *		so that the resulting address has a 0 in bit 5 (due to H/W
+ *		limitation on MI_FLUSH_DW instruction with QWord data).
+ *
+ *	I915_BATCH_ACTIVE_SEQNO
+ *	I915_PREEMPTIVE_ACTIVE_SEQNO
+ *		must each be at the odd address one above the corresponding
+ *		I915_*_DONE_SEQNO value, as they are addressed both as DWords
+ *		in their own right and as half of a QWord containing both the
+ *		DONE and ACTIVE values together.
  */
 
 /*
  * Tracking; these are updated by the GPU at the beginning and/or end of every
- * batch. One pair for regular buffers, the other for preemptive ones.
+ * batch. One pair is for regular buffers, the other for preemptive ones.
  */
 #define I915_BATCH_DONE_SEQNO		0x30  /* Completed batch seqno        */
 #define I915_BATCH_ACTIVE_SEQNO		0x31  /* In progress batch seqno      */
 #define I915_PREEMPTIVE_DONE_SEQNO	0x32  /* Completed preemptive batch   */
 #define I915_PREEMPTIVE_ACTIVE_SEQNO	0x33  /* In progress preemptive batch */
+#define I915_GEM_HWS_SCRATCH_INDEX	0x34  /* QWord, uses 0x35 as well     */
+#define I915_GEM_HWS_SCRATCH_ADDR	(I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
+
+/* Beware of addresses 0xX8-0xXF due to MI_FLUSH_DW with QWord bug */
 
 #define I915_GEM_HWS_INDEX		I915_BATCH_DONE_SEQNO	/* alias */
-#define I915_GEM_HWS_INDEX_ADDR         (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
+//#define I915_GEM_HWS_INDEX_ADDR       (I915_GEM_HWS_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 //#define I915_GEM_ACTIVE_SEQNO_INDEX	I915_BATCH_ACTIVE_SEQNO	/* alias */
 
-#define I915_GEM_HWS_SCRATCH_INDEX	0x40  /* QWord */
-#define I915_GEM_HWS_SCRATCH_ADDR	(I915_GEM_HWS_SCRATCH_INDEX << MI_STORE_DWORD_INDEX_SHIFT)
 
 struct intel_ringbuffer *
 intel_engine_create_ringbuffer(struct intel_engine_cs *engine, int size);
