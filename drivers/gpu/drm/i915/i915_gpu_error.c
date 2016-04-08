@@ -493,7 +493,8 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				err_printf(m, " (submitted by %s [%d])",
 					   error->ring[i].comm,
 					   error->ring[i].pid);
-			err_printf(m, " --- gtt_offset = 0x%08x %08x; %d pages\n",
+			err_printf(m, " --- %sgtt_offset = 0x%08x %08x; %d pages\n",
+				   obj->is_ppgtt ? "pp" : "g",
 				   upper_32_bits(obj->gtt_offset),
 				   lower_32_bits(obj->gtt_offset),
 				   obj->page_count);
@@ -517,9 +518,13 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 				struct drm_i915_error_request *erq;
 
 				erq = &error->ring[i].requests[j];
-				err_printf(m, "  seqno 0x%08x, tail 0x%08x, "
-					"emitted %ld, ctx_desc 0x%08x_%08x\n",
-					erq->seqno, erq->tail, erq->jiffies,
+				err_printf(m, "  seqno 0x%08x, ringbuf 0x%llx "
+					      "head 0x%08x tail 0x%08x, "
+					      "emitted %ld, %d submissions, "
+					      "ctx_desc 0x%08x_%08x\n",
+					erq->seqno, erq->ringbuffer_gtt,
+					erq->head, erq->tail,
+					erq->jiffies, erq->submission_count,
 					upper_32_bits(erq->ctx_desc),
 					lower_32_bits(erq->ctx_desc));
 			}
@@ -739,6 +744,8 @@ i915_error_object_create(struct drm_i915_private *dev_priv,
 	reloc_offset = dst->gtt_offset;
 	if (i915_is_ggtt(vm))
 		vma = i915_gem_obj_to_ggtt(src);
+	else
+		dst->is_ppgtt = true;
 	use_ggtt = (src->cache_level == I915_CACHE_NONE &&
 		   vma && (vma->bound & GLOBAL_BIND) &&
 		   reloc_offset + num_pages * PAGE_SIZE <= dev_priv->ggtt.mappable_end);
@@ -1260,7 +1267,11 @@ static void i915_gem_record_rings(struct drm_device *dev,
 			erq->ctx_desc = intel_lr_context_descriptor(ctx, engine);
 			erq->jiffies = request->emitted_jiffies;
 			erq->seqno = request->seqno;
-			erq->tail = request->postfix;
+			erq->tail = request->tail;
+			erq->head = request->head;
+			erq->submission_count = request->elsp_submitted;
+			erq->ringbuffer_gtt =
+				i915_gem_obj_ggtt_offset(request->ringbuf->obj);
 		}
 	}
 }

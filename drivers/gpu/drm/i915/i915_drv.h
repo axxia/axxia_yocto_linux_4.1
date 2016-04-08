@@ -535,8 +535,9 @@ struct drm_i915_error_state {
 		struct intel_ringbuffer req_ring;
 
 		struct drm_i915_error_object {
-			int page_count;
 			u64 gtt_offset;
+			bool is_ppgtt;
+			int page_count;
 			u32 *pages[0];
 		} *req_ringbuffer, *hw_ringbuffer, *batchbuffer,
 		  *wa_batchbuffer, *ctx, *hws_page;
@@ -547,7 +548,10 @@ struct drm_i915_error_state {
 			u64 ctx_desc;
 			long jiffies;
 			u32 seqno;
+			u32 head;
 			u32 tail;
+			u32 submission_count;
+			u64 ringbuffer_gtt;
 		} *requests;
 
 		struct {
