@@ -310,6 +310,10 @@ static int i915_scheduler_pop_from_queue_locked(struct intel_engine_cs *engine,
  * attempting to acquire a mutex while holding a spin lock is a Bad Idea.
  * And releasing the one before acquiring the other leads to other code
  * being run and interfering.
+ *
+ * Hence any caller that does not already have the mutex lock for other
+ * reasons should call i915_scheduler_submit_unlocked() instead in order to
+ * obtain the lock first.
  */
 static int i915_scheduler_submit(struct intel_engine_cs *engine)
 {
@@ -430,6 +434,22 @@ static int i915_scheduler_submit(struct intel_engine_cs *engine)
 error:
 	scheduler->flags[engine->id] &= ~I915_SF_SUBMITTING;
 	spin_unlock_irq(&scheduler->lock);
+	return ret;
+}
+
+static int i915_scheduler_submit_unlocked(struct intel_engine_cs *engine)
+{
+	struct drm_device *dev = engine->dev;
+	int ret;
+
+	ret = i915_mutex_lock_interruptible(dev);
+	if (ret)
+		return ret;
+
+	ret = i915_scheduler_submit(engine);
+
+	mutex_unlock(&dev->struct_mutex);
+
 	return ret;
 }
 
@@ -927,6 +947,164 @@ void i915_scheduler_work_handler(struct work_struct *work)
 
 	for_each_engine(engine, dev_priv)
 		i915_scheduler_process_work(engine);
+}
+
+static int i915_scheduler_submit_max_priority(struct intel_engine_cs *engine,
+					      bool is_locked)
+{
+	struct i915_scheduler_queue_entry *node;
+	struct drm_i915_private *dev_priv = engine->dev->dev_private;
+	struct i915_scheduler *scheduler = dev_priv->scheduler;
+	int ret, count = 0;
+	bool found;
+
+	do {
+		found = false;
+		spin_lock_irq(&scheduler->lock);
+		for_each_scheduler_node(node, engine->id) {
+			if (!I915_SQS_IS_QUEUED(node))
+				continue;
+
+			if (node->priority < scheduler->priority_level_max)
+				continue;
+
+			found = true;
+			break;
+		}
+		spin_unlock_irq(&scheduler->lock);
+
+		if (!found)
+			break;
+
+		if (is_locked)
+			ret = i915_scheduler_submit(engine);
+		else
+			ret = i915_scheduler_submit_unlocked(engine);
+		if (ret < 0)
+			return ret;
+
+		count += ret;
+	} while (found);
+
+	return count;
+}
+
+/**
+ * i915_scheduler_flush_stamp - force requests of a given age through the
+ * scheduler.
+ * @engine: Engine to be flushed
+ * @target: Jiffy based time stamp to flush up to
+ * @is_locked: Is the driver mutex lock held?
+ * DRM has a throttle by age of request facility. This requires waiting for
+ * outstanding work over a given age. This function helps that by forcing
+ * queued batch buffers over said age through the system.
+ * Returns zero on success or -EAGAIN if the scheduler is busy (e.g. waiting
+ * for a pre-emption event to complete) but the mutex lock is held which
+ * would prevent the scheduler's asynchronous processing from completing.
+ */
+int i915_scheduler_flush_stamp(struct intel_engine_cs *engine,
+			       unsigned long target,
+			       bool is_locked)
+{
+	struct i915_scheduler_queue_entry *node;
+	struct drm_i915_private *dev_priv;
+	struct i915_scheduler *scheduler;
+	int flush_count = 0;
+
+	if (!engine)
+		return -EINVAL;
+
+	dev_priv  = engine->dev->dev_private;
+	scheduler = dev_priv->scheduler;
+
+	if (!scheduler)
+		return 0;
+
+	if (is_locked && (scheduler->flags[engine->id] & I915_SF_SUBMITTING)) {
+		/*
+		 * Scheduler is busy already submitting another batch,
+		 * come back later rather than going recursive...
+		 */
+		return -EAGAIN;
+	}
+
+	spin_lock_irq(&scheduler->lock);
+	i915_scheduler_priority_bump_clear(scheduler);
+	for_each_scheduler_node(node, engine->id) {
+		if (!I915_SQS_IS_QUEUED(node))
+			continue;
+
+		if (node->stamp > target)
+			continue;
+
+		flush_count = i915_scheduler_priority_bump(scheduler,
+					node, scheduler->priority_level_max);
+	}
+	spin_unlock_irq(&scheduler->lock);
+
+	if (flush_count) {
+		DRM_DEBUG_DRIVER("<%s> Bumped %d entries\n", engine->name, flush_count);
+		flush_count = i915_scheduler_submit_max_priority(engine, is_locked);
+	}
+
+	return flush_count;
+}
+
+/**
+ * i915_scheduler_flush - force all requests through the scheduler.
+ * @engine: Engine to be flushed
+ * @is_locked: Is the driver mutex lock held?
+ * For various reasons it is sometimes necessary to the scheduler out, e.g.
+ * due to engine reset.
+ * Returns zero on success or -EAGAIN if the scheduler is busy (e.g. waiting
+ * for a pre-emption event to complete) but the mutex lock is held which
+ * would prevent the scheduler's asynchronous processing from completing.
+ */
+int i915_scheduler_flush(struct intel_engine_cs *engine, bool is_locked)
+{
+	struct i915_scheduler_queue_entry *node;
+	struct drm_i915_private *dev_priv;
+	struct i915_scheduler *scheduler;
+	bool found;
+	int ret;
+	uint32_t count = 0;
+
+	if (!engine)
+		return -EINVAL;
+
+	dev_priv  = engine->dev->dev_private;
+	scheduler = dev_priv->scheduler;
+
+	if (!scheduler)
+		return 0;
+
+	WARN_ON(is_locked && (scheduler->flags[engine->id] & I915_SF_SUBMITTING));
+
+	do {
+		found = false;
+		spin_lock_irq(&scheduler->lock);
+		for_each_scheduler_node(node, engine->id) {
+			if (!I915_SQS_IS_QUEUED(node))
+				continue;
+
+			found = true;
+			break;
+		}
+		spin_unlock_irq(&scheduler->lock);
+
+		if (found) {
+			if (is_locked)
+				ret = i915_scheduler_submit(engine);
+			else
+				ret = i915_scheduler_submit_unlocked(engine);
+			if (ret < 0)
+				return ret;
+
+			count += ret;
+		}
+	} while (found);
+
+	return count;
 }
 
 /**

@@ -3799,6 +3799,10 @@ int i915_gpu_idle(struct drm_device *dev)
 
 	/* Flush everything onto the inactive list. */
 	for_each_engine(engine, dev_priv) {
+		ret = i915_scheduler_flush(engine, true);
+		if (ret < 0)
+			return ret;
+
 		if (!i915.enable_execlists) {
 			struct drm_i915_gem_request *req;
 
@@ -4533,6 +4537,7 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	struct drm_i915_gem_request *request, *target = NULL;
 	unsigned reset_counter;
 	int ret;
+	struct intel_engine_cs *engine;
 
 	ret = i915_gem_wait_for_error(&dev_priv->gpu_error);
 	if (ret)
@@ -4541,6 +4546,23 @@ i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 	ret = i915_gem_check_wedge(&dev_priv->gpu_error, false);
 	if (ret)
 		return ret;
+
+	for_each_engine(engine, dev_priv) {
+		/*
+		 * Flush out scheduler entries that are getting 'stale'. Note
+		 * that the following recent_enough test will only check
+		 * against the time at which the request was submitted to the
+		 * hardware (i.e. when it left the scheduler) not the time it
+		 * was submitted to the driver.
+		 *
+		 * Also, there is not much point worring about busy return
+		 * codes from the scheduler flush call. Even if more work
+		 * cannot be submitted right now for whatever reason, we
+		 * still want to throttle against stale work that has already
+		 * been submitted.
+		 */
+		i915_scheduler_flush_stamp(engine, recent_enough, false);
+	}
 
 	spin_lock(&file_priv->mm.lock);
 	list_for_each_entry(request, &file_priv->mm.request_list, client_list) {
