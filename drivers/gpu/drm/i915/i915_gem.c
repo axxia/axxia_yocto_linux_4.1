@@ -3244,6 +3244,7 @@ void i915_gem_reset(struct drm_device *dev)
 void
 i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 {
+	struct drm_i915_gem_object *obj, *obj_next;
 	struct drm_i915_gem_request *req, *req_next;
 	LIST_HEAD(list_head);
 
@@ -3256,37 +3257,31 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 	 */
 	i915_gem_request_notify(engine, false);
 
+	/*
+	 * Note that request entries might be out of order due to rescheduling
+	 * and pre-emption. Thus both lists must be processed in their entirety
+	 * rather than stopping at the first non-complete entry.
+	 */
+
 	/* Retire requests first as we use it above for the early return.
 	 * If we retire requests last, we may use a later seqno and so clear
 	 * the requests lists without clearing the active list, leading to
 	 * confusion.
 	 */
-	while (!list_empty(&engine->request_list)) {
-		struct drm_i915_gem_request *request;
+	list_for_each_entry_safe(req, req_next, &engine->request_list, list) {
+		if (!i915_gem_request_completed(req))
+			continue;
 
-		request = list_first_entry(&engine->request_list,
-					   struct drm_i915_gem_request,
-					   list);
-
-		if (!i915_gem_request_completed(request))
-			break;
-
-		i915_gem_request_retire(request);
+		i915_gem_request_retire(req);
 	}
 
 	/* Move any buffers on the active list that are no longer referenced
 	 * by the ringbuffer to the flushing/inactive lists as appropriate,
 	 * before we free the context associated with the requests.
 	 */
-	while (!list_empty(&engine->active_list)) {
-		struct drm_i915_gem_object *obj;
-
-		obj = list_first_entry(&engine->active_list,
-				       struct drm_i915_gem_object,
-				       engine_list[engine->id]);
-
+	list_for_each_entry_safe(obj, obj_next, &engine->active_list, engine_list[engine->id]) {
 		if (!list_empty(&obj->last_read_req[engine->id]->list))
-			break;
+			continue;
 
 		i915_gem_object_retire__read(obj, engine->id);
 	}
