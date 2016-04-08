@@ -258,7 +258,12 @@ struct guc_process_desc {
 	u32 wq_status;
 	u32 engine_presence;
 	u32 priority;
-	u32 reserved[30];
+	u32 reserved1[4];
+	u32 reserved2[5];
+	u32 items_parsed,
+	    items_collaped,
+	    items_cancelled;
+	u32 reserved3[18];
 } __packed;
 
 /* engine id and context id is packed into guc_execlist_context.context_id*/

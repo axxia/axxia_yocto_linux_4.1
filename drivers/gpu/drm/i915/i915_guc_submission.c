@@ -168,9 +168,27 @@ host2guc_preempt(struct i915_guc_client *client,
 	data[4] = guc->execbuf_client->priority;		/* victim priority			*/
 	data[5] = guc->execbuf_client->ctx_index;		/* victim ctx/wq			*/
 	data[6] = i915_gem_obj_ggtt_offset(ctx_obj) + LRC_GUCSHR_PN*PAGE_SIZE;
+	data[7] = 0;
 
 	ret = host2guc_action(guc, data, 7);
-	WARN_ON(ret);
+	if (WARN_ON(ret)) {
+		u32 *gsp;
+		int i;
+
+		gsp = kmap_atomic(i915_gem_object_get_page(ctx_obj, LRC_GUCSHR_PN));
+		DRM_DEBUG_DRIVER("GuC preemption request data:\n");
+		for (i = 0; i < 8; i += 4)
+			DRM_DEBUG_DRIVER("\t%08x %08x  %08x %08x\n",
+				data[i+0], data[i+1], data[i+2], data[i+3]);
+
+		DRM_DEBUG_DRIVER("GuC per-context shared data @ 0x%llx:\n",
+			i915_gem_obj_ggtt_offset(ctx_obj) + LRC_GUCSHR_PN*PAGE_SIZE);
+		for (i = 0; i < 32; i += 4)
+			DRM_DEBUG_DRIVER("\t%08x %08x  %08x %08x\n",
+				gsp[i+0], gsp[i+1], gsp[i+2], gsp[i+3]);
+
+		kunmap_atomic(gsp);
+	}
 	return ret;
 }
 
