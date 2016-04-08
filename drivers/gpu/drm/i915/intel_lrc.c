@@ -335,6 +335,27 @@ uint64_t intel_lr_context_descriptor(struct intel_context *ctx,
 	return ctx->engine[engine->id].lrc_desc;
 }
 
+/*
+ * Test to see if the ring has sufficient space to submit a given piece
+ * of work without causing a stall
+ */
+static int logical_ring_test_space(struct intel_ringbuffer *ringbuf,
+				   int min_space)
+{
+	if (ringbuf->space < min_space) {
+		/* Need to update the actual ring space. Otherwise, the system
+		 * hangs forever testing a software copy of the space value that
+		 * never changes!
+		 */
+		intel_ring_update_space(ringbuf);
+
+		if (ringbuf->space < min_space)
+			return -EAGAIN;
+	}
+
+	return 0;
+}
+
 /**
  * intel_execlists_ctx_id() - get the Execlists Context ID
  * @ctx: Context to get the ID for
@@ -1013,6 +1034,7 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 	struct intel_engine_cs *engine = params->engine;
 	u64 exec_start;
 	int ret;
+	uint32_t min_space;
 
 	/* The mutex must be acquired before calling this function */
 	WARN_ON(!mutex_is_locked(&params->dev->struct_mutex));
@@ -1036,6 +1058,34 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 		goto err;
 
 	/*
+	 * It would be a bad idea to run out of space while writing commands
+	 * to the ring. One of the major aims of the scheduler is to not
+	 * stall at any point for any reason. However, doing an early exit
+	 * half way through submission could result in a partial sequence
+	 * being written which would leave the engine in an unknown state.
+	 * Therefore, check in advance that there will be enough space for
+	 * the entire submission whether emitted by the code below OR by any
+	 * other functions that may be executed before the end of final().
+	 *
+	 * NB: This test deliberately overestimates, because that's easier
+	 * than tracing every potential path that could be taken!
+	 *
+	 * Current measurements suggest that we may need to emit up to 186
+	 * dwords, so this is rounded up to 256 here. Then double that to get
+	 * the free space requirement, because the block is not allowed to
+	 * span the transition from the end to the beginning of the ring.
+	 */
+#define I915_BATCH_EXEC_MAX_LEN         256	/* max dwords emitted here */
+	min_space = I915_BATCH_EXEC_MAX_LEN * 2 * sizeof(uint32_t);
+	ret = logical_ring_test_space(ringbuf, min_space);
+	if (ret)
+		goto err;
+
+	ret = intel_logical_ring_begin(req, I915_BATCH_EXEC_MAX_LEN);
+	if (ret)
+		goto err;
+
+	/*
 	 * Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
 	 */
@@ -1045,10 +1095,6 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 
 	if (engine == &dev_priv->engine[RCS] &&
 	    params->instp_mode != dev_priv->relative_constants_mode) {
-		ret = intel_logical_ring_begin(req, 4);
-		if (ret)
-			return ret;
-
 		intel_logical_ring_emit(ringbuf, MI_NOOP);
 		intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(1));
 		intel_logical_ring_emit_reg(ringbuf, INSTPM);

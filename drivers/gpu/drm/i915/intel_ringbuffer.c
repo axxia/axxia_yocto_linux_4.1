@@ -2592,6 +2592,32 @@ int intel_ring_cacheline_align(struct drm_i915_gem_request *req)
 	return 0;
 }
 
+/*
+ * Test to see if the ring has sufficient space to submit a given piece
+ * of work without causing a stall
+ */
+int intel_ring_test_space(struct intel_ringbuffer *ringbuf, int min_space)
+{
+	struct drm_i915_private *dev_priv = ringbuf->engine->dev->dev_private;
+
+	/* There is a separate LRC version of this code. */
+	WARN_ON(i915.enable_execlists);
+
+	if (ringbuf->space < min_space) {
+		/* Need to update the actual ring space. Otherwise, the system
+		 * hangs forever testing a software copy of the space value that
+		 * never changes!
+		 */
+		ringbuf->head  = I915_READ_HEAD(ringbuf->engine);
+		ringbuf->space = intel_ring_space(ringbuf);
+
+		if (ringbuf->space < min_space)
+			return -EAGAIN;
+	}
+
+	return 0;
+}
+
 void intel_ring_init_seqno(struct intel_engine_cs *engine, u32 seqno)
 {
 	struct drm_device *dev = engine->dev;

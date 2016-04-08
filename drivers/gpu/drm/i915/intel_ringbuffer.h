@@ -448,6 +448,7 @@ void intel_cleanup_engine(struct intel_engine_cs *engine);
 
 int intel_ring_alloc_request_extras(struct drm_i915_gem_request *request);
 
+int intel_ring_test_space(struct intel_ringbuffer *ringbuf, int min_space);
 int __must_check intel_ring_begin(struct drm_i915_gem_request *req, int n);
 int __must_check intel_ring_cacheline_align(struct drm_i915_gem_request *req);
 static inline void intel_ring_emit(struct intel_engine_cs *engine,
