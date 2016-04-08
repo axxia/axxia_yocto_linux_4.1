@@ -1717,6 +1717,8 @@ struct i915_execbuffer_params {
 	struct drm_i915_gem_request     *request;
 };
 
+struct i915_scheduler;
+
 /* used in computing the new watermarks state */
 struct intel_wm_config {
 	unsigned int num_pipes_active;
@@ -1986,6 +1988,8 @@ struct drm_i915_private {
 	} wm;
 
 	struct i915_runtime_pm pm;
+
+	struct i915_scheduler *scheduler;
 
 	/* Abstract the submission mechanism (legacy ringbuffer or execlists) away */
 	struct {
@@ -2332,6 +2336,8 @@ struct drm_i915_gem_request {
 
 	/** process identifier submitting this request */
 	struct pid *pid;
+
+	struct i915_scheduler_queue_entry *scheduler_qe;
 
 	/**
 	 * The ELSP only accepts two elements at a time, so we queue

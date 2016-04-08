@@ -8,6 +8,7 @@
 i915-y := i915_drv.o \
 	  i915_irq.o \
 	  i915_params.o \
+	  i915_scheduler.o \
           i915_suspend.o \
 	  i915_sysfs.o \
 	  intel_csr.o \

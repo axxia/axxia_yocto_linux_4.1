@@ -32,6 +32,7 @@
 #include "i915_vgpu.h"
 #include "i915_trace.h"
 #include "intel_drv.h"
+#include "i915_scheduler.h"
 #include <linux/shmem_fs.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
@@ -5325,6 +5326,10 @@ int i915_gem_init(struct drm_device *dev)
 	 * just magically go away.
 	 */
 	intel_uncore_forcewake_get(dev_priv, FORCEWAKE_ALL);
+
+	ret = i915_scheduler_init(dev);
+	if (ret)
+		goto out_unlock;
 
 	ret = i915_gem_init_userptr(dev);
 	if (ret)
