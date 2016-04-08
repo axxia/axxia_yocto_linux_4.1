@@ -2895,38 +2895,65 @@ error_deref_obj:
 	return ret;
 }
 
-void intel_lr_context_reset(struct drm_device *dev,
-			struct intel_context *ctx)
+/*
+ * Empty the ringbuffer associated with the specified request
+ * by updating the ringbuffer 'head' to the value of 'tail', or,
+ * if 'rezero' is true, setting both 'head' and 'tail' to zero.
+ * Then propagate the change to the associated context image.
+ */
+void intel_lr_context_resync(struct intel_context *ctx,
+			     struct intel_engine_cs *engine,
+			     bool rezero)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	enum intel_engine_id engine_id = engine->id;
+	struct drm_i915_gem_object *ctx_obj;
+	struct intel_ringbuffer *ringbuf;
+	struct page *page;
+	uint32_t *reg_state;
+
+	ctx_obj = ctx->engine[engine_id].state;
+	ringbuf = ctx->engine[engine_id].ringbuf;
+
+	/*
+	 * When resetting, a hardware context might be as-yet-unused
+	 * and therefore not-yet-allocated. In other situations, the
+	 * ringbuffer and context object must already exist.
+	 */
+	if (WARN_ON(!ringbuf != !ctx_obj))
+		return;
+	if (!i915_reset_in_progress(&ctx->i915->gpu_error))
+		WARN_ON(!ringbuf || !ctx_obj);
+	if (!ringbuf || !ctx_obj)
+		return;
+	if (WARN_ON(i915_gem_object_get_pages(ctx_obj)))
+		return;
+
+	if (i915_gem_object_get_pages(ctx_obj)) {
+		WARN(1, "Failed get_pages for context obj\n");
+		return;
+	}
+	page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
+	reg_state = kmap_atomic(page);
+
+	if (rezero)
+		ringbuf->tail = 0;
+	ringbuf->head = ringbuf->tail;
+	ringbuf->last_retired_head = -1;
+	intel_ring_update_space(ringbuf);
+
+	reg_state[CTX_RING_HEAD+1] = ringbuf->head;
+	reg_state[CTX_RING_TAIL+1] = ringbuf->tail;
+
+	kunmap_atomic(reg_state);
+}
+
+void intel_lr_context_reset(struct intel_context *ctx)
+{
+	struct drm_i915_private *dev_priv = ctx->i915;
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv) {
-		struct drm_i915_gem_object *ctx_obj =
-				ctx->engine[engine->id].state;
-		struct intel_ringbuffer *ringbuf =
-				ctx->engine[engine->id].ringbuf;
-		uint32_t *reg_state;
-		struct page *page;
-
-		if (!ctx_obj)
-			continue;
-
-		if (i915_gem_object_get_pages(ctx_obj)) {
-			WARN(1, "Failed get_pages for context obj\n");
-			continue;
-		}
-		page = i915_gem_object_get_dirty_page(ctx_obj, LRC_STATE_PN);
-		reg_state = kmap_atomic(page);
-
-		reg_state[CTX_RING_HEAD+1] = 0;
-		reg_state[CTX_RING_TAIL+1] = 0;
-
-		kunmap_atomic(reg_state);
-
-		ringbuf->head = 0;
-		ringbuf->tail = 0;
-		ringbuf->last_retired_head = -1;
-		intel_ring_update_space(ringbuf);
+		intel_lr_context_resync(ctx, engine, true);
 	}
 }
+
