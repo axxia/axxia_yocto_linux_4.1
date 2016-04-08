@@ -136,6 +136,7 @@
 #include <drm/i915_drm.h>
 #include "i915_drv.h"
 #include "intel_mocs.h"
+#include "i915_scheduler.h"
 
 #define GEN9_LR_CONTEXT_RENDER_SIZE (22 * PAGE_SIZE)
 #define GEN8_LR_CONTEXT_RENDER_SIZE (20 * PAGE_SIZE)
@@ -946,6 +947,7 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 			       struct drm_i915_gem_execbuffer2 *args,
 			       struct list_head *vmas)
 {
+	struct i915_scheduler_queue_entry *qe;
 	struct drm_device       *dev = params->dev;
 	struct intel_engine_cs *engine = params->engine;
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -988,16 +990,10 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
 
 	i915_gem_execbuffer_move_to_active(vmas, params->request);
 
-	ret = dev_priv->gt.execbuf_final(params);
+	qe = container_of(params, typeof(*qe), params);
+	ret = i915_scheduler_queue_execbuffer(qe);
 	if (ret)
 		return ret;
-
-	/*
-	 * Free everything that was stored in the QE structure (until the
-	 * scheduler arrives and does it instead):
-	 */
-	if (params->dispatch_flags & I915_DISPATCH_SECURE)
-		i915_gem_execbuff_release_batch_obj(params->batch_obj);
 
 	return 0;
 }
