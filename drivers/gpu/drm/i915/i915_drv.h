@@ -532,6 +532,8 @@ struct drm_i915_error_state {
 
 		u64 ctx_desc;
 
+		struct intel_ringbuffer req_ring;
+
 		struct drm_i915_error_object {
 			int page_count;
 			u64 gtt_offset;

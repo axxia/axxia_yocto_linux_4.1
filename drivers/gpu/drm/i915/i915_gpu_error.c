@@ -526,12 +526,24 @@ int i915_error_state_to_str(struct drm_i915_error_state_buf *m,
 		}
 
 		if ((obj = error->ring[i].req_ringbuffer)) {
+			struct intel_ringbuffer *irb = &error->ring[i].req_ring;
+
 			err_printf(m, "%s --- ringbuffer = 0x%08x; %d pages (ctx_desc 0x%08x_%08x)\n",
 				   dev_priv->engine[i].name,
 				   lower_32_bits(obj->gtt_offset),
 				   obj->page_count,
 				   upper_32_bits(error->ring[i].ctx_desc),
 				   lower_32_bits(error->ring[i].ctx_desc));
+			err_printf(m, "\t\tringbuffer head 0x%08x tail 0x%08x space 0x%08x lrh 0x%08x\n",
+				   irb->head, irb->tail, irb->space,
+				   irb->last_retired_head);
+			err_printf(m, "\t\t%llu submission(s), %d consecutive, last at %ld: tail 0x%08x seqno %08x (%d)\n",
+				   irb->total_submission_count,
+				   irb->resubmission_count,
+				   irb->last_submitted_jiffies,
+				   irb->last_submitted_tail,
+				   irb->last_submitted_seqno,
+				   irb->last_submitted_seqno);
 			print_error_obj(m, obj);
 		}
 
@@ -1194,6 +1206,7 @@ static void i915_gem_record_rings(struct drm_device *dev,
 		error->ring[i].ctx_desc = ctx_desc;
 		error->ring[i].req_ringbuffer =
 			i915_error_ggtt_object_create(dev_priv, rbuf->obj);
+		error->ring[i].req_ring = *rbuf;
 
 		error->ring[i].hws_page =
 			i915_error_ggtt_object_create(dev_priv,

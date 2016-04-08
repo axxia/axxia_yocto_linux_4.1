@@ -2705,10 +2705,18 @@ void __i915_add_request(struct drm_i915_gem_request *request,
 	 * to explicitly hold another reference here.
 	 */
 	request->batch_obj = obj;
-
-	request->emitted_jiffies = jiffies;
 	request->previous_seqno = engine->last_submitted_seqno;
-	engine->last_submitted_seqno = request->seqno;
+
+	if (engine->last_submitted_ringbuf == ringbuf)
+		ringbuf->resubmission_count += 1;
+	else
+		ringbuf->resubmission_count = 1;
+	engine->last_submitted_ringbuf = ringbuf;
+	ringbuf->total_submission_count += 1;
+	ringbuf->last_submitted_tail = request->tail;
+	ringbuf->last_submitted_seqno = engine->last_submitted_seqno =
+								request->seqno;
+	ringbuf->last_submitted_jiffies = request->emitted_jiffies = jiffies;
 	list_add_tail(&request->list, &engine->request_list);
 
 	trace_i915_gem_request_add(request);

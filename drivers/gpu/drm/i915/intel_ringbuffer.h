@@ -126,6 +126,19 @@ struct intel_ringbuffer {
 	 * we can detect new retirements.
 	 */
 	u32 last_retired_head;
+
+	/*
+	 * Consecutive resubmissions are opportunities for the h/w to do
+	 * a 'lite restore' rather than a full context switch. Let's note
+	 * when that happens, in case it's useful for hang diagnosis.
+	 */
+	u32 resubmission_count;
+	u64 total_submission_count;
+
+	/* Info about last time this ringbuffer was submitted (to GuC) */
+	unsigned long last_submitted_jiffies;
+	u32 last_submitted_seqno;
+	u32 last_submitted_tail;
 };
 
 struct	intel_context;
@@ -311,6 +324,7 @@ struct  intel_engine_cs {
 	 * inspecting request list.
 	 */
 	u32 last_submitted_seqno;
+	struct intel_ringbuffer *last_submitted_ringbuf;
 
 	/*
 	 * Deferred free list to allow unreferencing requests from interrupt
