@@ -7395,7 +7395,7 @@ static void __intel_rps_boost_work(struct work_struct *work)
 	struct request_boost *boost = container_of(work, struct request_boost, work);
 	struct drm_i915_gem_request *req = boost->req;
 
-	if (!i915_gem_request_completed(req, true))
+	if (!i915_gem_request_completed(req))
 		gen6_rps_boost(to_i915(req->engine->dev), NULL,
 			       req->emitted_jiffies);
 
@@ -7411,7 +7411,7 @@ void intel_queue_rps_boost_for_request(struct drm_device *dev,
 	if (req == NULL || INTEL_INFO(dev)->gen < 6)
 		return;
 
-	if (i915_gem_request_completed(req, true))
+	if (i915_gem_request_completed(req))
 		return;
 
 	boost = kmalloc(sizeof(*boost), GFP_ATOMIC);

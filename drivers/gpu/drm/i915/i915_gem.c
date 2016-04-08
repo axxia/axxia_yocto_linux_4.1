@@ -1263,7 +1263,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 	if (list_empty(&req->list))
 		return 0;
 
-	if (i915_gem_request_completed(req, true))
+	if (i915_gem_request_completed(req))
 		return 0;
 
 	timeout_expire = 0;
@@ -1313,7 +1313,7 @@ int __i915_wait_request(struct drm_i915_gem_request *req,
 			break;
 		}
 
-		if (i915_gem_request_completed(req, false)) {
+		if (i915_gem_request_completed(req)) {
 			ret = 0;
 			break;
 		}
@@ -2838,7 +2838,7 @@ i915_gem_find_active_request(struct intel_engine_cs *engine)
 	struct drm_i915_gem_request *request;
 
 	list_for_each_entry(request, &engine->request_list, list) {
-		if (i915_gem_request_completed(request, false))
+		if (i915_gem_request_completed(request))
 			continue;
 
 		return request;
@@ -2971,7 +2971,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 					   struct drm_i915_gem_request,
 					   list);
 
-		if (!i915_gem_request_completed(request, true))
+		if (!i915_gem_request_completed(request))
 			break;
 
 		i915_gem_request_retire(request);
@@ -2995,7 +2995,7 @@ i915_gem_retire_requests_ring(struct intel_engine_cs *engine)
 	}
 
 	if (unlikely(engine->trace_irq_req &&
-		     i915_gem_request_completed(engine->trace_irq_req, true))) {
+		     i915_gem_request_completed(engine->trace_irq_req))) {
 		engine->irq_put(engine);
 		i915_gem_request_assign(&engine->trace_irq_req, NULL);
 	}
@@ -3098,7 +3098,7 @@ i915_gem_object_flush_active(struct drm_i915_gem_object *obj)
 		if (list_empty(&req->list))
 			goto retire;
 
-		if (i915_gem_request_completed(req, true)) {
+		if (i915_gem_request_completed(req)) {
 			__i915_gem_request_retire__upto(req);
 retire:
 			i915_gem_object_retire__read(obj, i);
@@ -3210,7 +3210,7 @@ __i915_gem_object_sync(struct drm_i915_gem_object *obj,
 	if (to == from)
 		return 0;
 
-	if (i915_gem_request_completed(from_req, true))
+	if (i915_gem_request_completed(from_req))
 		return 0;
 
 	if (!i915_semaphore_is_enabled(obj->base.dev)) {

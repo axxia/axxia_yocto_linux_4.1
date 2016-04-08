@@ -11436,7 +11436,7 @@ static bool __intel_pageflip_stall_check(struct drm_device *dev,
 
 	if (work->flip_ready_vblank == 0) {
 		if (work->flip_queued_req &&
-		    !i915_gem_request_completed(work->flip_queued_req, true))
+		    !i915_gem_request_completed(work->flip_queued_req))
 			return false;
 
 		work->flip_ready_vblank = drm_crtc_vblank_count(crtc);
