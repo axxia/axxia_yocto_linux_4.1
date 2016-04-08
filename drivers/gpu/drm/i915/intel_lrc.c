@@ -2862,6 +2862,16 @@ int intel_lr_context_deferred_alloc(struct intel_context *ctx,
 			goto error_ringbuf;
 		}
 		i915_add_request_no_flush(req);
+
+		/*
+		 * GuC firmware will try to collapse its DPC work queue if the
+		 * new one is for same context. So the following breadcrumb
+		 * could be amended to this batch and submitted as one batch.
+		 * Wait here to make sure the context state init is finished
+		 * before any other submission to GuC.
+		 */
+		if (i915.enable_guc_submission)
+			ret = i915_wait_request(req);
 	}
 	return 0;
 
