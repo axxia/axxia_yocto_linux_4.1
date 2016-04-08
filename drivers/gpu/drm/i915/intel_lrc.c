@@ -1096,6 +1096,9 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 	if (ret)
 		goto err;
 
+	/* record where we start filling the ring */
+	req->head = intel_ring_get_tail(ringbuf);
+
 	/*
 	 * Unconditionally invalidate gpu caches and ensure that we do flush
 	 * any residual writes from the previous batch.
