@@ -561,13 +561,16 @@ DEFINE_EVENT(i915_gem_request, i915_gem_request_add,
 );
 
 TRACE_EVENT(i915_gem_request_notify,
-	    TP_PROTO(struct intel_engine_cs *engine, uint32_t seqno),
-	    TP_ARGS(engine, seqno),
+	    TP_PROTO(struct intel_engine_cs *engine, uint32_t seqno,
+		     uint32_t preempt_start, uint32_t preempt_done),
+	    TP_ARGS(engine, seqno, preempt_start, preempt_done),
 
 	    TP_STRUCT__entry(
 			     __field(u32, dev)
 			     __field(u32, ring)
 			     __field(u32, seqno)
+			     __field(u32, preempt_start)
+			     __field(u32, preempt_done)
 			     __field(bool, is_empty)
 			     ),
 
@@ -575,12 +578,15 @@ TRACE_EVENT(i915_gem_request_notify,
 			   __entry->dev = engine->dev->primary->index;
 			   __entry->ring = engine->id;
 			   __entry->seqno = seqno;
+			   __entry->preempt_start = preempt_start;
+			   __entry->preempt_done = preempt_done;
 			   __entry->is_empty =
 					list_empty(&engine->fence_signal_list);
 			   ),
 
-	    TP_printk("dev=%u, ring=%u, seqno=%u, empty=%d",
+	    TP_printk("dev=%u, ring=%u, seqno=%u, preempt_start=%u, preempt_done=%u, empty=%d",
 		      __entry->dev, __entry->ring, __entry->seqno,
+		      __entry->preempt_start, __entry->preempt_done,
 		      __entry->is_empty)
 );
 
@@ -880,27 +886,29 @@ TRACE_EVENT(i915_scheduler_unfly,
 );
 
 TRACE_EVENT(i915_scheduler_landing,
-	    TP_PROTO(struct drm_i915_gem_request *req),
-	    TP_ARGS(req),
+	    TP_PROTO(struct drm_i915_gem_request *req, bool preempt),
+	    TP_ARGS(req, preempt),
 
 	    TP_STRUCT__entry(
 			     __field(u32, engine)
 			     __field(u32, uniq)
 			     __field(u32, seqno)
 			     __field(u32, status)
+			     __field(bool, preempt)
 			     ),
 
 	    TP_fast_assign(
-			   __entry->engine = req->engine->id;
-			   __entry->uniq   = req->uniq;
-			   __entry->seqno  = req->seqno;
-			   __entry->status = req->scheduler_qe ?
+			   __entry->engine  = req->engine->id;
+			   __entry->uniq    = req->uniq;
+			   __entry->seqno   = req->seqno;
+			   __entry->status  = req->scheduler_qe ?
 						req->scheduler_qe->status : ~0U;
+			   __entry->preempt = preempt;
 			   ),
 
-	    TP_printk("engine=%d, uniq=%d, seqno=%d, status=%d",
+	    TP_printk("engine=%d, uniq=%d, seqno=%d, status=%d, preempt=%d",
 		      __entry->engine, __entry->uniq, __entry->seqno,
-		      __entry->status)
+		      __entry->status, __entry->preempt)
 );
 
 TRACE_EVENT(i915_scheduler_remove,

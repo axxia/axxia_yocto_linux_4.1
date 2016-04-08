@@ -2952,7 +2952,7 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 	u32 seqno;
 
 	if (list_empty(&engine->fence_signal_list)) {
-		trace_i915_gem_request_notify(engine, 0);
+		trace_i915_gem_request_notify(engine, 0, 0, 0);
 		return;
 	}
 
@@ -2964,7 +2964,7 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 	 * It can never lead to not processing work that does need to happen.
 	 */
 	seqno = engine->get_seqno(engine, false);
-	trace_i915_gem_request_notify(engine, seqno);
+	trace_i915_gem_request_notify(engine, seqno, 0, 0);
 
 	/* Is there anything new to process? */
 	if ((seqno == engine->last_irq_seqno) &&
@@ -3021,6 +3021,8 @@ void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 						I915_PREEMPTIVE_ACTIVE_SEQNO);
 		preempt_done = intel_read_status_page(engine,
 						I915_PREEMPTIVE_DONE_SEQNO);
+		trace_i915_gem_request_notify(engine, seqno, preempt_start,
+					      preempt_done);
 
 		/*
 		 * A preemption request leaves both ACTIVE and DONE set to the

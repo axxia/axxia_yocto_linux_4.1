@@ -1001,7 +1001,7 @@ bool i915_scheduler_notify_request(struct drm_i915_gem_request *req,
 	unsigned long flags;
 	bool result;
 
-	trace_i915_scheduler_landing(req);
+	trace_i915_scheduler_landing(req, preempt);
 
 	spin_lock_irqsave(&scheduler->lock, flags);
 
