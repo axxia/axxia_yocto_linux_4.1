@@ -43,6 +43,7 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 	struct sg_table *st;
 	struct scatterlist *src, *dst;
 	int ret, i;
+	DEFINE_DMA_ATTRS(attrs);
 
 	ret = i915_mutex_lock_interruptible(obj->base.dev);
 	if (ret)
@@ -73,7 +74,8 @@ static struct sg_table *i915_gem_map_dma_buf(struct dma_buf_attachment *attachme
 		src = sg_next(src);
 	}
 
-	if (!dma_map_sg(attachment->dev, st->sgl, st->nents, dir)) {
+	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+	if (!dma_map_sg_attrs(attachment->dev, st->sgl, st->nents, dir, &attrs)) {
 		ret =-ENOMEM;
 		goto err_free_sg;
 	}
@@ -99,7 +101,10 @@ static void i915_gem_unmap_dma_buf(struct dma_buf_attachment *attachment,
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(attachment->dmabuf);
 
-	dma_unmap_sg(attachment->dev, sg->sgl, sg->nents, dir);
+	DEFINE_DMA_ATTRS(attrs);
+
+	dma_set_attr(DMA_ATTR_SKIP_CPU_SYNC, &attrs);
+	dma_unmap_sg_attrs(attachment->dev, sg->sgl, sg->nents, dir, &attrs);
 	sg_free_table(sg);
 	kfree(sg);
 
