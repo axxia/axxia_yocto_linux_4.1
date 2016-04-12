@@ -1027,7 +1027,6 @@ int intel_execlists_submission(struct i915_execbuffer_params *params,
  */
 int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 {
-	struct drm_device *dev = params->dev;
 	struct drm_i915_private *dev_priv = params->dev->dev_private;
 	struct drm_i915_gem_request *req = params->request;
 	struct intel_ringbuffer *ringbuf = req->ringbuf;

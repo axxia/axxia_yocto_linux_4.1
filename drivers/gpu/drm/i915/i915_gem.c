@@ -2899,7 +2899,7 @@ static bool i915_gem_request_enable_signaling(struct fence *req_fence)
 void i915_gem_request_notify(struct intel_engine_cs *engine, bool fence_locked)
 {
 	struct drm_i915_gem_request *req, *req_next;
-	unsigned long flags;
+	unsigned long flags = 0;
 	bool wake_sched = false;
 	u32 seqno;
 
