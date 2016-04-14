@@ -26,6 +26,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/firmware.h>
 #include <sound/pcm.h>
 #include <sound/hda_register.h>
 #include <sound/hdaudio.h>
@@ -688,7 +689,7 @@ static int skl_probe(struct pci_dev *pci,
 	struct hdac_ext_bus *ebus = NULL;
 	struct hdac_bus *bus = NULL;
 	struct hdac_ext_link *hlink = NULL;
-	const struct firmware *fw = NULL;
+	const struct firmware *nhlt_fw = NULL;
 	int err;
 
 	/* we use ext core ops, so provide NULL for ops here */
@@ -709,6 +710,19 @@ static int skl_probe(struct pci_dev *pci,
 	if (skl->nhlt == NULL)
 		goto out_free;
 #endif
+
+#ifdef CONFIG_SND_SOC_INTEL_CNL_FPGA
+	if (0 > request_firmware(&nhlt_fw, "intel/nhlt_blob.bin", bus->dev)) {
+		dev_err(bus->dev, "Request nhlt firmware failed!\n");
+		goto out_free;
+	}
+
+	skl->nhlt = devm_kzalloc(&pci->dev, nhlt_fw->size, GFP_KERNEL);
+	if (skl->nhlt == NULL)
+		return -ENOMEM;
+	memcpy(skl->nhlt, nhlt_fw->data, nhlt_fw->size);
+#endif
+
 	pci_set_drvdata(skl->pci, ebus);
 
 	/* check if dsp is there */
