@@ -1299,7 +1299,7 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 	if (bc->params) {
 		int ret;
 		ret = copy_to_user(data, &bc->param_id, sizeof(u32));
-		ret = copy_to_user(((unsigned char *)data) + sizeof(u32), &size, sizeof(u32));
+		ret = copy_to_user(((unsigned char *)data) + sizeof(u32), &bc->max, sizeof(u32));
 		ret = copy_to_user(((unsigned char *)data) + 2*sizeof(u32), bc->params, size - 2*sizeof(u32));
 
 		return  ret;
