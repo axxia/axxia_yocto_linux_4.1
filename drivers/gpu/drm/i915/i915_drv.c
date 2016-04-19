@@ -1178,9 +1178,9 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
 	struct drm_i915_private *dev_priv;
 	int ret;
-	unsigned long long start_tm;
+	unsigned long long start_tm, sub_load_tm;
 
-	start_tm = sched_clock();
+	start_tm = sub_load_tm = sched_clock();
 
 	if (i915.nuclear_pageflip)
 		driver.driver_features |= DRIVER_ATOMIC;
@@ -1219,6 +1219,9 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
+	dev_priv->profile.hardware_init = sched_clock() - sub_load_tm;
+	sub_load_tm = sched_clock();
+
 	/*
 	 * TODO: move the vblank init and parts of modeset init steps into one
 	 * of the i915_driver_init_/i915_driver_register functions according
@@ -1235,7 +1238,11 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (ret < 0)
 		goto out_cleanup_vblank;
 
+	dev_priv->profile.modeset_init = sched_clock() - sub_load_tm;
+	sub_load_tm = sched_clock();
+
 	i915_driver_register(dev_priv);
+	dev_priv->profile.driver_register = sched_clock() - sub_load_tm;
 
 	intel_runtime_pm_enable(dev_priv);
 
