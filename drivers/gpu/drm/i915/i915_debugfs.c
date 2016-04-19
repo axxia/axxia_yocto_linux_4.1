@@ -2396,10 +2396,12 @@ static int i915_timing_info(struct seq_file *m, void *data)
 	seq_printf(m, "Timing info\n");
 	seq_printf(m, "  Driver load time: %lldms\n",
 		   (dev_priv->profile.driver_load / 1000000));
+	seq_printf(m, "    GUC firmware init time:             %lldms\n",
+		   (dev_priv->profile.guc_init / 1000000));
+	seq_printf(m, "    GUC firmware load time:             %lldms\n",
+		   (dev_priv->profile.guc_load / 1000000));
 	seq_printf(m, "  Frambuffer device load time: %lldms\n",
 		   (dev_priv->profile.fbdev_load / 1000000));
-	seq_printf(m, "  GUC firmware load time: %lldms\n",
-		   (dev_priv->profile.guc_load / 1000000));
 	seq_printf(m, "  CSR firmware load time: %lldms\n",
 		   (dev_priv->profile.csr_load / 1000000));
 
