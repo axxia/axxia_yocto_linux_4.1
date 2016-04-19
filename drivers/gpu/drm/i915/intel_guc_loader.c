@@ -370,6 +370,7 @@ int intel_guc_ucode_load(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	int err = 0;
+	unsigned long long start = sched_clock();
 
 	if (!i915.enable_guc_submission)
 		return 0;
@@ -437,6 +438,7 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		direct_interrupts_to_guc(dev_priv);
 	}
 
+	dev_priv->profile.guc_load = sched_clock() - start;
 	return 0;
 
 fail:
@@ -587,7 +589,7 @@ void intel_guc_ucode_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path;
-	unsigned long long start;
+	unsigned long long start = sched_clock();
 
 	if (!HAS_GUC_SCHED(dev))
 		i915.enable_guc_submission = false;
@@ -620,12 +622,11 @@ void intel_guc_ucode_init(struct drm_device *dev)
 		return;
 	}
 
-	start = sched_clock();
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_PENDING;
 	DRM_DEBUG_DRIVER("GuC firmware pending, path %s\n", fw_path);
 	guc_fw_fetch(dev, guc_fw);
+	dev_priv->profile.guc_init = sched_clock() - start;
 	/* status must now be FAIL or SUCCESS */
-	dev_priv->profile.guc_load = sched_clock() - start;
 }
 
 /**
