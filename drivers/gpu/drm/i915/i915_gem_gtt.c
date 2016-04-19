@@ -2719,6 +2719,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 	struct drm_i915_gem_object *obj;
 	unsigned long hole_start, hole_end;
 	int ret;
+	unsigned long long profile = sched_clock();
 
 	BUG_ON(mappable_end > end);
 
@@ -2801,6 +2802,7 @@ static int i915_gem_setup_global_gtt(struct drm_device *dev,
 		dev_priv->ggtt.base.bind_vma = aliasing_gtt_bind_vma;
 	}
 
+	dev_priv->profile.gtt_init = sched_clock() - profile;
 	return 0;
 }
 
