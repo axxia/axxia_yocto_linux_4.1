@@ -2719,6 +2719,7 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 	unsigned long hole_start, hole_end;
 	struct drm_mm_node *entry;
 	int ret;
+	unsigned long long profile = sched_clock();
 
 	ret = intel_vgt_balloon(dev_priv);
 	if (ret)
@@ -2769,6 +2770,7 @@ int i915_gem_init_ggtt(struct drm_i915_private *dev_priv)
 		ggtt->base.bind_vma = aliasing_gtt_bind_vma;
 	}
 
+	dev_priv->profile.gtt_init = sched_clock() - profile;
 	return 0;
 }
 

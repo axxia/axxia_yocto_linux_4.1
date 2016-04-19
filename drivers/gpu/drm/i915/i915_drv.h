@@ -1700,6 +1700,7 @@ struct intel_pipe_crc {
 
 struct intel_load_profiles {
 	unsigned long long driver_load;
+	unsigned long long gtt_init;
 	unsigned long long fbdev_load;
 	unsigned long long guc_init;
 	unsigned long long guc_load;
