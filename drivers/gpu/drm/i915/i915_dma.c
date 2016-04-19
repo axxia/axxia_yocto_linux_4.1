@@ -1340,9 +1340,9 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 {
 	struct drm_i915_private *dev_priv;
 	int ret = 0;
-	unsigned long long start_tm;
+	unsigned long long start_tm, sub_load_tm;
 
-	start_tm = sched_clock();
+	start_tm = sub_load_tm = sched_clock();
 
 	dev_priv = kzalloc(sizeof(*dev_priv), GFP_KERNEL);
 	if (dev_priv == NULL)
@@ -1368,6 +1368,8 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	if (ret < 0)
 		goto out_cleanup_mmio;
 
+	dev_priv->profile.hardware_init = sched_clock() - sub_load_tm;
+	sub_load_tm = sched_clock();
 	/*
 	 * TODO: move the vblank init and parts of modeset init steps into one
 	 * of the i915_driver_init_/i915_driver_register functions according
@@ -1382,8 +1384,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 	ret = i915_load_modeset_init(dev);
 	if (ret < 0)
 		goto out_cleanup_vblank;
+	dev_priv->profile.modeset_init = sched_clock() - sub_load_tm;
+	sub_load_tm = sched_clock();
 
 	i915_driver_register(dev_priv);
+	dev_priv->profile.driver_register = sched_clock() - sub_load_tm;
 
 	intel_runtime_pm_enable(dev_priv);
 
