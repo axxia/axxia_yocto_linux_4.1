@@ -5264,6 +5264,9 @@ static unsigned long get_crtc_power_domains(struct drm_crtc *crtc,
 	if (crtc_state->shared_dpll)
 		mask |= BIT(POWER_DOMAIN_PLLS);
 
+	if (crtc_state->has_audio)
+		mask |= BIT(POWER_DOMAIN_AUDIO);
+
 	return mask;
 }
 
