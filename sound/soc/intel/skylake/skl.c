@@ -43,7 +43,7 @@
 #define SKL_USE_NHLT_FROM_BIOS 0
 static char *machine;
 
-module_param(machine, charp, 0444);
+module_param(machine, charp, 0644);
 MODULE_PARM_DESC(machine, "machine driver string for Intel soundcard.");
 
 #define SKL_NUM_I2S_PORTS	3
