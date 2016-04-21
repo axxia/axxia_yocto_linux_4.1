@@ -12498,6 +12498,7 @@ static int intel_plane_state_check_blend(struct drm_plane_state *plane_state)
 	case DRM_FORMAT_ABGR8888:
 	case DRM_FORMAT_ARGB8888:
 		has_per_pixel_blending = true;
+		break;
 	default:
 		has_per_pixel_blending = false;
 	}
