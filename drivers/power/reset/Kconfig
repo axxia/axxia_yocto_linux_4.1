@@ -38,6 +38,17 @@ config POWER_RESET_AXXIA
 
 	  Say Y if you have an Axxia family SoC.
 
+if POWER_RESET_AXXIA
+config POWER_RESET_AXXIA_DDR_RETENTION
+	bool "Keep memory content"
+	depends on POWER_RESET_AXXIA
+	help
+	  Keep memory content during reset. Useful to reserve memory
+	  for dumps, logs etc on fatal errors that can be analysed
+	  after a reboot.
+endif
+
+
 config POWER_RESET_BRCMSTB
 	bool "Broadcom STB reset driver"
 	depends on ARM || MIPS || COMPILE_TEST
