@@ -2336,11 +2336,25 @@ static void haswell_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	snd_hda_codec_set_power_to_all(codec, fg, power_state);
 }
 
-static void intel_pin_eld_notify(void *audio_ptr, int port, int port_mst_index)
+static void intel_pin_eld_notify(void *audio_ptr, int port)
 {
 	struct hda_codec *codec = audio_ptr;
 	int pin_nid = port + 0x04;
 
+	/* we assume only from port-B to port-D */
+	if (port < 1 || port > 3)
+		return;
+
+	/* skip notification during system suspend (but not in runtime PM);
+	 * the state will be updated at resume
+	 */
+	if (snd_power_get_state(codec->card) != SNDRV_CTL_POWER_D0)
+		return;
+	/* ditto during suspend/resume process itself */
+	if (atomic_read(&(codec)->core.in_pm))
+		return;
+
+	snd_hdac_i915_set_bclk(&codec->bus->core);
 	check_presence_and_report(codec, pin_nid);
 }
 
