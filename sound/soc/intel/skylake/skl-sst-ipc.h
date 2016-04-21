@@ -24,6 +24,9 @@ struct sst_dsp;
 struct skl_sst;
 struct sst_generic_ipc;
 
+#define NO_OF_INJECTOR 6
+#define NO_OF_EXTRACTOR 8
+
 enum skl_ipc_pipeline_state {
 	PPL_INVALID_STATE =	0,
 	PPL_UNINITIALIZED =	1,
@@ -51,6 +54,32 @@ struct skl_d0i3_data {
 	struct delayed_work d0i3_work;
 };
 
+struct injector_data {
+	int set;
+	int id;
+	struct hdac_ext_stream *stream;
+	int dma_id;
+	int dma_buf_size;
+};
+
+struct extractor_data {
+	int set;
+	int id;
+};
+
+struct skl_probe_config {
+	struct snd_soc_dapm_widget *w;
+	int probe_count;
+	int edma_id;
+	int edma_type;
+	int edma_buffsize;
+	int no_extractor;
+	int no_injector;
+	struct hdac_ext_stream *estream;
+	struct injector_data iprobe[NO_OF_INJECTOR];
+	struct extractor_data eprobe[NO_OF_EXTRACTOR];
+};
+
 struct skl_sst {
 	struct device *dev;
 	struct sst_dsp *dsp;
@@ -65,6 +94,8 @@ struct skl_sst {
 	struct sst_generic_ipc ipc;
 
 	struct skl_d0i3_data d0i3_data;
+
+	struct skl_probe_config probe_config;
 
 	/* Callback to update D0i3C register */
 	void (*update_d0i3c)(struct device *dev,  bool enable);

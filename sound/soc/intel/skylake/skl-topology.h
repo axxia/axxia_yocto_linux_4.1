@@ -86,6 +86,11 @@ enum skl_widget_type {
 	SKL_WIDGET_PGA = 3,
 	SKL_WIDGET_MUX = 4
 };
+struct probe_pt_param {
+	u32 params;
+	u32 connection;
+	u32 node_id;
+};
 
 struct skl_audio_data_format {
 	enum skl_s_freq s_freq;
@@ -106,6 +111,16 @@ struct skl_base_cfg {
 	u32 is_pages;
 	struct skl_audio_data_format audio_fmt;
 };
+
+struct skl_probe_gtw_cfg {
+	u32 node_id;
+	u32 dma_buffer_size;
+} __packed;
+
+struct skl_probe_cfg {
+	struct skl_base_cfg base_cfg;
+	struct skl_probe_gtw_cfg prb_cfg;
+} __packed;
 
 struct skl_cpr_gtw_cfg {
 	u32 node_id;
@@ -318,6 +333,17 @@ struct skl_algo_data {
 	char *params;
 };
 
+struct skl_probe_data {
+	u8 is_connect;
+	u32 is_ext_inj;
+	u32 params;
+	u32 node_id;
+} __packed;
+
+struct skl_attach_probe_dma {
+	union skl_connector_node_id node_id;
+	u32 dma_buff_size;
+} __packed;
 struct skl_pipeline {
 	struct skl_pipe *pipe;
 	struct list_head node;
@@ -387,12 +413,28 @@ int skl_stop_pipe(struct skl_sst *ctx, struct skl_pipe *pipe);
 
 int skl_init_module(struct skl_sst *ctx, struct skl_module_cfg *module_config);
 
+int skl_init_probe_module(struct skl_sst *ctx, struct skl_module_cfg *module_config);
+
+int skl_uninit_probe_module(struct skl_sst *ctx, struct skl_module_cfg *module_config);
+
+int skl_get_probe_index(struct snd_soc_dai *dai,
+				struct skl_probe_config *pconfig);
+
+int skl_tplg_attach_probe_dma(struct snd_soc_dapm_widget *w,
+					struct skl_sst *ctx, struct snd_soc_dai *dai);
+int skl_tplg_set_probe_params(struct snd_soc_dapm_widget *w,
+						struct skl_sst *ctx, int direction,
+						struct snd_soc_dai *dai);
+int skl_tplg_set_module_params(struct snd_soc_dapm_widget *w,
+						struct skl_sst *ctx);
+
 int skl_bind_modules(struct skl_sst *ctx, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module);
 
 int skl_unbind_modules(struct skl_sst *ctx, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module);
-
+int skl_disconnect_probe_point(struct skl_sst *ctx,
+					struct snd_soc_dapm_widget *w);
 int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
 			u32 param_id, struct skl_module_cfg *mcfg);
 int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
@@ -401,6 +443,8 @@ int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
 int skl_load_modules(struct skl_sst *ctx, struct skl_module_cfg *mcfg);
 
 int skl_unload_modules(struct skl_sst *ctx, struct skl_module_cfg *mcfg);
+
+int is_skl_dsp_widget_type(struct snd_soc_dapm_widget *w);
 
 enum skl_bitdepth skl_get_bit_depth(int params);
 #endif
