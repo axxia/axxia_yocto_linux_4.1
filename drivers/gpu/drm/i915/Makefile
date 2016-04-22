@@ -32,6 +32,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_render_state.o \
 	  i915_gem_shrinker.o \
 	  i915_gem_stolen.o \
+	  i915_gem_splash.o \
 	  i915_gem_tiling.o \
 	  i915_gem_userptr.o \
 	  i915_gpu_error.o \
