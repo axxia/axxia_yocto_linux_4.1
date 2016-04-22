@@ -624,9 +624,11 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	if (INTEL_INFO(dev)->num_pipes == 0)
 		return 0;
 
-	ret = intel_fbdev_init(dev);
-	if (ret)
-		goto cleanup_gem;
+	if (!i915.enable_initial_modeset) {
+		ret = intel_fbdev_init(dev);
+		if (ret)
+			goto cleanup_gem;
+	}
 
 	/* Only enable hotplug handling once the fbdev is fully set up. */
 	intel_hpd_init(dev_priv);
@@ -1141,7 +1143,10 @@ static void i915_driver_register(struct drm_i915_private *dev_priv)
 	 * irqs are fully enabled. We do it last so that the async config
 	 * cannot run before the connectors are registered.
 	 */
-	intel_fbdev_initial_config_async(dev);
+	if (i915.enable_initial_modeset)
+		intel_initial_mode_config_init(dev);
+	else
+		intel_fbdev_initial_config_async(dev);
 }
 
 /**
@@ -1269,7 +1274,10 @@ void i915_driver_unload(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = dev_priv->drm.pdev;
 
-	intel_fbdev_fini(dev);
+	if (!i915.enable_initial_modeset)
+		intel_fbdev_fini(dev);
+	else
+		intel_initial_mode_config_fini(dev);
 
 	if (i915_gem_suspend(dev))
 		DRM_ERROR("failed to idle hardware; continuing to unload!\n");
@@ -1347,7 +1355,8 @@ static int i915_driver_open(struct drm_device *dev, struct drm_file *file)
  */
 static void i915_driver_lastclose(struct drm_device *dev)
 {
-	intel_fbdev_restore_mode(dev);
+	if (!i915.enable_initial_modeset)
+		intel_fbdev_restore_mode(dev);
 	vga_switcheroo_process_delayed_switch();
 }
 
