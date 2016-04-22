@@ -30,7 +30,6 @@
 #include <sound/hda_register.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_i915.h>
-#include <sound/compress_driver.h>
 #include "skl.h"
 
 static char *machine = NULL;
@@ -118,31 +117,11 @@ void skl_update_d0i3c(struct device *dev, bool enable)
 	dev_dbg(bus->dev, "D0I3C register = 0x%x\n",
 			snd_hdac_chip_readb(bus, VS_D0I3C));
 }
-static void skl_get_total_bytes_transferred(struct hdac_stream *hstr)
-{
-	int pos, prev_pos, no_of_bytes;
-
-	prev_pos = hstr->curr_pos % hstr->stream->runtime->buffer_size;
-	pos = snd_hdac_stream_get_pos_posbuf(hstr);
-
-	if (pos < prev_pos)
-		no_of_bytes = (hstr->stream->runtime->buffer_size - prev_pos) +  pos;
-	else
-		no_of_bytes = pos - prev_pos;
-
-	hstr->curr_pos += no_of_bytes;
-}
 
 /* called from IRQ */
 static void skl_stream_update(struct hdac_bus *bus, struct hdac_stream *hstr)
 {
-	if (hstr->substream) {
-		snd_pcm_period_elapsed(hstr->substream);
-	} else if (hstr->stream) {
-		skl_get_total_bytes_transferred(hstr);
-		snd_compr_fragment_elapsed(hstr->stream);
-	}
-
+	snd_pcm_period_elapsed(hstr->substream);
 }
 
 static irqreturn_t skl_interrupt(int irq, void *dev_id)

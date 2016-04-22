@@ -331,7 +331,7 @@ EXPORT_SYMBOL_GPL(snd_hdac_get_hdac_stream);
 /*
  * set up a BDL entry
  */
-int setup_bdle(struct hdac_bus *bus,
+static int setup_bdle(struct hdac_bus *bus,
 		      struct snd_dma_buffer *dmab,
 		      struct hdac_stream *azx_dev, __le32 **bdlp,
 		      int ofs, int size, int with_ioc)
@@ -371,7 +371,7 @@ int setup_bdle(struct hdac_bus *bus,
 	*bdlp = bdl;
 	return ofs;
 }
-EXPORT_SYMBOL_GPL(setup_bdle);
+
 /**
  * snd_hdac_stream_setup_periods - set up BDL entries
  * @azx_dev: HD-audio core stream to set up
