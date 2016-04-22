@@ -120,8 +120,8 @@ static struct drm_display_mode *get_modeline(struct drm_i915_private *dev_priv,
 					     struct drm_connector *connector,
 					     int width, int height)
 {
-	struct drm_display_mode *mode = NULL;
-	bool found = false;
+	struct drm_display_mode *mode;
+	struct drm_cmdline_mode *cl_mode = &connector->cmdline_mode;
 
 	/*
 	 * fill_modes() takes a bit of time but is necessary.
@@ -132,23 +132,32 @@ static struct drm_display_mode *get_modeline(struct drm_i915_private *dev_priv,
 
 	connector->funcs->fill_modes(connector, width, height);
 
-	if (!mode) {
-		list_for_each_entry(mode, &connector->modes, head) {
-			if (mode->hdisplay > width ||
-			    mode->vdisplay > height)
-				continue;
-			if (mode->type & DRM_MODE_TYPE_PREFERRED) {
-				found = true;
-				break;
-			}
+	/*
+	 * Search the mode list.  If a mode was specified using the
+	 * video= command line, use that.  Otherwise look for the
+	 * preferred mode.
+	 *
+	 * <connector:><xres>x<yres>[M][R][-<bpp>][@<refresh>][i][m][eDd]
+	 */
+	list_for_each_entry(mode, &connector->modes, head) {
+		if (cl_mode && cl_mode->specified &&
+		    cl_mode->refresh_specified) {
+			if (mode->hdisplay == cl_mode->xres &&
+			    mode->vdisplay == cl_mode->yres &&
+			    mode->vrefresh == cl_mode->refresh)
+				return mode;
+		} else if (cl_mode && cl_mode->specified) {
+			if (mode->hdisplay == cl_mode->xres &&
+			    mode->vdisplay == cl_mode->yres)
+				return mode;
+		} else {
+			if (mode->type & DRM_MODE_TYPE_PREFERRED)
+				return mode;
 		}
 	}
-	if (!found) {
-		DRM_ERROR("Failed to find a valid mode.\n");
-		mode = NULL;
-	}
 
-	return mode;
+	DRM_ERROR("Failed to find a valid mode.\n");
+	return NULL;
 }
 
 static int update_crtc_state(struct drm_atomic_state *state,
