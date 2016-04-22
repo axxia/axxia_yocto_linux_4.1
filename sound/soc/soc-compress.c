@@ -31,14 +31,7 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_soc_platform *platform = rtd->platform;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
-	struct snd_soc_dapm_widget_list *list;
 	int ret = 0;
-	int stream;
-
-	if (cstream->direction == SND_COMPRESS_PLAYBACK)
-		stream = SNDRV_PCM_STREAM_PLAYBACK;
-	else
-		stream = SNDRV_PCM_STREAM_CAPTURE;
 
 	mutex_lock_nested(&rtd->pcm_mutex, rtd->pcm_subclass);
 
@@ -68,7 +61,6 @@ static int soc_compr_open(struct snd_compr_stream *cstream)
 		}
 	}
 
-	ret = dpcm_path_get(rtd, stream, &list);
 	snd_soc_runtime_activate(rtd, cstream->direction);
 
 	mutex_unlock(&rtd->pcm_mutex);
