@@ -2693,6 +2693,8 @@ static int i915_timing_info(struct seq_file *m, void *data)
 		   (dev_priv->profile.csr_load / 1000000));
 	seq_printf(m, "  Initial mode run time:       %4lldms\n",
 		   (dev_priv->profile.initial_mode_run / 1000000));
+	seq_printf(m, "  Initial mode splash init time:        %4lldms\n",
+		   (dev_priv->profile.initial_mode_init_splash / 1000000));
 	seq_printf(m, "  Initial mode get config time:         %4lldms\n",
 		   (dev_priv->profile.initial_mode_get_config / 1000000));
 

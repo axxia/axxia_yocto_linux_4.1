@@ -189,6 +189,7 @@ static void intel_splash_screen_init(struct drm_device *dev)
 	char *splash_str;
 	char *sep;
 	u32 fw_npages;
+	unsigned long long start = sched_clock();
 
 	INIT_LIST_HEAD(&dev_priv->splash_list);
 
@@ -278,6 +279,7 @@ static void intel_splash_screen_init(struct drm_device *dev)
 	}
 
 	kfree(splash_dup);
+	dev_priv->profile.initial_mode_init_splash = sched_clock() - start;
 	return;
 
 fail:
