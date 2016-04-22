@@ -107,17 +107,6 @@ struct skl_base_cfg {
 	struct skl_audio_data_format audio_fmt;
 };
 
-struct skl_probe_gtw_cfg {
-	u32 node_id;
-	u32 dma_buffer_size;
-	u64 data;
-} __packed;
-
-struct skl_probe_cfg {
-		struct skl_base_cfg base_cfg;
-		struct skl_probe_gtw_cfg prb_cfg;
-} __packed;
-
 struct skl_cpr_gtw_cfg {
 	u32 node_id;
 	u32 dma_buffer_size;
@@ -327,20 +316,6 @@ struct skl_algo_data {
 	u32 set_params;
 	u32 max;
 	char *params;
-};
-
-struct skl_probe_data {
-	u32 param_id;
-	struct {
-		u32 module_id:16;
-		u32 instance_id:8;
-		u32 queue_id:3;
-		u32 rsvd0:2;
-		u32 queue_dir:1;
-		u32 capture_pri:1;
-		u32 pp_type:1;
-	} params;
-	u32 prb_cfg; /*set to 0*/
 };
 
 struct skl_pipeline {

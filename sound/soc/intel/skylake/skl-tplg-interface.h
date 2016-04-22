@@ -90,6 +90,7 @@ enum skl_module_type {
 	SKL_MODULE_TYPE_MIC_SELECT,
 	SKL_MODULE_TYPE_PROBE,
 	SKL_MODULE_TYPE_GAIN,
+	SKL_MODULE_TYPE_BASE_OUTFMT
 };
 
 enum skl_core_affinity {

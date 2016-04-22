@@ -639,33 +639,6 @@ static void skl_set_copier_format(struct skl_sst *ctx,
 	skl_setup_cpr_gateway_cfg(ctx, mconfig, cpr_mconfig);
 }
 
-static void skl_setup_probe_gateway_cfg(struct skl_sst *ctx,
-			struct skl_module_cfg *mconfig,
-			struct skl_probe_cfg *probe_cfg)
-{
-	union skl_connector_node_id node_id = {0};
-	struct skl_probe_config *pconfig = &ctx->probe_config;
-
-	node_id.node.dma_type = SKL_DMA_HDA_HOST_INPUT_CLASS;
-	node_id.node.vindex = pconfig->dma_id;
-	probe_cfg->prb_cfg.dma_buffer_size = pconfig->dma_buffsize;
-	pr_err(" **PROBE** dma_id = %d, dma_type = %d, dma_buffer_size = %d\n",
-				pconfig->dma_id, pconfig->dma_type, pconfig->dma_buffsize);
-	memcpy (&(probe_cfg->prb_cfg.node_id), &node_id, sizeof(u32));
-}
-
-static void skl_set_probe_format(struct skl_sst *ctx,
-			struct skl_module_cfg *mconfig,
-			struct skl_probe_cfg *probe_mconfig)
-{
-	struct skl_base_cfg *base_cfg = (struct skl_base_cfg *)probe_mconfig;
-
-	skl_set_base_module_format(ctx, mconfig, base_cfg);
-	base_cfg->ibs = 384;
-	base_cfg->obs = 384;
-	skl_setup_probe_gateway_cfg(ctx, mconfig, probe_mconfig);
-}
-
 /*
  * Algo module are DSP pre processing modules. Algo
  * module take base module configuration and params
@@ -714,9 +687,6 @@ static u16 skl_get_module_param_size(struct skl_sst *ctx,
 		param_size = sizeof(struct skl_cpr_cfg);
 		param_size += mconfig->formats_config.caps_size;
 		return param_size;
-
-	case SKL_MODULE_TYPE_PROBE:
-		return sizeof(struct skl_probe_cfg);
 
 	case SKL_MODULE_TYPE_SRCINT:
 		return sizeof(struct skl_src_module_cfg);
@@ -771,10 +741,6 @@ static int skl_set_module_format(struct skl_sst *ctx,
 	switch (module_config->m_type) {
 	case SKL_MODULE_TYPE_COPIER:
 		skl_set_copier_format(ctx, module_config, *param_data);
-		break;
-
-	case SKL_MODULE_TYPE_PROBE:
-		skl_set_probe_format(ctx, module_config, *param_data);
 		break;
 
 	case SKL_MODULE_TYPE_SRCINT:
