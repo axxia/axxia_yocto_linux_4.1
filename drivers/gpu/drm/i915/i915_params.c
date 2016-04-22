@@ -64,6 +64,7 @@ struct i915_params i915 __read_mostly = {
 	.enable_scheduler = 1,
 	.enable_preemption = 1,
 	.enable_dpcd_backlight = false,
+	.enable_initial_modeset = false,
 };
 
 module_param_named(modeset, i915.modeset, int, 0400);
@@ -238,3 +239,7 @@ MODULE_PARM_DESC(enable_preemption, "Enable pre-emption within scheduler  (0 = d
 module_param_named(enable_dpcd_backlight, i915.enable_dpcd_backlight, bool, 0600);
 MODULE_PARM_DESC(enable_dpcd_backlight,
 	"Enable support for DPCD backlight control (default:false)");
+
+module_param_named_unsafe(enable_initial_modeset, i915.enable_initial_modeset, bool, 0400);
+MODULE_PARM_DESC(enable_initial_modeset,
+		 "Do initial modeset for TSD usecase (default : false)");
