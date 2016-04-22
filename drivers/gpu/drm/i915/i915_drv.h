@@ -1732,6 +1732,8 @@ struct intel_load_profiles {
 	unsigned long long guc_init;
 	unsigned long long guc_load;
 	unsigned long long csr_load;
+	unsigned long long initial_mode_run;
+	unsigned long long initial_mode_get_config;
 };
 
 struct i915_frontbuffer_tracking {

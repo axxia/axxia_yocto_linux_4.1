@@ -337,6 +337,7 @@ static void modeset_config_fn(struct work_struct *work)
 	struct drm_plane *plane;
 	int ret;
 	bool found = false;
+	unsigned long long start = sched_clock();
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -392,6 +393,8 @@ retry:
 		}
 	}
 
+	dev_priv->profile.initial_mode_get_config = sched_clock() - start;
+
 	if (found) {
 		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
 				       state->acquire_ctx);
@@ -426,6 +429,7 @@ out:
 	}
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
+	dev_priv->profile.initial_mode_run = sched_clock() - start;
 }
 
 void intel_initial_mode_config_init(struct drm_device *dev)
