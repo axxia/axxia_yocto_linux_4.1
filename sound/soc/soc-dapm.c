@@ -3406,10 +3406,6 @@ snd_soc_dapm_new_control_unlocked(struct snd_soc_dapm_context *dapm,
 		w->is_source = 1;
 		w->power_check = dapm_always_on_check_power;
 		break;
-	case snd_soc_dapm_sink:
-		w->is_sink = 1;
-		w->power_check = dapm_always_on_check_power;
-		break;
 	case snd_soc_dapm_mux:
 	case snd_soc_dapm_demux:
 	case snd_soc_dapm_switch:
