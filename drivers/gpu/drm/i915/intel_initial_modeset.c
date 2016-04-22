@@ -165,6 +165,7 @@ static int update_crtc_state(struct drm_atomic_state *state,
 			     struct drm_crtc *crtc)
 {
 	struct drm_crtc_state *crtc_state;
+	struct drm_rgba bgcolor;
 	int ret;
 
 	crtc_state = drm_atomic_get_crtc_state(state, crtc);
@@ -178,6 +179,17 @@ static int update_crtc_state(struct drm_atomic_state *state,
 	}
 
 	crtc_state->active = true;
+
+	if (!IS_GEN9(state->dev))
+	    return 0;
+
+	/* Set the background color */
+	bgcolor = drm_rgba(16, 0, 0, 0, 0xffff);
+	ret = drm_atomic_crtc_set_property(crtc, crtc_state,
+					   state->dev->mode_config.prop_background_color,
+					   bgcolor.v);
+	WARN_ON(ret);
+
 	return 0;
 }
 
