@@ -1052,6 +1052,7 @@ struct splash_screen_info {
 	const struct firmware *fw;
 	struct drm_i915_gem_object *obj;
 	char *connector_name;
+	char *image_name;
 	int width;
 	int height;
 	int pitch;
