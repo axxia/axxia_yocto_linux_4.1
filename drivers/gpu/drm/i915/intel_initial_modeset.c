@@ -41,6 +41,12 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
+static unsigned int bg_color = 0x00000000;
+
+module_param_named(bg_color, bg_color, uint, 0400);
+MODULE_PARM_DESC(bg_color, "Set the background (canvas) color while "
+		 "doing initial mode set. In XRGB8888 little endian format.");
+
 /*
  * This makes use of the video= kernel command line to determine what
  * connectors to configure. See Documentation/fb/modedb.txt for details
@@ -183,8 +189,13 @@ static int update_crtc_state(struct drm_atomic_state *state,
 	if (!IS_GEN9(state->dev))
 	    return 0;
 
-	/* Set the background color */
-	bgcolor = drm_rgba(16, 0, 0, 0, 0xffff);
+	/* Set the background color based on module parameter */
+	bgcolor =drm_rgba(8,
+			  (bg_color & 0x000000ff),
+			  (bg_color & 0x0000ff00) >> 8,
+			  (bg_color & 0x00ff0000) >> 16,
+			  (bg_color & 0xff000000) >> 24);
+
 	ret = drm_atomic_crtc_set_property(crtc, crtc_state,
 					   state->dev->mode_config.prop_background_color,
 					   bgcolor.v);
