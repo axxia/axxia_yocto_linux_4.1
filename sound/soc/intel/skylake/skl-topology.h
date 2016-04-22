@@ -417,12 +417,9 @@ int skl_bind_modules(struct skl_sst *ctx, struct skl_module_cfg
 
 int skl_unbind_modules(struct skl_sst *ctx, struct skl_module_cfg
 	*src_module, struct skl_module_cfg *dst_module);
-int skl_disconnect_probe_point(struct skl_sst *ctx,
-					struct snd_soc_dapm_widget *w);
+
 int skl_set_module_params(struct skl_sst *ctx, u32 *params, int size,
 			u32 param_id, struct skl_module_cfg *mcfg);
-int skl_set_probe_point(struct skl_sst *ctx, u32 *params, int size,
-						struct snd_soc_dapm_widget *w);
 int skl_get_module_params(struct skl_sst *ctx, u32 *params, int size,
 			  u32 param_id, struct skl_module_cfg *mcfg);
 
