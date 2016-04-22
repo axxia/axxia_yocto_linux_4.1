@@ -41,13 +41,42 @@
 #include "intel_drv.h"
 #include "i915_drv.h"
 
+/*
+ * This makes use of the video= kernel command line to determine what
+ * connectors to configure. See Documentation/fb/modedb.txt for details
+ * on the format.  There are 3 specific cases that are used:
+ *
+ * 1) video=<connector>
+ *      - assume monitor is connected, use EDID preferred mode
+ * 2) video=<connector:e>
+ *      - use regardless of monitor connected, use EDID prefered mode
+ * 3) video=<connector:xres x yres @ refresh e
+ *      - use regardless of monitor connected and use specified mode.
+ */
 static bool use_connector(struct drm_connector *connector)
 {
-	if (connector->force == DRM_FORCE_OFF)
-		return false;
+	char *option = NULL;
+	struct drm_cmdline_mode *cl_mode = &connector->cmdline_mode;
 
-	connector->status = connector->funcs->detect(connector, true);
-	return (connector->status == connector_status_connected);
+	fb_get_options(connector->name, &option);
+	if (option) {
+		if (!drm_mode_parse_command_line_for_connector(option,
+							      connector,
+							      cl_mode))
+			return false;
+
+		if (cl_mode->force == DRM_FORCE_OFF)
+			return false;
+
+		connector->status = connector->funcs->detect(connector, true);
+		if (connector->status != connector_status_connected) {
+			connector->force = cl_mode->force;
+			connector->status = connector_status_connected;
+		}
+		return true;
+	}
+
+	return false;
 }
 
 static void attach_crtc(struct drm_device *dev, struct drm_encoder *encoder)
@@ -275,6 +304,7 @@ static void modeset_config_fn(struct work_struct *work)
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_plane *plane;
 	int ret;
+	bool found = false;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -286,11 +316,8 @@ static void modeset_config_fn(struct work_struct *work)
 
 retry:
 	ret = disable_planes(dev, state);
-	if (ret == -EDEADLK)
-		goto backoff;
-
 	if (ret)
-		goto fail;
+		goto early_fail;
 
 	/*
 	 * For each connector that we want to set up, update the atomic
@@ -306,36 +333,56 @@ retry:
 
 			ret = update_atomic_state(dev, state,
 					    connector, encoder);
-			if (ret == -EDEADLK) {
-				mutex_unlock(&dev->mode_config.mutex);
-				goto backoff;
+			if (ret)
+				goto fail;
+			found = true;
+		}
+	}
+
+	if (!found) {
+		/* Try to detect attached connectors */
+		drm_for_each_connector(connector, dev) {
+			struct drm_encoder *encoder;
+			connector->status = connector->funcs->detect(connector,
+								     true);
+			if (connector->status == connector_status_connected) {
+				if (!(encoder = get_encoder(dev, connector)))
+					continue;
+
+				ret = update_atomic_state(dev, state,
+							  connector, encoder);
+				if (ret)
+					goto fail;
+				found = true;
 			}
 			if (ret)
 				goto fail;
 		}
 	}
 
-	ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
-			       state->acquire_ctx);
-	if (ret == -EDEADLK)
-		goto backoff;
-	if (ret)
-		goto fail;
+	if (found) {
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				       state->acquire_ctx);
+		if (ret)
+			goto fail;
 
-	ret = drm_atomic_commit(state);
+		ret = drm_atomic_commit(state);
+		if (ret)
+			goto fail;
+	}
 	mutex_unlock(&dev->mode_config.mutex);
-	if (!ret)
-		goto out;
-	if (ret != -EDEADLK)
-		goto fail;
-
-backoff:
-	DRM_DEBUG_KMS("modeset commit deadlock, retry...\n");
-	drm_modeset_backoff(&ctx);
-	drm_atomic_state_clear(state);
-	goto retry;
+	goto out;
 
 fail:
+	mutex_unlock(&dev->mode_config.mutex);
+
+early_fail:
+	if (ret == -EDEADLK) {
+		DRM_DEBUG_KMS("modeset commit deadlock, retry...\n");
+		drm_modeset_backoff(&ctx);
+		drm_atomic_state_clear(state);
+		goto retry;
+	}
 	drm_atomic_state_free(state);
 
 out:
