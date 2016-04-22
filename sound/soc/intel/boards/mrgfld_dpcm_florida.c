@@ -616,28 +616,6 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.dynamic = 1,
 		.ops = &mrgfld_florida_ops,
 	},
-	{
-		.name = "Bxt Probe playback",
-		.stream_name = "probeplayback",
-		.cpu_dai_name = "Probe0 Pin",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.platform_name = "0000:00:0e.0",
-		.init = NULL,
-		.ignore_suspend = 1,
-		.nonatomic = 1,
-	},
-	{
-		.name = "Bxt Probe capture",
-		.stream_name = "probecapture",
-		.cpu_dai_name = "Probe1 Pin",
-		.codec_name = "snd-soc-dummy",
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.platform_name = "0000:00:0e.0",
-		.init = NULL,
-		.ignore_suspend = 1,
-		.nonatomic = 1,
-	},
 
 		/* CODEC<->CODEC link */
 	{
