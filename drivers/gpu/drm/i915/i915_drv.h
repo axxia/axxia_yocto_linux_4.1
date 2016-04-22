@@ -1032,6 +1032,7 @@ struct i915_drrs {
 };
 
 struct splash_screen_info {
+	struct list_head link;
 	const struct firmware *fw;
 	struct drm_i915_gem_object *obj;
 	char *connector_name;
@@ -1042,6 +1043,7 @@ struct splash_screen_info {
 	int crtc_y;
 	int crtc_w;
 	int crtc_h;
+	struct drm_framebuffer *fb;
 };
 
 struct i915_psr {
@@ -2013,7 +2015,7 @@ struct drm_i915_private {
 	struct work_struct fbdev_suspend_work;
 #endif
 
-	struct splash_screen_info *splash_screen_info;
+	struct list_head splash_list;
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
