@@ -408,6 +408,13 @@ struct intel_crtc_scaler_state {
 	int scaler_id;
 };
 
+/* In-flight atomic operation */
+struct intel_pending_atomic {
+	struct work_struct work;
+	struct drm_atomic_state *state;
+	uint32_t crtc_mask;
+};
+
 /* drm_mode->private_flags */
 #define I915_MODE_FLAG_INHERITED 1
 

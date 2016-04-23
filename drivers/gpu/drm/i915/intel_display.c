@@ -13530,11 +13530,6 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i, ret;
 
-	if (async) {
-		DRM_DEBUG_KMS("i915 does not yet support async commit\n");
-		return -EINVAL;
-	}
-
 	for_each_crtc_in_state(state, crtc, crtc_state, i) {
 		if (state->legacy_cursor_update)
 			continue;
@@ -13654,55 +13649,60 @@ static bool needs_vblank_wait(struct intel_crtc_state *crtc_state)
 	return false;
 }
 
-/**
- * intel_atomic_commit - commit validated state object
- * @dev: DRM device
- * @state: the top-level driver state object
- * @async: asynchronous commit
- *
- * This function commits a top-level state object that has been validated
- * with drm_atomic_helper_check().
- *
- * FIXME:  Atomic modeset support for i915 is not yet complete.  At the moment
- * we can only handle plane-related operations and do not yet support
- * asynchronous commit.
- *
- * RETURNS
- * Zero for success or -errno.
+/*
+ * Wait until CRTC's have no pending flip, then atomically mark those CRTC's
+ * as busy.
  */
-static int intel_atomic_commit(struct drm_device *dev,
-			       struct drm_atomic_state *state,
-			       bool async)
+static int wait_for_pending_flip(uint32_t crtc_mask,
+                                struct intel_pending_atomic *commit)
 {
+       struct drm_i915_private *dev_priv = to_i915(commit->state->dev);
+       int ret;
+
+       spin_lock_irq(&dev_priv->pending_flip_queue.lock);
+       ret = wait_event_interruptible_locked(dev_priv->pending_flip_queue,
+                                             !(dev_priv->pending_atomic & crtc_mask));
+       if (ret == 0)
+               dev_priv->pending_atomic |= crtc_mask;
+       spin_unlock_irq(&dev_priv->pending_flip_queue.lock);
+
+       return ret;
+}
+
+/* Finish pending flip operation on specified CRTC's */
+static void flip_completion(struct intel_pending_atomic *commit)
+{
+       struct drm_i915_private *dev_priv = to_i915(commit->state->dev);
+
+       spin_lock_irq(&dev_priv->pending_flip_queue.lock);
+       dev_priv->pending_atomic &= ~commit->crtc_mask;
+       wake_up_all_locked(&dev_priv->pending_flip_queue);
+       spin_unlock_irq(&dev_priv->pending_flip_queue.lock);
+}
+
+/*
+ * Finish an atomic commit.  The work here can be performed asynchronously
+ * if desired.  The new state has already been applied to the DRM objects
+ * and no modeset locks are needed.
+ */
+static void finish_atomic_commit(struct work_struct *work)
+{
+	struct intel_pending_atomic *commit =
+		container_of(work, struct intel_pending_atomic, work);
+	struct drm_atomic_state *state = commit->state;
 	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_crtc_state *old_crtc_state;
+	struct drm_device *dev = state->dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *crtc;
+	struct drm_crtc_state *old_crtc_state;
 	struct intel_crtc_state *intel_cstate;
-	int ret = 0, i;
 	bool hw_check = intel_state->modeset;
 	unsigned long put_domains[I915_MAX_PIPES] = {};
 	unsigned crtc_vblank_mask = 0;
+	int i;
 
-	ret = intel_atomic_prepare_commit(dev, state, async);
-	if (ret) {
-		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
-		return ret;
-	}
-
-	drm_atomic_helper_swap_state(dev, state);
-	dev_priv->wm.distrust_bios_wm = false;
-	dev_priv->wm.skl_results = intel_state->wm_results;
-	intel_shared_dpll_commit(state);
-
-	if (intel_state->modeset) {
-		memcpy(dev_priv->min_pixclk, intel_state->min_pixclk,
-		       sizeof(intel_state->min_pixclk));
-		dev_priv->active_crtcs = intel_state->active_crtcs;
-		dev_priv->atomic_cdclk_freq = intel_state->cdclk;
-
+	if (intel_state->modeset)
 		intel_display_power_get(dev_priv, POWER_DOMAIN_MODESET);
-	}
 
 	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
 		struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
@@ -13828,6 +13828,9 @@ static int intel_atomic_commit(struct drm_device *dev,
 	if (hw_check)
 		intel_modeset_check_state(dev, state);
 
+	/* Unblock other commits against these CRTC's */
+	flip_completion(commit);
+
 	drm_atomic_state_free(state);
 
 	/* As one of the primary mmio accessors, KMS has a high likelihood
@@ -13842,6 +13845,88 @@ static int intel_atomic_commit(struct drm_device *dev,
 	 * can happen also when the device is completely off.
 	 */
 	intel_uncore_arm_unclaimed_mmio_detection(dev_priv);
+}
+
+
+/**
+ * intel_atomic_commit - commit validated state object
+ * @dev: DRM device
+ * @state: the top-level driver state object
+ * @async: asynchronous commit
+ *
+ * This function commits a top-level state object that has been validated
+ * with drm_atomic_helper_check().
+ *
+ * FIXME:  Atomic modeset support for i915 is not yet complete.  At the moment
+ * we can only handle plane-related operations and do not yet support
+ * asynchronous commit.
+ *
+ * RETURNS
+ * Zero for success or -errno.
+ */
+static int intel_atomic_commit(struct drm_device *dev,
+			       struct drm_atomic_state *state,
+			       bool async)
+{
+	struct intel_atomic_state *intel_state = to_intel_atomic_state(state);
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_pending_atomic *commit;
+	int ret = 0, i;
+
+	ret = intel_atomic_prepare_commit(dev, state, async);
+	if (ret) {
+		DRM_DEBUG_ATOMIC("Preparing state failed with %i\n", ret);
+		return ret;
+	}
+
+	commit = kzalloc(sizeof(*commit), GFP_KERNEL);
+	if (!commit)
+		return -ENOMEM;
+
+	commit->state = state;
+
+	for (i = 0; i < dev->mode_config.num_crtc; i++)
+		if (state->crtcs[i])
+			commit->crtc_mask |=
+				(1 << drm_crtc_index(state->crtcs[i]));
+
+	/*
+	 * If there's already a flip pending, we won't schedule another one
+	 * until it completes.  We may relax this in the future, but for now
+	 * this matches the legacy pageflip behavior.
+	 */
+	ret = wait_for_pending_flip(commit->crtc_mask, commit);
+	if (ret) {
+		kfree(commit);
+		return ret;
+	}
+
+       /*
+        * Point of no return; everything from here on can't fail, so swap
+        * the new state into the DRM objects.
+        */
+	drm_atomic_helper_swap_state(dev, state);
+	dev_priv->wm.distrust_bios_wm = false;
+	dev_priv->wm.skl_results = intel_state->wm_results;
+	intel_shared_dpll_commit(state);
+
+	if (intel_state->modeset) {
+		memcpy(dev_priv->min_pixclk, intel_state->min_pixclk,
+		       sizeof(intel_state->min_pixclk));
+		dev_priv->active_crtcs = intel_state->active_crtcs;
+		dev_priv->atomic_cdclk_freq = intel_state->cdclk;
+	}
+
+	/*
+	 * From here on, we can do everything asynchronously without any
+	 * modeset locks.
+	 */
+	if (async) {
+		INIT_WORK(&commit->work, finish_atomic_commit);
+		schedule_work(&commit->work);
+	} else {
+		finish_atomic_commit(&commit->work);
+	}
 
 	return 0;
 }

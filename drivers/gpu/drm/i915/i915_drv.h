@@ -1954,6 +1954,9 @@ struct drm_i915_private {
 	struct drm_crtc *pipe_to_crtc_mapping[I915_MAX_PIPES];
 	wait_queue_head_t pending_flip_queue;
 
+	/* CRTC mask of pending atomic flips */
+	uint32_t pending_atomic;
+
 #ifdef CONFIG_DEBUG_FS
 	struct intel_pipe_crc pipe_crc[I915_MAX_PIPES];
 #endif
