@@ -731,7 +731,7 @@ static void lsinet_rx_packet(struct net_device *dev)
 		dev_kfree_skb(sk_buff);
 
 	} else if (0 == error_num) {
-		struct ethhdr *ethhdr = (struct ethhdr *)sk_buff->data;
+		struct ethhdr *ethhdr = (struct ethhdr *) sk_buff->data;
 
 		if (mac_addr_valid(dev, &ethhdr->h_dest[0])) {
 			pdata->stats.rx_bytes += bytes_copied;
