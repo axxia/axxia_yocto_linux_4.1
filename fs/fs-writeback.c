@@ -762,7 +762,10 @@ static long writeback_sb_inodes(struct super_block *sb,
 		requeue_inode(inode, wb, &wbc);
 		inode_sync_complete(inode);
 		spin_unlock(&inode->i_lock);
-		cond_resched_lock(&wb->list_lock);
+
+		if (spin_needbreak(&wb->list_lock))
+			cond_resched_lock(&wb->list_lock);
+
 		/*
 		 * bail out to wb_writeback() often enough to check
 		 * background threshold and other termination conditions.
