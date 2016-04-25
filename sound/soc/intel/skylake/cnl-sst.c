@@ -245,7 +245,6 @@ base_fw_load_failed:
 static int sst_transfer_fw_host_dma(struct sst_dsp *ctx)
 {
 	int ret = 0;
-	int stream_tag = 0;
 
 	ctx->dsp_ops.trigger(ctx->dev, true, ctx->dsp_ops.stream_tag);
 	ret = sst_dsp_register_poll(ctx, CNL_ADSP_FW_STATUS, CNL_FW_STS_MASK,
@@ -253,8 +252,8 @@ static int sst_transfer_fw_host_dma(struct sst_dsp *ctx)
 			CNL_FW_ROM_BASEFW_ENTERED_TIMEOUT,
 			"Firmware boot");
 
-	ctx->dsp_ops.trigger(ctx->dev, false, stream_tag);
-	ctx->dsp_ops.cleanup(ctx->dev, &ctx->dmab, stream_tag);
+	ctx->dsp_ops.trigger(ctx->dev, false, ctx->dsp_ops.stream_tag);
+	ctx->dsp_ops.cleanup(ctx->dev, &ctx->dmab, ctx->dsp_ops.stream_tag);
 	return ret;
 }
 
