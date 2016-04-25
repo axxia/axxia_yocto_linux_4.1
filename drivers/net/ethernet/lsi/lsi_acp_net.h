@@ -13,6 +13,10 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307
+ *  USA
  */
 
 #ifndef _LSI_ACP_NET_H
@@ -38,6 +42,7 @@ extern int acp_mdio_write(unsigned long, unsigned long, unsigned short, int);
 /* Device Data Structures */
 
 struct appnic_dma_descriptor {
+
 #ifdef __LITTLE_ENDIAN
 	/* Word 0 */
 	/* 00=Fill|01=Block|10=Scatter */
@@ -87,6 +92,7 @@ struct appnic_dma_descriptor {
 } __packed;
 
 union appnic_queue_pointer {
+
 	unsigned long raw;
 
 	struct {
@@ -106,6 +112,7 @@ union appnic_queue_pointer {
 /* The appnic Device Structure */
 
 struct appnic_device {
+
 	/* net_device */
 	struct net_device *device;
 
@@ -183,6 +190,7 @@ struct appnic_device {
 
 	/* Spin Lock */
 	spinlock_t dev_lock;
+	spinlock_t tx_lock;
 
 	/* PHY */
 	struct mii_bus *mii_bus;
@@ -494,13 +502,16 @@ readdescriptor(unsigned long address, struct appnic_dma_descriptor *descriptor)
 {
 	memcpy(descriptor, (void *)address,
 	       sizeof(struct appnic_dma_descriptor));
+	return;
 }
 
 static inline void
 writedescriptor(unsigned long address,
 		const struct appnic_dma_descriptor *descriptor)
 {
-	memcpy((void *)address, descriptor, sizeof(struct appnic_dma_descriptor));
+	memcpy((void *)address, descriptor,
+		   sizeof(struct appnic_dma_descriptor));
+	return;
 }
 
 static inline union appnic_queue_pointer
@@ -521,33 +532,34 @@ femac_uncache(struct appnic_device *pdata)
 static inline void
 readdescriptor(unsigned long address, struct appnic_dma_descriptor *descriptor)
 {
-	unsigned long *from = (unsigned long *)address;
-	unsigned long *to = (unsigned long *)descriptor;
+	unsigned long *from = (unsigned long *) address;
+	unsigned long *to = (unsigned long *) descriptor;
 
 	*to++ = swab32(*from++);
 	*to++ = swab32(*from++);
 	*to++ = swab32(*from++);
 	*to++ = swab32(*from++);
+	return;
 }
 
 static inline void
 writedescriptor(unsigned long address,
 		const struct appnic_dma_descriptor *descriptor)
 {
-	unsigned long *to = (unsigned long *)address;
-	unsigned long *from = (unsigned long *)descriptor;
+	unsigned long *to = (unsigned long *) address;
+	unsigned long *from = (unsigned long *) descriptor;
 
 	*to++ = swab32(*from++);
 	*to++ = swab32(*from++);
 	*to++ = swab32(*from++);
 	*to++ = swab32(*from++);
+	return;
 }
 
 static inline union appnic_queue_pointer
 _swab_queue_pointer(const union appnic_queue_pointer *old_queue)
 {
 	union appnic_queue_pointer new_queue;
-
 	new_queue.raw = swab32(old_queue->raw);
 	return new_queue;
 }
