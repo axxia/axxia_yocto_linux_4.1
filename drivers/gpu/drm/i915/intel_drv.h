@@ -424,7 +424,6 @@ struct intel_crtc_atomic_commit {
 	/* Sleepable operations to perform before commit */
 	bool wait_for_flips;
 	bool disable_fbc;
-	bool disable_ips;
 	bool pre_disable_primary;
 	bool update_wm;
 	unsigned disabled_planes;
@@ -953,8 +952,7 @@ intel_wait_for_vblank(struct drm_device *dev, int pipe)
 }
 int ironlake_get_lanes_required(int target_clock, int link_bw, int bpp);
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
-			 struct intel_digital_port *dport,
-			 unsigned int expected_mask);
+			 struct intel_digital_port *dport);
 bool intel_get_load_detect_pipe(struct drm_connector *connector,
 				struct drm_display_mode *mode,
 				struct intel_load_detect_pipe *old,
@@ -1067,8 +1065,6 @@ void intel_dp_start_link_train(struct intel_dp *intel_dp);
 void intel_dp_complete_link_train(struct intel_dp *intel_dp);
 void intel_dp_stop_link_train(struct intel_dp *intel_dp);
 void intel_dp_sink_dpms(struct intel_dp *intel_dp, int mode);
-void intel_dp_encoder_reset(struct drm_encoder *encoder);
-void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder);
 void intel_dp_encoder_destroy(struct drm_encoder *encoder);
 int intel_dp_sink_crc(struct intel_dp *intel_dp, u8 *crc);
 bool intel_dp_compute_config(struct intel_encoder *encoder,

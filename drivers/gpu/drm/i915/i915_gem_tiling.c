@@ -464,10 +464,7 @@ i915_gem_get_tiling(struct drm_device *dev, void *data,
 	}
 
 	/* Hide bit 17 from the user -- see comment in i915_gem_set_tiling */
-	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
-		args->phys_swizzle_mode = I915_BIT_6_SWIZZLE_UNKNOWN;
-	else
-		args->phys_swizzle_mode = args->swizzle_mode;
+	args->phys_swizzle_mode = args->swizzle_mode;
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_17)
 		args->swizzle_mode = I915_BIT_6_SWIZZLE_9;
 	if (args->swizzle_mode == I915_BIT_6_SWIZZLE_9_10_17)

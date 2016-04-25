@@ -1150,19 +1150,6 @@ intel_dp_sink_rates(struct intel_dp *intel_dp, const int **sink_rates)
 	return (intel_dp_max_link_bw(intel_dp) >> 3) + 1;
 }
 
-static bool intel_dp_source_supports_hbr2(struct drm_device *dev)
-{
-	/* WaDisableHBR2:skl */
-	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
-		return false;
-
-	if ((IS_HASWELL(dev) && !IS_HSW_ULX(dev)) || IS_BROADWELL(dev) ||
-	    (INTEL_INFO(dev)->gen >= 9))
-		return true;
-	else
-		return false;
-}
-
 static int
 intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 {
@@ -1176,8 +1163,11 @@ intel_dp_source_rates(struct drm_device *dev, const int **source_rates)
 
 	*source_rates = default_rates;
 
-	/* This depends on the fact that 5.4 is last value in the array */
-	if (intel_dp_source_supports_hbr2(dev))
+	if (IS_SKYLAKE(dev) && INTEL_REVID(dev) <= SKL_REVID_B0)
+		/* WaDisableHBR2:skl */
+		return (DP_LINK_BW_2_7 >> 3) + 1;
+	else if (INTEL_INFO(dev)->gen >= 8 ||
+	    (IS_HASWELL(dev) && !IS_HSW_ULX(dev)))
 		return (DP_LINK_BW_5_4 >> 3) + 1;
 	else
 		return (DP_LINK_BW_2_7 >> 3) + 1;
@@ -2483,7 +2473,6 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_crtc *crtc = to_intel_crtc(encoder->base.crtc);
 	uint32_t dp_reg = I915_READ(intel_dp->output_reg);
-	unsigned int lane_mask = 0x0;
 
 	if (WARN_ON(dp_reg & DP_PORT_EN))
 		return;
@@ -2502,8 +2491,7 @@ static void intel_enable_dp(struct intel_encoder *encoder)
 	pps_unlock(intel_dp);
 
 	if (IS_VALLEYVIEW(dev))
-		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp),
-				    lane_mask);
+		vlv_wait_port_ready(dev_priv, dp_to_dig_port(intel_dp));
 
 	intel_dp_sink_dpms(intel_dp, DRM_MODE_DPMS_ON);
 	intel_dp_start_link_train(intel_dp);
@@ -2720,7 +2708,7 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 		to_intel_crtc(encoder->base.crtc);
 	enum dpio_channel ch = vlv_dport_to_channel(dport);
 	int pipe = intel_crtc->pipe;
-	int data, i, stagger;
+	int data, i;
 	u32 val;
 
 	mutex_lock(&dev_priv->dpio_lock);
@@ -2760,38 +2748,7 @@ static void chv_pre_enable_dp(struct intel_encoder *encoder)
 	}
 
 	/* Data lane stagger programming */
-	if (intel_crtc->config->port_clock > 270000)
-		stagger = 0x18;
-	else if (intel_crtc->config->port_clock > 135000)
-		stagger = 0xd;
-	else if (intel_crtc->config->port_clock > 67500)
-		stagger = 0x7;
-	else if (intel_crtc->config->port_clock > 33750)
-		stagger = 0x4;
-	else
-		stagger = 0x2;
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS01_DW11(ch));
-	val |= DPIO_TX2_STAGGER_MASK(0x1f);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW11(ch), val);
-
-	val = vlv_dpio_read(dev_priv, pipe, VLV_PCS23_DW11(ch));
-	val |= DPIO_TX2_STAGGER_MASK(0x1f);
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW11(ch), val);
-
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS01_DW12(ch),
-		       DPIO_LANESTAGGER_STRAP(stagger) |
-		       DPIO_LANESTAGGER_STRAP_OVRD |
-		       DPIO_TX1_STAGGER_MASK(0x1f) |
-		       DPIO_TX1_STAGGER_MULT(6) |
-		       DPIO_TX2_STAGGER_MULT(0));
-
-	vlv_dpio_write(dev_priv, pipe, VLV_PCS23_DW12(ch),
-		       DPIO_LANESTAGGER_STRAP(stagger) |
-		       DPIO_LANESTAGGER_STRAP_OVRD |
-		       DPIO_TX1_STAGGER_MASK(0x1f) |
-		       DPIO_TX1_STAGGER_MULT(7) |
-		       DPIO_TX2_STAGGER_MULT(5));
+	/* FIXME: Fix up value only after power analysis */
 
 	mutex_unlock(&dev_priv->dpio_lock);
 
@@ -3826,15 +3783,10 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		}
 	}
 
-	/* Training Pattern 3 support, Intel platforms that support HBR2 alone
-	 * have support for TP3 hence that check is used along with dpcd check
-	 * to ensure TP3 can be enabled.
-	 * SKL < B0: due it's WaDisableHBR2 is the only exception where TP3 is
-	 * supported but still not enabled.
-	 */
+	/* Training Pattern 3 support, both source and sink */
 	if (intel_dp->dpcd[DP_DPCD_REV] >= 0x12 &&
 	    intel_dp->dpcd[DP_MAX_LANE_COUNT] & DP_TPS3_SUPPORTED &&
-	    intel_dp_source_supports_hbr2(dev)) {
+	    (IS_HASWELL(dev_priv) || INTEL_INFO(dev_priv)->gen >= 8)) {
 		intel_dp->use_tps3 = true;
 		DRM_DEBUG_KMS("Displayport TPS3 supported\n");
 	} else
@@ -4582,7 +4534,7 @@ void intel_dp_encoder_destroy(struct drm_encoder *encoder)
 	kfree(intel_dig_port);
 }
 
-void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
+static void intel_dp_encoder_suspend(struct intel_encoder *intel_encoder)
 {
 	struct intel_dp *intel_dp = enc_to_intel_dp(&intel_encoder->base);
 
@@ -4624,7 +4576,7 @@ static void intel_edp_panel_vdd_sanitize(struct intel_dp *intel_dp)
 	edp_panel_vdd_schedule_off(intel_dp);
 }
 
-void intel_dp_encoder_reset(struct drm_encoder *encoder)
+static void intel_dp_encoder_reset(struct drm_encoder *encoder)
 {
 	struct intel_dp *intel_dp;
 
@@ -4724,12 +4676,9 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 
 		intel_dp_probe_oui(intel_dp);
 
-		if (!intel_dp_probe_mst(intel_dp)) {
-			drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
-			intel_dp_check_link_status(intel_dp);
-			drm_modeset_unlock(&dev->mode_config.connection_mutex);
+		if (!intel_dp_probe_mst(intel_dp))
 			goto mst_fail;
-		}
+
 	} else {
 		if (intel_dp->is_mst) {
 			if (intel_dp_check_mst_status(intel_dp) == -EINVAL)
@@ -4737,6 +4686,10 @@ intel_dp_hpd_pulse(struct intel_digital_port *intel_dig_port, bool long_hpd)
 		}
 
 		if (!intel_dp->is_mst) {
+			/*
+			 * we'll check the link status via the normal hot plug path later -
+			 * but for short hpds we should check it now
+			 */
 			drm_modeset_lock(&dev->mode_config.connection_mutex, NULL);
 			intel_dp_check_link_status(intel_dp);
 			drm_modeset_unlock(&dev->mode_config.connection_mutex);

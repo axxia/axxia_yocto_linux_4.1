@@ -951,7 +951,6 @@ enum skl_disp_power_wells {
 
 #define _VLV_PCS_DW11_CH0		0x822c
 #define _VLV_PCS_DW11_CH1		0x842c
-#define   DPIO_TX2_STAGGER_MASK(x)	((x)<<24)
 #define   DPIO_LANEDESKEW_STRAP_OVRD	(1<<3)
 #define   DPIO_LEFT_TXFIFO_RST_MASTER	(1<<1)
 #define   DPIO_RIGHT_TXFIFO_RST_MASTER	(1<<0)
@@ -964,20 +963,8 @@ enum skl_disp_power_wells {
 #define VLV_PCS01_DW11(ch) _PORT(ch, _VLV_PCS01_DW11_CH0, _VLV_PCS01_DW11_CH1)
 #define VLV_PCS23_DW11(ch) _PORT(ch, _VLV_PCS23_DW11_CH0, _VLV_PCS23_DW11_CH1)
 
-#define _VLV_PCS01_DW12_CH0		0x0230
-#define _VLV_PCS23_DW12_CH0		0x0430
-#define _VLV_PCS01_DW12_CH1		0x2630
-#define _VLV_PCS23_DW12_CH1		0x2830
-#define VLV_PCS01_DW12(ch) _PORT(ch, _VLV_PCS01_DW12_CH0, _VLV_PCS01_DW12_CH1)
-#define VLV_PCS23_DW12(ch) _PORT(ch, _VLV_PCS23_DW12_CH0, _VLV_PCS23_DW12_CH1)
-
 #define _VLV_PCS_DW12_CH0		0x8230
 #define _VLV_PCS_DW12_CH1		0x8430
-#define   DPIO_TX2_STAGGER_MULT(x)	((x)<<20)
-#define   DPIO_TX1_STAGGER_MULT(x)	((x)<<16)
-#define   DPIO_TX1_STAGGER_MASK(x)	((x)<<8)
-#define   DPIO_LANESTAGGER_STRAP_OVRD	(1<<6)
-#define   DPIO_LANESTAGGER_STRAP(x)	((x)<<0)
 #define VLV_PCS_DW12(ch) _PORT(ch, _VLV_PCS_DW12_CH0, _VLV_PCS_DW12_CH1)
 
 #define _VLV_PCS_DW14_CH0		0x8238
@@ -1892,10 +1879,7 @@ enum skl_disp_power_wells {
 #define DPIO_PHY_STATUS			(VLV_DISPLAY_BASE + 0x6240)
 #define   DPLL_PORTD_READY_MASK		(0xf)
 #define DISPLAY_PHY_CONTROL (VLV_DISPLAY_BASE + 0x60100)
-#define   PHY_CH_SU_PSR				0x1
-#define   PHY_CH_DEEP_PSR			0x7
-#define   PHY_CH_POWER_MODE(mode, phy, ch)	((mode) << (6*(phy)+3*(ch)+2))
-#define   PHY_COM_LANE_RESET_DEASSERT(phy)	(1 << (phy))
+#define   PHY_COM_LANE_RESET_DEASSERT(phy) (1 << (phy))
 #define DISPLAY_PHY_STATUS (VLV_DISPLAY_BASE + 0x60104)
 #define   PHY_POWERGOOD(phy)	(((phy) == DPIO_PHY0) ? (1<<31) : (1<<30))
 
@@ -2468,14 +2452,7 @@ enum skl_disp_power_wells {
 #define GEN6_RP_STATE_LIMITS	(MCHBAR_MIRROR_BASE_SNB + 0x5994)
 #define GEN6_RP_STATE_CAP	(MCHBAR_MIRROR_BASE_SNB + 0x5998)
 
-/*
- * Make these a multiple of magic 25 to avoid SNB (eg. Dell XPS
- * 8300) freezing up around GPU hangs. Looks as if even
- * scheduling/timer interrupts start misbehaving if the RPS
- * EI/thresholds are "bad", leading to a very sluggish or even
- * frozen machine.
- */
-#define INTERVAL_1_28_US(us)	roundup(((us) * 100) >> 7, 25)
+#define INTERVAL_1_28_US(us)	(((us) * 100) >> 7)
 #define INTERVAL_1_33_US(us)	(((us) * 3)   >> 2)
 #define GT_INTERVAL_FROM_US(dev_priv, us) (IS_GEN9(dev_priv) ? \
 				INTERVAL_1_33_US(us) : \
@@ -3232,7 +3209,6 @@ enum skl_disp_power_wells {
 #define   BLM_POLARITY_PNV			(1 << 0) /* pnv only */
 
 #define BLC_HIST_CTL	(dev_priv->info.display_mmio_offset + 0x61260)
-#define  BLM_HISTOGRAM_ENABLE			(1 << 31)
 
 /* New registers for PCH-split platforms. Safe where new bits show up, the
  * register layout machtes with gen4 BLC_PWM_CTL[12]. */
@@ -6502,9 +6478,6 @@ enum skl_disp_power_wells {
 #define   AUDIO_OUTPUT_ENABLE(trans)	((1 << 2) << ((trans) * 4))
 #define   AUDIO_CP_READY(trans)		((1 << 1) << ((trans) * 4))
 #define   AUDIO_ELD_VALID(trans)	((1 << 0) << ((trans) * 4))
-
-#define HSW_AUD_CHICKENBIT			0x65f10
-#define   SKL_AUD_CODEC_WAKE_SIGNAL		(1 << 15)
 
 /* HSW Power Wells */
 #define HSW_PWR_WELL_BIOS			0x45400 /* CTL1 */

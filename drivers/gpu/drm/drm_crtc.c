@@ -2749,11 +2749,8 @@ int drm_mode_setcrtc(struct drm_device *dev, void *data,
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return -EINVAL;
 
-	/*
-	 * Universal plane src offsets are only 16.16, prevent havoc for
-	 * drivers using universal plane code internally.
-	 */
-	if (crtc_req->x & 0xffff0000 || crtc_req->y & 0xffff0000)
+	/* For some reason crtc x/y offsets are signed internally. */
+	if (crtc_req->x > INT_MAX || crtc_req->y > INT_MAX)
 		return -ERANGE;
 
 	drm_modeset_lock_all(dev);
@@ -5051,9 +5048,12 @@ void drm_mode_config_reset(struct drm_device *dev)
 		if (encoder->funcs->reset)
 			encoder->funcs->reset(encoder);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, head)
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		connector->status = connector_status_unknown;
+
 		if (connector->funcs->reset)
 			connector->funcs->reset(connector);
+	}
 }
 EXPORT_SYMBOL(drm_mode_config_reset);
 

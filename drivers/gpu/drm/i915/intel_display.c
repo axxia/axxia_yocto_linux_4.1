@@ -1699,8 +1699,6 @@ static void i9xx_enable_pll(struct intel_crtc *crtc)
 			   I915_READ(DPLL(!crtc->pipe)) | DPLL_DVO_2X_MODE);
 	}
 
-	I915_WRITE(reg, dpll);
-
 	/* Wait for the clocks to stabilize. */
 	POSTING_READ(reg);
 	udelay(150);
@@ -1821,8 +1819,7 @@ static void chv_disable_pll(struct drm_i915_private *dev_priv, enum pipe pipe)
 }
 
 void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
-			 struct intel_digital_port *dport,
-			 unsigned int expected_mask)
+		struct intel_digital_port *dport)
 {
 	u32 port_mask;
 	int dpll_reg;
@@ -1835,7 +1832,6 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 	case PORT_C:
 		port_mask = DPLL_PORTC_READY_MASK;
 		dpll_reg = DPLL(0);
-		expected_mask <<= 4;
 		break;
 	case PORT_D:
 		port_mask = DPLL_PORTD_READY_MASK;
@@ -1845,9 +1841,9 @@ void vlv_wait_port_ready(struct drm_i915_private *dev_priv,
 		BUG();
 	}
 
-	if (wait_for((I915_READ(dpll_reg) & port_mask) == expected_mask, 1000))
-		WARN(1, "timed out waiting for port %c ready: got 0x%x, expected 0x%x\n",
-		     port_name(dport->port), I915_READ(dpll_reg) & port_mask, expected_mask);
+	if (wait_for((I915_READ(dpll_reg) & port_mask) == 0, 1000))
+		WARN(1, "timed out waiting for port %c ready: 0x%08x\n",
+		     port_name(dport->port), I915_READ(dpll_reg));
 }
 
 static void intel_prepare_shared_dpll(struct intel_crtc *crtc)
@@ -5610,6 +5606,10 @@ static void intel_connector_check_state(struct intel_connector *connector)
 		DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 			      connector->base.base.id,
 			      connector->base.name);
+
+		/* there is no real hw state for MST connectors */
+		if (connector->mst_port)
+			return;
 
 		I915_STATE_WARN(connector->base.dpms == DRM_MODE_DPMS_OFF,
 		     "wrong connector dpms state\n");
@@ -10389,21 +10389,11 @@ connected_sink_compute_bpp(struct intel_connector *connector,
 		pipe_config->pipe_bpp = connector->base.display_info.bpc*3;
 	}
 
-	/* Clamp bpp to default limit on screens without EDID 1.4 */
-	if (connector->base.display_info.bpc == 0) {
-		int type = connector->base.connector_type;
-		int clamp_bpp = 24;
-
-		/* Fall back to 18 bpp when DP sink capability is unknown. */
-		if (type == DRM_MODE_CONNECTOR_DisplayPort ||
-		    type == DRM_MODE_CONNECTOR_eDP)
-			clamp_bpp = 18;
-
-		if (bpp > clamp_bpp) {
-			DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of %d\n",
-				      bpp, clamp_bpp);
-			pipe_config->pipe_bpp = clamp_bpp;
-		}
+	/* Clamp bpp to 8 on screens without EDID 1.4 */
+	if (connector->base.display_info.bpc == 0 && bpp > 24) {
+		DRM_DEBUG_KMS("clamping display bpp (was %d) to default limit of 24\n",
+			      bpp);
+		pipe_config->pipe_bpp = 24;
 	}
 }
 
@@ -11223,6 +11213,13 @@ check_encoder_state(struct drm_device *dev)
 			if (connector->base.dpms != DRM_MODE_DPMS_OFF)
 				active = true;
 		}
+		/*
+		 * for MST connectors if we unplug the connector is gone
+		 * away but the encoder is still connected to a crtc
+		 * until a modeset happens in response to the hotplug.
+		 */
+		if (!enabled && encoder->base.encoder_type == DRM_MODE_ENCODER_DPMST)
+			continue;
 
 		I915_STATE_WARN(!!encoder->base.crtc != enabled,
 		     "encoder's enabled state mismatch "
@@ -12502,16 +12499,6 @@ intel_check_primary_plane(struct drm_plane *plane,
 				intel_crtc->atomic.wait_vblank = true;
 		}
 
-		/*
-		 * FIXME: Actually if we will still have any other plane enabled
-		 * on the pipe we could let IPS enabled still, but for
-		 * now lets consider that when we make primary invisible
-		 * by setting DSPCNTR to 0 on update_primary_plane function
-		 * IPS needs to be disable.
-		 */
-		if (!state->visible || !fb)
-			intel_crtc->atomic.disable_ips = true;
-
 		intel_crtc->atomic.fb_bits |=
 			INTEL_FRONTBUFFER_PRIMARY(intel_crtc->pipe);
 
@@ -12602,9 +12589,6 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc)
 
 	if (intel_crtc->atomic.disable_fbc)
 		intel_fbc_disable(dev);
-
-	if (intel_crtc->atomic.disable_ips)
-		hsw_disable_ips(intel_crtc);
 
 	if (intel_crtc->atomic.pre_disable_primary)
 		intel_pre_disable_primary(crtc);
@@ -13215,11 +13199,6 @@ static int intel_user_framebuffer_create_handle(struct drm_framebuffer *fb,
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
 	struct drm_i915_gem_object *obj = intel_fb->obj;
 
-	if (obj->userptr.mm) {
-		DRM_DEBUG("attempting to use a userptr for a framebuffer, denied\n");
-		return -EINVAL;
-	}
-
 	return drm_gem_handle_create(file, &obj->base, handle);
 }
 
@@ -13789,24 +13768,6 @@ void intel_modeset_init(struct drm_device *dev)
 	if (INTEL_INFO(dev)->num_pipes == 0)
 		return;
 
-	/*
-	 * There may be no VBT; and if the BIOS enabled SSC we can
-	 * just keep using it to avoid unnecessary flicker.  Whereas if the
-	 * BIOS isn't using it, don't assume it will work even if the VBT
-	 * indicates as much.
-	 */
-	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev)) {
-		bool bios_lvds_use_ssc = !!(I915_READ(PCH_DREF_CONTROL) &
-					    DREF_SSC1_ENABLE);
-
-		if (dev_priv->vbt.lvds_use_ssc != bios_lvds_use_ssc) {
-			DRM_DEBUG_KMS("SSC %sabled by BIOS, overriding VBT which says %sabled\n",
-				     bios_lvds_use_ssc ? "en" : "dis",
-				     dev_priv->vbt.lvds_use_ssc ? "en" : "dis");
-			dev_priv->vbt.lvds_use_ssc = bios_lvds_use_ssc;
-		}
-	}
-
 	intel_init_display(dev);
 	intel_init_audio(dev);
 
@@ -14292,6 +14253,7 @@ void intel_modeset_setup_hw_state(struct drm_device *dev,
 
 void intel_modeset_gem_init(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_crtc *c;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -14299,6 +14261,16 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	mutex_lock(&dev->struct_mutex);
 	intel_init_gt_powersave(dev);
 	mutex_unlock(&dev->struct_mutex);
+
+	/*
+	 * There may be no VBT; and if the BIOS enabled SSC we can
+	 * just keep using it to avoid unnecessary flicker.  Whereas if the
+	 * BIOS isn't using it, don't assume it will work even if the VBT
+	 * indicates as much.
+	 */
+	if (HAS_PCH_IBX(dev) || HAS_PCH_CPT(dev))
+		dev_priv->vbt.lvds_use_ssc = !!(I915_READ(PCH_DREF_CONTROL) &
+						DREF_SSC1_ENABLE);
 
 	intel_modeset_init_hw(dev);
 
