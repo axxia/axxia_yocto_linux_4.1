@@ -855,10 +855,7 @@ static struct pci_driver skl_driver = {
 	.probe = skl_probe,
 	.remove = skl_remove,
 	.driver = {
-/* Disable PM for CNL FPGA */
-#if !defined(CONFIG_SND_SOC_INTEL_CNL_FPGA)
 		.pm = &skl_pm,
-#endif
 	},
 };
 module_pci_driver(skl_driver);
