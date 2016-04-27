@@ -482,12 +482,14 @@ static struct sst_machines *sst_acpi_find_machine(
 	struct sst_machines *mach;
 	bool found = false;
 
-	for (mach = machines; mach->codec_id; mach++)
-		if (ACPI_SUCCESS(acpi_get_devices(mach->codec_id,
-						  sst_acpi_mach_match,
-						  &found, NULL)) && found)
-			return mach;
-
+	for (mach = machines; mach->codec_id; mach++) {
+		if (mach->codec_id[0] != 0) {
+			if (ACPI_SUCCESS(acpi_get_devices(mach->codec_id,
+					sst_acpi_mach_match,
+					&found, NULL)) && found)
+				return mach;
+		}
+	}
 	return NULL;
 }
 
@@ -495,6 +497,7 @@ static struct sst_machines *sst_acpi_find_machine(
 static struct sst_machines sst_cnl_devdata[] = {
 	{ "dummy", "cnl_florida", CNL_NUM_I2S_PORTS },
 	{ "dummy", "cnl_florida", CNL_NUM_I2S_PORTS },
+	{ 0, 0, 0 }
 };
 
 static int skl_machine_device_register(struct skl *skl, void *driver_data)
@@ -964,15 +967,22 @@ static void skl_remove(struct pci_dev *pci)
 static struct sst_machines sst_skl_devdata[] = {
 	{ "INT343A", "skl_alc286s_i2s", SKL_NUM_I2S_PORTS },
 	{ "INT343B", "skl_nau88l25_ssm4567_i2s", SKL_NUM_I2S_PORTS },
+	{ 0, 0, 0 }
 };
 
 static struct sst_machines sst_bxt_devdata[] = {
 	{ "INT34C1", "mrgfld_florida", BXT_NUM_I2S_PORTS },
 	{ "INT34E0", "mrgfld_florida", BXT_NUM_I2S_PORTS },
+	{ 0, 0, 0 }
 };
 
 static struct sst_machines sst_bxtp_devdata[] = {
 	{ "INT343A", "bxt_alc298s_i2s", BXTP_NUM_I2S_PORTS },
+	/* Workaround: INT34C1 does not match with actual codec
+	used. This only server as an example for user to
+	follow */
+	{ "INT34C1", "lfcrb_dummy_i2s", BXTP_NUM_I2S_PORTS },
+	{ 0, 0, 0 }
 };
 
 /* PCI IDs */
