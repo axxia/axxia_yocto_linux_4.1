@@ -78,8 +78,6 @@ static const struct snd_soc_dapm_widget broxton_widgets[] = {
 	SND_SOC_DAPM_MIC("Mic Jack", NULL),
 	SND_SOC_DAPM_MIC("DMIC2", NULL),
 	SND_SOC_DAPM_MIC("SoC DMIC", NULL),
-        SND_SOC_DAPM_SIGGEN("probe source"),
-        SND_SOC_DAPM_SINK("probe sink"),
 };
 
 static const struct snd_soc_dapm_route broxton_rt298_map[] = {
@@ -91,9 +89,6 @@ static const struct snd_soc_dapm_route broxton_rt298_map[] = {
 
 	{ "bt_ssp0_in", NULL, "ssp0 Rx" },
 	{ "ssp0 Rx", NULL, "Dummy Capture" },
-        { "extractor cpr 5", NULL, "probe source"},
-        { "probe sink", NULL, "injector cpr 4"},
-
 };
 
 static int bxtp_ssp0_gpio_init(struct snd_soc_pcm_runtime *rtd)
@@ -183,28 +178,27 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.capture_only = true,
 		.ignore_suspend = 1,
 	},
-        {
-                .name = "Bxt Probe playback",
-                .stream_name = "Probe Playback",
-                .cpu_dai_name = "Probe0 Pin",
+	{
+		.name = "Bxt Compress Probe playback",
+		.stream_name = "Probe Playback",
+		.cpu_dai_name = "Compress Probe0 Pin",
                 .codec_name = "snd-soc-dummy",
                 .codec_dai_name = "snd-soc-dummy-dai",
                 .platform_name = "0000:00:0e.0",
                 .init = NULL,
-                .ignore_suspend = 1,
                 .nonatomic = 1,
         },
         {
-                .name = "Bxt Probe capture",
-                .stream_name = "Probe Capture",
-                .cpu_dai_name = "Probe1 Pin",
+		.name = "Bxt Compress Probe capture",
+		.stream_name = "Probe Capture",
+		.cpu_dai_name = "Compress Probe1 Pin",
                 .codec_name = "snd-soc-dummy",
                 .codec_dai_name = "snd-soc-dummy-dai",
                 .platform_name = "0000:00:0e.0",
                 .init = NULL,
-                .ignore_suspend = 1,
                 .nonatomic = 1,
         },
+
 
 	/* Back End DAI links */
 	{
