@@ -986,7 +986,7 @@ int skl_init_probe_module(struct skl_sst *ctx,
 		return ret;
 	}
 	mconfig->m_state = SKL_MODULE_INIT_DONE;
-
+	kfree(param_data);
 	return ret;
 }
 
