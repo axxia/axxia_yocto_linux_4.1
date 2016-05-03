@@ -161,6 +161,14 @@ struct skl_dsp_loader_ops {
 				 int stream_tag);
 };
 
+struct skl_dsp_notify_params {
+	struct skl_sst *skl_sst;
+	u32 event;
+};
+struct skl_dsp_notify_ops {
+	int (*notify_cb)(struct skl_dsp_notify_params *params);
+};
+
 struct skl_load_module_info {
 	u16 mod_id;
 	const struct firmware *fw;

@@ -433,6 +433,7 @@ int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 		case IPC_GLB_NOTIFY_PHRASE_DETECTED:
 			dev_err(ipc->dev, "*****Pharse Detected **********\n");
 			mdelay(1);
+			skl->notify_ops.notify_cb(skl->params);
 			break;
 
 		default:

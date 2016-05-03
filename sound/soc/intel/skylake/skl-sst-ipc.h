@@ -19,6 +19,7 @@
 #include <linux/kthread.h>
 #include <linux/irqreturn.h>
 #include "../common/sst-ipc.h"
+#include "skl-sst-dsp.h"
 
 struct sst_dsp;
 struct skl_sst;
@@ -99,6 +100,9 @@ struct skl_sst {
 
 	/* Callback to update D0i3C register */
 	void (*update_d0i3c)(struct device *dev,  bool enable);
+	struct snd_soc_platform *platform;
+	struct skl_dsp_notify_ops notify_ops;
+	struct skl_dsp_notify_params *params;
 };
 
 struct skl_ipc_init_instance_msg {

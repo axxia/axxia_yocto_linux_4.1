@@ -752,6 +752,34 @@ static struct snd_soc_dai_ops skl_link_dai_ops = {
 	.trigger = skl_link_pcm_trigger,
 };
 
+static int skl_dsp_cb_event(struct skl_dsp_notify_params *params)
+{
+	struct snd_soc_platform *soc_platform = params->skl_sst->platform;
+	struct snd_soc_card *card;
+	struct snd_kcontrol *kcontrol;
+
+	if (!soc_platform) {
+		dev_err(params->skl_sst->dev,
+			"%s: Platform not found\n", __func__);
+		return -EINVAL;
+	}
+
+	card = soc_platform->component.card;
+	kcontrol = snd_soc_card_get_kcontrol(card,
+				"hwd_in hwd 0 notif params"); /*control name of WoV notification*/
+	if (!kcontrol) {
+			dev_err(params->skl_sst->dev,
+				"hwd notification control not found\n");
+			return -EINVAL;
+		}
+	snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kcontrol->id);
+	return 0;
+}
+
+struct skl_dsp_notify_ops cb_ops = {
+	.notify_cb = skl_dsp_cb_event,
+};
+
 static struct snd_soc_dai_driver skl_platform_dai[] = {
 {
 	.name = "TraceBuffer0 Pin",
@@ -1433,6 +1461,8 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 			goto out_free;
 		}
 		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
+		skl->skl_sst->platform = platform;
+		skl->skl_sst->notify_ops = cb_ops;
 	}
 
 	skl_get_probe_widget(platform, skl);
