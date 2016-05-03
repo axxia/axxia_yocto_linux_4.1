@@ -1617,10 +1617,6 @@ static const struct snd_soc_tplg_kcontrol_ops skl_tplg_kcontrol_ops[] = {
 					skl_tplg_ramp_duration_set},
 	{SKL_CONTROL_TYPE_RAMP_TYPE, skl_tplg_ramp_type_get,
 					skl_tplg_ramp_type_set},
-
-};
-
-static const struct snd_soc_tplg_kcontrol_ops skl_tplg_kcontrol_ops[] = {
 	{SKL_CONTROL_TYPE_DSP_LOG, skl_tplg_dsp_log_get,
 					skl_tplg_dsp_log_set},
 };
