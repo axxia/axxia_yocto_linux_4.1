@@ -830,7 +830,7 @@ static int skl_probe(struct pci_dev *pci,
 		err = skl_machine_device_register(skl,
 						  (void *)pci_id->driver_data);
 		if (err < 0)
-			goto out_dsp_free;
+			goto out_nhlt_free;
 	}
 	if (ebus->mlcap)
 		err = snd_hdac_ext_bus_get_ml_capabilities(ebus);
@@ -874,6 +874,8 @@ out_dmic_free:
 	skl_dmic_device_unregister(skl);
 out_mach_free:
 	skl_machine_device_unregister(skl);
+out_nhlt_free:
+	skl_nhlt_free(skl->nhlt);
 out_dsp_free:
 	skl_free_dsp(skl);
 out_free:
@@ -931,6 +933,7 @@ static void skl_remove(struct pci_dev *pci)
 	skl_free_dsp(skl);
 	skl_machine_device_unregister(skl);
 	skl_dmic_device_unregister(skl);
+	skl_nhlt_free(skl->nhlt);
 	skl_free(ebus);
 	dev_set_drvdata(&pci->dev, NULL);
 }
