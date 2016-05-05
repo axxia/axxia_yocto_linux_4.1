@@ -337,6 +337,8 @@ static const struct snd_soc_dapm_route mrgfld_map[] = {
 	{"EP", NULL, "Platform Clock"},
 	{"Tone Generator 1", NULL, "Platform Clock" },
 	{"Tone Generator 2", NULL, "Platform Clock" },
+
+	{"WoV Sink", NULL, "hwd_in sink"},
 };
 
 static const struct snd_kcontrol_new mrgfld_controls[] = {
