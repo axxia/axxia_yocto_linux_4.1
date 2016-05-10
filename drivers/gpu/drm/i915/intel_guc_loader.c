@@ -719,6 +719,7 @@ void intel_guc_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path;
+	bool is_forced_rc6 = false;
 
 	/* A negative value means "use platform default" */
 	if (i915.enable_guc_loading < 0)
@@ -759,8 +760,28 @@ void intel_guc_init(struct drm_device *dev)
 
 	guc_fw->guc_fw_fetch_status = GUC_FIRMWARE_PENDING;
 	DRM_DEBUG_DRIVER("GuC firmware pending, path %s\n", fw_path);
+
+	/*
+	 * We are about to fetch GuC firmware, and if successful, will later
+	 * load for booting. There seems to be an issue on Broxton where
+	 * booting of firmware fails if RC6 has been enabled by BIOS, but an
+	 * RC6 state transition has never occurred. We workaround the issue by
+	 * going into RC6 for a time if necessary and back out. We do it now
+	 * because the load/boot stage occurs under forcewake.
+	 */
+	if (IS_BROXTON(dev) && !(I915_READ(GEN6_RC_STATE) & RC6_STATE)) {
+		DRM_DEBUG_DRIVER("Begin Broxton GuC load WA: enter RC6\n");
+		I915_WRITE(GEN6_RC_STATE, I915_READ(GEN6_RC_STATE) | RC6_STATE);
+		is_forced_rc6 = true;
+	}
+
 	guc_fw_fetch(dev, guc_fw);
 	/* status must now be FAIL or SUCCESS */
+
+	if (is_forced_rc6) {
+		DRM_DEBUG_DRIVER("End Broxton GuC load WA: exit RC6\n");
+		I915_WRITE(GEN6_RC_STATE, I915_READ(GEN6_RC_STATE) & ~RC6_STATE);
+	}
 }
 
 /**

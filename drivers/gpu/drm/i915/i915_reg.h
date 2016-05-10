@@ -7063,6 +7063,7 @@ enum {
 #define GEN6_RPDEUC				_MMIO(0xA084)
 #define GEN6_RPDEUCSW				_MMIO(0xA088)
 #define GEN6_RC_STATE				_MMIO(0xA094)
+#define   RC6_STATE                             (1 << 18)
 #define   RC_SW_TARGET_STATE_SHIFT		16
 #define   RC_SW_TARGET_STATE_MASK		(7 << RC_SW_TARGET_STATE_SHIFT)
 #define GEN6_RC1_WAKE_RATE_LIMIT		_MMIO(0xA098)
