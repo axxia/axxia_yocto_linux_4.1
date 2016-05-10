@@ -96,7 +96,7 @@ void
 flush_l3(void)
 {
 	/* Switch to SFONLY to flush */
-	set_l3_pstate(0);
+	set_l3_pstate(1);
 	/* ...and then back up again */
 	set_l3_pstate(3);
 }
