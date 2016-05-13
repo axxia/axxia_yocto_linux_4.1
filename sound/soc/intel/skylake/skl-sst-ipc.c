@@ -19,6 +19,8 @@
 #include "skl-sst-dsp.h"
 #include "skl-sst-ipc.h"
 #include "skl-fwlog.h"
+#include <linux/slab.h>
+#include <linux/devcoredump.h>
 
 #define IPC_IXC_STATUS_BITS		24
 
@@ -258,7 +260,9 @@ enum skl_ipc_notification_type {
 	IPC_GLB_NOTIFY_RESOURCE_EVENT = 5,
 	IPC_GLB_NOTIFY_LOG_BUFFER_STATUS = 6,
 	IPC_GLB_NOTIFY_TIMESTAMP_CAPTURED = 7,
-	IPC_GLB_NOTIFY_FW_READY = 8
+	IPC_GLB_NOTIFY_FW_READY = 8,
+	IPC_GLB_NOTIFY_FW_AUD_CLASS_RESULT = 9,
+	IPC_GLB_NOTIFY_EXCEPTION_CAUGHT = 10
 };
 
 /* Module Message Types */
@@ -274,6 +278,31 @@ enum skl_ipc_module_msg {
 	IPC_MOD_SET_D0IX = 8,
 	IPC_MOD_DELETE_INSTANCE = 11
 };
+
+static int fw_exception_dump_read(struct sst_dsp *dsp)
+{
+	struct skl_dsp_core_dump *coredump;
+	void *fw_reg_addr;
+	struct sst_dsp *sst = dsp;
+
+	coredump = vzalloc(sizeof(struct skl_dsp_core_dump));
+	if (!coredump)
+		return -ENOMEM;
+
+	coredump->length1 = sizeof(struct fw_version)
+				+ sizeof(struct sw_version) + sizeof(u32)*2;
+	coredump->length2 = MAX_FW_REG_SZ;
+	coredump->type2 = TYPE2_EXCEPTION;
+
+	fw_reg_addr = sst->mailbox.in_base - sst->addr.w0_stat_sz;
+	memcpy_fromio(coredump->fwreg, fw_reg_addr, MAX_FW_REG_SZ);
+
+	dev_coredumpv(dsp->dev, coredump,
+			sizeof(struct skl_dsp_core_dump), GFP_KERNEL);
+
+	return 0;
+}
+
 
 void skl_ipc_tx_data_copy(struct ipc_message *msg, char *tx_data,
 		size_t tx_size)
@@ -337,6 +366,10 @@ static int skl_ipc_tx_message(struct sst_generic_ipc *ipc, u64 header,
 
 	ret = _skl_ipc_tx_message(ipc, header, tx_data, tx_bytes, rx_data,
 			rx_bytes, wait, timeout);
+	if (ret == -ETIMEDOUT)
+		/* CODE FOR TIMEOUT EXCEPTION */
+		fw_exception_dump_read(dsp);
+
 	if (ret < 0)
 		return ret;
 
@@ -433,6 +466,12 @@ int skl_ipc_process_notification(struct sst_generic_ipc *ipc,
 		case IPC_GLB_NOTIFY_PHRASE_DETECTED:
 			dev_err(ipc->dev, "*****Pharse Detected **********\n");
 			mdelay(1);
+			break;
+
+		case IPC_GLB_NOTIFY_EXCEPTION_CAUGHT:
+			dev_err(ipc->dev, "*****Exception Detected **********\n");
+			/* hexdump of the fw core exception record reg */
+			fw_exception_dump_read(skl->dsp);
 			break;
 
 		default:
