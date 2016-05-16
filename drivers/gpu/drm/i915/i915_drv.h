@@ -56,6 +56,8 @@
 #include "intel_dpll_mgr.h"
 #include <linux/fence.h>
 
+#include "i915_perfmon_defs.h"
+
 /* General customization:
  */
 
@@ -379,6 +381,8 @@ struct drm_i915_file_private {
 	unsigned int bsd_ring;
 
 	u32 scheduler_queue_length;
+
+	struct drm_i915_perfmon_file perfmon;
 };
 
 /* Used by dp and fdi links */
@@ -878,6 +882,7 @@ struct i915_fence_timeline {
  */
 struct intel_context {
 	struct kref ref;
+	struct pid *pid;
 	int user_handle;
 	uint8_t remap_slice;
 	struct drm_i915_private *i915;
@@ -907,6 +912,9 @@ struct intel_context {
 	} engine[I915_NUM_ENGINES];
 
 	struct list_head link;
+
+	/* perfmon configuration */
+	struct drm_i915_perfmon_context perfmon;
 };
 
 enum fb_op_origin {
@@ -1928,6 +1936,16 @@ struct drm_i915_private {
 	unsigned int min_pixclk[I915_MAX_PIPES];
 
 	int dpio_phy_iosf_port[I915_NUM_PHYS_VLV];
+
+	struct drm_i915_perfmon_device perfmon;
+
+	struct {
+		struct drm_i915_gem_object *obj;
+		unsigned long offset;
+		void *address;
+		atomic_t enable;
+		struct mutex lock;
+	} rc6_wa_bb;
 
 	struct i915_workarounds workarounds;
 
@@ -3549,6 +3567,15 @@ int i915_reg_read_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file);
 int i915_get_reset_stats_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file);
+
+/* i915_perfmon.c */
+int i915_perfmon_ioctl(struct drm_device *dev, void *data, struct drm_file *file);
+void i915_perfmon_setup(struct drm_i915_private *dev_priv);
+void i915_perfmon_cleanup(struct drm_i915_private *dev_priv);
+void i915_perfmon_ctx_setup(struct intel_context *ctx);
+void i915_perfmon_ctx_cleanup(struct intel_context *ctx);
+int i915_perfmon_update_workaround_bb(struct drm_i915_private *dev_priv,
+				      struct drm_i915_perfmon_config *config);
 
 /* overlay */
 extern struct intel_overlay_error_state *intel_overlay_capture_error_state(struct drm_device *dev);
