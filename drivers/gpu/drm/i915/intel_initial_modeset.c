@@ -184,9 +184,9 @@ static struct splash_screen_info *match_splash_info(
 static void intel_splash_screen_init(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct splash_screen_info *splash_info;
-	char *splash_dup;
-	char *splash_str;
+	struct splash_screen_info *splash_info = NULL;
+	char *splash_dup = NULL;
+	char *splash_str = NULL;
 	char *sep;
 	u32 fw_npages;
 
@@ -196,6 +196,8 @@ static void intel_splash_screen_init(struct drm_device *dev)
 		return;
 
 	splash_dup = kstrdup(splash, GFP_KERNEL);
+	if (!splash_dup)
+		goto fail;
 	splash_str = splash_dup;
 
 	/*
@@ -215,6 +217,8 @@ static void intel_splash_screen_init(struct drm_device *dev)
 
 		*sep = '\0';
 		splash_info->connector_name = kstrdup(splash_str, GFP_KERNEL);
+		if (!splash_info->connector_name)
+			goto fail;
 		splash_str = sep + 1;
 
 		/*
@@ -231,6 +235,8 @@ static void intel_splash_screen_init(struct drm_device *dev)
 		if (!shared_image(dev_priv, splash_str, splash_info)) {
 			splash_info->image_name = kstrdup(splash_str,
 							  GFP_KERNEL);
+			if (!splash_info->image_name)
+				goto fail;
 			request_firmware(&splash_info->fw, splash_str,
 					 &dev_priv->drm.pdev->dev);
 			if (splash_info->fw == NULL)
