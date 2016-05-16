@@ -282,9 +282,11 @@ static void intel_splash_screen_init(struct drm_device *dev)
 
 fail:
 	/* Clean up failed entry data */
-	release_firmware(splash_info->fw);
-	kfree(splash_info->connector_name);
-	kfree(splash_info->image_name);
+	if (splash_info) {
+		release_firmware(splash_info->fw);
+		kfree(splash_info->connector_name);
+		kfree(splash_info->image_name);
+	}
 	kfree(splash_info);
 	kfree(splash_dup);
 	return;
