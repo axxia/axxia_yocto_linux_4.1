@@ -50,6 +50,7 @@
 #include <linux/pm.h>
 #include <linux/pm_runtime.h>
 #include <linux/oom.h>
+#include "iotg_build.h"
 
 static unsigned int i915_load_fail_count;
 
@@ -1443,7 +1444,11 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev_priv->profile.driver_load = sched_clock() - start_tm;
 
+#ifndef IOTG_BUILD_ID
+#define IOTG_BUILD_ID "unknown"
+#endif
 	printk(KERN_INFO "IOTG i915 forklift 2016-03-25\n");
+	printk(KERN_INFO "IOTG i915 build " IOTG_BUILD_ID "\n");
 
 	return 0;
 
