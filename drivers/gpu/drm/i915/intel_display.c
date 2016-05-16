@@ -13833,6 +13833,7 @@ static void finish_atomic_commit(struct work_struct *work)
 
 	/* Unblock other commits against these CRTC's */
 	flip_completion(commit);
+	kfree(commit);
 
 	drm_atomic_state_free(state);
 
