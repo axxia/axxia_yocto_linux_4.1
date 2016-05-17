@@ -338,6 +338,8 @@ irqreturn_t skl_dsp_sst_interrupt(int irq, void *dev_id)
 int skl_dsp_get_core(struct sst_dsp *ctx, unsigned int core_id)
 {
 	int ret = 0;
+	bool update_usage_count = true;
+	struct skl_sst *skl = ctx->thread_context;
 
 	if (core_id >= ctx->core_info.cores) {
 		dev_err(ctx->dev, "invalid core id: %d\n", core_id);
@@ -347,11 +349,21 @@ int skl_dsp_get_core(struct sst_dsp *ctx, unsigned int core_id)
 	if (ctx->core_info.core_state[core_id] == SKL_DSP_RUNNING)
 		ctx->core_info.core_usage_count[core_id]++;
 	else if (ctx->core_info.core_state[core_id] == SKL_DSP_RESET) {
+		/*
+		 * If we are trying to get the core on resuming from S3, the FW
+		 * will be re downloaded by the set_state_D0() function. The
+		 * core_usage_counter gets initialized on FW re-load. So this
+		 * counter should not be updated here.
+		 */
+		if (skl->fw_loaded == false)
+			update_usage_count = false;
+
 		ret = ctx->fw_ops.set_state_D0(ctx, core_id);
 		if (ret < 0)
 			dev_err(ctx->dev, "unable to get core%d\n", core_id);
 		else
-			ctx->core_info.core_usage_count[core_id]++;
+			if (update_usage_count)
+				ctx->core_info.core_usage_count[core_id]++;
 	}
 	dev_info(ctx->dev, "%s:core id=%d:state=%d:usage_count=%d\n", __func__,
 			core_id, ctx->core_info.core_state[core_id],

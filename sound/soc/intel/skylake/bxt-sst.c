@@ -429,6 +429,12 @@ int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 
 	dev_dbg(ctx->dev, "In %s : core id = %d\n", __func__, core_id);
 
+	/* Re-download FW and library if needed. e.g. on coming back from S3 */
+	if (skl->fw_loaded == false) {
+		dev_dbg(ctx->dev, "Re-downloading FW on Resume\n");
+		return bxt_sst_dsp_init_fw(ctx->dev, skl);
+	}
+
 #ifdef BXT_ROM_BUG_WA
 	/* If core 0 is being turned on, turn on core 1 as well */
 	if (core_id == SKL_DSP_CORE0_ID)

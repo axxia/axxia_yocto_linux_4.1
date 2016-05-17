@@ -364,7 +364,7 @@ int skl_resume_dsp(struct skl *skl)
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, true);
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, true);
 
-	if (ctx && ctx->fw_loaded) {
+	if (ctx) {
 		ret = skl_dsp_wake(ctx->dsp);
 		if (ret < 0)
 			return ret;

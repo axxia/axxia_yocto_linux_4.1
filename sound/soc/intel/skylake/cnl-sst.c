@@ -325,6 +325,12 @@ static int cnl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 
 	cnl->boot_complete = false;
 
+	/* Re-download FW and library if needed. e.g. on coming back from S3 */
+	if (cnl->fw_loaded == false) {
+		dev_dbg(ctx->dev, "Re-downloading FW on Resume\n");
+		return cnl_sst_dsp_init_fw(ctx->dev, cnl);
+	}
+
 	ret = cnl_dsp_enable_core(ctx, core_mask);
 	if (ret < 0) {
 		dev_err(ctx->dev, "enable DSP core %d failed: %d\n",

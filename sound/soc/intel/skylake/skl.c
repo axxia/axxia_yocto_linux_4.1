@@ -33,6 +33,8 @@
 #include <sound/hda_i915.h>
 #include <sound/compress_driver.h>
 #include "skl.h"
+#include "skl-sst-dsp.h"
+#include "skl-sst-ipc.h"
 
 static char *machine = NULL;
 
@@ -285,8 +287,17 @@ static int skl_suspend(struct device *dev)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
+	struct skl *skl = ebus_to_skl(ebus);
+	struct skl_sst *ctx = skl->skl_sst;
+	int ret;
 
-	return _skl_suspend(ebus);
+	ret = _skl_suspend(ebus);
+	if (ret < 0)
+		return ret;
+
+	ctx->fw_loaded = false;
+
+	return ret;
 }
 
 static int skl_resume(struct device *dev)
