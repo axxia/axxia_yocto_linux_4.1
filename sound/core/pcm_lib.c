@@ -2092,6 +2092,9 @@ static snd_pcm_sframes_t snd_pcm_lib_write1(struct snd_pcm_substream *substream,
 		if (substream->ops->ack)
 			substream->ops->ack(substream);
 
+		if (substream->ops->appl_ptr_update)
+			substream->ops->appl_ptr_update(substream);
+
 		offset += frames;
 		size -= frames;
 		xfer += frames;
@@ -2323,6 +2326,9 @@ static snd_pcm_sframes_t snd_pcm_lib_read1(struct snd_pcm_substream *substream,
 		runtime->control->appl_ptr = appl_ptr;
 		if (substream->ops->ack)
 			substream->ops->ack(substream);
+
+		if (substream->ops->appl_ptr_update)
+			substream->ops->appl_ptr_update(substream);
 
 		offset += frames;
 		size -= frames;

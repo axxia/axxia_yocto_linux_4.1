@@ -2477,6 +2477,10 @@ static snd_pcm_sframes_t snd_pcm_playback_rewind(struct snd_pcm_substream *subst
 		appl_ptr += runtime->boundary;
 	runtime->control->appl_ptr = appl_ptr;
 	ret = frames;
+
+	if (substream->ops->appl_ptr_update)
+		substream->ops->appl_ptr_update(substream);
+
  __end:
 	snd_pcm_stream_unlock_irq(substream);
 	return ret;
@@ -2528,6 +2532,10 @@ static snd_pcm_sframes_t snd_pcm_capture_rewind(struct snd_pcm_substream *substr
 		appl_ptr += runtime->boundary;
 	runtime->control->appl_ptr = appl_ptr;
 	ret = frames;
+
+	if (substream->ops->appl_ptr_update)
+		substream->ops->appl_ptr_update(substream);
+
  __end:
 	snd_pcm_stream_unlock_irq(substream);
 	return ret;
@@ -2577,6 +2585,10 @@ static snd_pcm_sframes_t snd_pcm_playback_forward(struct snd_pcm_substream *subs
 		appl_ptr -= runtime->boundary;
 	runtime->control->appl_ptr = appl_ptr;
 	ret = frames;
+
+	if (substream->ops->appl_ptr_update)
+		substream->ops->appl_ptr_update(substream);
+
  __end:
 	snd_pcm_stream_unlock_irq(substream);
 	return ret;
@@ -2626,6 +2638,10 @@ static snd_pcm_sframes_t snd_pcm_capture_forward(struct snd_pcm_substream *subst
 		appl_ptr -= runtime->boundary;
 	runtime->control->appl_ptr = appl_ptr;
 	ret = frames;
+
+	if (substream->ops->appl_ptr_update)
+		substream->ops->appl_ptr_update(substream);
+
  __end:
 	snd_pcm_stream_unlock_irq(substream);
 	return ret;
@@ -2725,8 +2741,14 @@ static int snd_pcm_sync_ptr(struct snd_pcm_substream *substream,
 			return err;
 	}
 	snd_pcm_stream_lock_irq(substream);
-	if (!(sync_ptr.flags & SNDRV_PCM_SYNC_PTR_APPL))
+	if (!(sync_ptr.flags & SNDRV_PCM_SYNC_PTR_APPL)) {
+		/* boundary wrap-around is assumed to be handled in userspace */
 		control->appl_ptr = sync_ptr.c.control.appl_ptr;
+
+		/* let low-level driver know about appl_ptr change */
+		if (substream->ops->appl_ptr_update)
+			substream->ops->appl_ptr_update(substream);
+	}
 	else
 		sync_ptr.c.control.appl_ptr = control->appl_ptr;
 	if (!(sync_ptr.flags & SNDRV_PCM_SYNC_PTR_AVAIL_MIN))
