@@ -462,6 +462,9 @@ static void clear_statistics(struct appnic_device *pdata)
 static void get_hw_statistics(struct appnic_device *pdata)
 {
 	unsigned long flags;
+	u32 rx_under;
+	u32 rx_over;
+	u32 tx_under;
 
 	/* stats.tx_packets */
 	pdata->stats.tx_packets += read_mac(APPNIC_TX_STAT_PACKET_OK);
@@ -474,14 +477,17 @@ static void get_hw_statistics(struct appnic_device *pdata)
 	pdata->stats.collisions +=
 		read_mac(APPNIC_TX_STATUS_EXCESSIVE_COLLISION);
 	pdata->stats.collisions +=
-	read_mac(APPNIC_TX_STAT_COLLISION_ABOVE_WATERMARK);
+		read_mac(APPNIC_TX_STAT_COLLISION_ABOVE_WATERMARK);
 
 	/* stats.rx_length_errors */
-	pdata->stats.rx_length_errors += read_mac(APPNIC_RX_STAT_UNDERSIZE);
-	pdata->stats.rx_length_errors += read_mac(APPNIC_RX_STAT_OVERSIZE);
+	rx_under = read_mac(APPNIC_RX_STAT_UNDERSIZE);
+	pdata->stats.rx_length_errors += rx_under;
+	rx_over = read_mac(APPNIC_RX_STAT_OVERSIZE);
+	pdata->stats.rx_length_errors += rx_over;
 
 	/* stats.tx_fifo_errors */
-	pdata->stats.tx_fifo_errors += read_mac(APPNIC_TX_STAT_UNDERRUN);
+	tx_under = read_mac(APPNIC_TX_STAT_UNDERRUN);
+	pdata->stats.tx_fifo_errors += tx_under;
 
 	/* Lock this section out so the statistics maintained by the driver
 	 * don't get clobbered.
@@ -489,20 +495,16 @@ static void get_hw_statistics(struct appnic_device *pdata)
 
 	spin_lock_irqsave(&pdata->dev_lock, flags);
 
-	pdata->stats.rx_errors +=
-		(pdata->stats.rx_length_errors +
-		 pdata->stats.rx_crc_errors +
-		 pdata->stats.rx_frame_errors +
-		 pdata->stats.rx_fifo_errors +
-		 pdata->stats.rx_dropped +
-		 pdata->stats.rx_over_errors);
-
 	pdata->stats.rx_dropped = 0;
 	pdata->stats.rx_over_errors = 0;
 
-	pdata->stats.tx_errors += (pdata->stats.tx_fifo_errors +
-				   pdata->stats.tx_aborted_errors);
+	/* Update the cumulative rx_errors. */
+	pdata->stats.rx_errors += (rx_under + rx_over);
+
 	pdata->stats.tx_aborted_errors = 0;
+
+	/* Update the cumulative tx_errors. */
+	pdata->stats.tx_errors += tx_under;
 
 	spin_unlock_irqrestore(&pdata->dev_lock, flags);
 }
@@ -728,31 +730,32 @@ static void lsinet_rx_packet(struct net_device *dev)
 		BUG();
 		dev_kfree_skb(sk_buff);
 
-	} else {
-		if (0 == error_num) {
-			struct ethhdr *ethhdr = (struct ethhdr *) sk_buff->data;
+	} else if (0 == error_num) {
+		struct ethhdr *ethhdr = (struct ethhdr *)sk_buff->data;
 
-			if (mac_addr_valid(dev, &ethhdr->h_dest[0])) {
-				pdata->stats.rx_bytes += bytes_copied;
-				pdata->stats.rx_packets++;
-				sk_buff->dev = dev;
-				sk_buff->protocol = eth_type_trans(sk_buff,
-								   dev);
-				if (netif_receive_skb(sk_buff) == NET_RX_DROP)
-					pdata->dropped_by_stack++;
-			} else {
-				dev_kfree_skb(sk_buff);
-			}
+		if (mac_addr_valid(dev, &ethhdr->h_dest[0])) {
+			pdata->stats.rx_bytes += bytes_copied;
+			++pdata->stats.rx_packets;
+			sk_buff->dev = dev;
+			sk_buff->protocol = eth_type_trans(sk_buff, dev);
+
+			if (netif_receive_skb(sk_buff) == NET_RX_DROP)
+				++pdata->dropped_by_stack;
 		} else {
 			dev_kfree_skb(sk_buff);
-
-			if (0 != overflow_stat)
-				pdata->stats.rx_fifo_errors++;
-			else if (0 != crc_stat)
-				pdata->stats.rx_crc_errors++;
-			else if (0 != align_stat)
-				pdata->stats.rx_frame_errors++;
 		}
+	} else {
+		dev_kfree_skb(sk_buff);
+
+		pdata->stats.rx_errors +=
+			(overflow_stat + crc_stat + align_stat);
+
+		if (0 != overflow_stat)
+			pdata->stats.rx_fifo_errors += overflow_stat;
+		else if (0 != crc_stat)
+			pdata->stats.rx_crc_errors += crc_stat;
+		else if (0 != align_stat)
+			pdata->stats.rx_frame_errors += align_stat;
 	}
 
 	return;
@@ -874,10 +877,11 @@ static irqreturn_t appnic_isr(int irq, void *device_id)
 	struct net_device *dev = (struct net_device *)device_id;
 	struct appnic_device *pdata = netdev_priv(dev);
 	unsigned long dma_interrupt_status;
-	unsigned long flags;
+	unsigned long dev_flags;
+	unsigned long tx_flags;
 
 	/* Acquire the lock. */
-	spin_lock_irqsave(&pdata->dev_lock, flags);
+	spin_lock_irqsave(&pdata->dev_lock, dev_flags);
 
 	/* Get the status. */
 	dma_interrupt_status = read_mac(APPNIC_DMA_INTERRUPT_STATUS);
@@ -890,7 +894,9 @@ static irqreturn_t appnic_isr(int irq, void *device_id)
 	if (TX_INTERRUPT(dma_interrupt_status)) {
 		/* transmition complete */
 		pdata->transmit_interrupts++;
+		spin_lock_irqsave(&pdata->tx_lock, tx_flags);
 		handle_transmit_interrupt(dev);
+		spin_unlock_irqrestore(&pdata->tx_lock, tx_flags);
 	}
 
 	if (RX_INTERRUPT(dma_interrupt_status)) {
@@ -909,7 +915,7 @@ static irqreturn_t appnic_isr(int irq, void *device_id)
 	}
 
 	/* Release the lock */
-	spin_unlock_irqrestore(&pdata->dev_lock, flags);
+	spin_unlock_irqrestore(&pdata->dev_lock, dev_flags);
 
 	return IRQ_HANDLED;
 }
@@ -985,12 +991,8 @@ static int appnic_stop(struct net_device *dev)
 
 	pr_info("%s: Stopping the interface.\n", LSI_DRV_NAME);
 
-	/* Disable interrupts. Note that disable_irq() will wait for
-	 * any interrupt handlers that are currently executing to
-	 * complete.
-	 */
+	/* Disable all device interrupts. */
 	write_mac(0, APPNIC_DMA_INTERRUPT_ENABLE);
-	disable_irq(dev->irq);
 	free_irq(dev->irq, dev);
 
 	/* Indicate to the OS that no more packets should be sent.  */
@@ -1026,6 +1028,10 @@ static int appnic_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	int length;
 	int buf_per_desc;
 	union appnic_queue_pointer queue;
+	unsigned long flags;
+
+	if (!spin_trylock_irqsave(&pdata->tx_lock, flags))
+		return NETDEV_TX_LOCKED;
 
 	length = skb->len < ETH_ZLEN ? ETH_ZLEN : skb->len;
 	buf_per_desc = pdata->tx_buf_sz / pdata->tx_num_desc;
@@ -1104,9 +1110,11 @@ static int appnic_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 		pdata->out_of_tx_descriptors++;
 		pr_err("%s: No transmit descriptors available!\n",
 		       LSI_DRV_NAME);
+		spin_unlock_irqrestore(&pdata->tx_lock, flags);
 		return NETDEV_TX_BUSY;
 	}
 
+	spin_unlock_irqrestore(&pdata->tx_lock, flags);
 	/* Free the socket buffer. */
 	dev_kfree_skb(skb);
 
@@ -1504,6 +1512,7 @@ int appnic_init(struct net_device *dev)
 	/* Initialize the spinlocks. */
 
 	spin_lock_init(&pdata->dev_lock);
+	spin_lock_init(&pdata->tx_lock);
 
 	/* Take MAC out of reset. */
 
@@ -1629,6 +1638,7 @@ int appnic_init(struct net_device *dev)
 
 	dev->netdev_ops = &appnic_netdev_ops;
 	dev->ethtool_ops = &appnic_ethtool_ops;
+	dev->features |= NETIF_F_LLTX;
 
 	memset((void *) &pdata->napi, 0, sizeof(struct napi_struct));
 	netif_napi_add(dev, &pdata->napi,

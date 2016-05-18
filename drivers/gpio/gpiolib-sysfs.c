@@ -429,7 +429,7 @@ static ssize_t gpio_drive_store(struct device *dev,
 	return status ? : size;
 }
 
-static const DEVICE_ATTR(drive, 0644,
+static DEVICE_ATTR(drive, 0644,
 		gpio_drive_show, gpio_drive_store);
 
 

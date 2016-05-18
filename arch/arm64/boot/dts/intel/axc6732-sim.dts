@@ -12,7 +12,7 @@
 /dts-v1/;
 
 #include "axc67xx.dtsi"
-#include "axc6716-cpus.dtsi"
+#include "axc6732-cpus.dtsi"
 
 / {
 	model = "Lionfish Simulator";
@@ -147,52 +147,53 @@
 };
 
 &i2c0 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c1 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c2 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c3 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c4 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c5 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c6 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c7 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c8 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c9 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c10 {
-        status = "okay";
+	status = "okay";
 };
 
 &i2c11 {
-        status = "okay";
+	status = "okay";
 };
+
 
 &gpdma0 {
 	status = "okay";
