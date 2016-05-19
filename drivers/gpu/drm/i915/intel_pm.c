@@ -3028,7 +3028,7 @@ skl_plane_relative_data_rate(const struct intel_crtc_state *cstate,
 
 	down_scale_amount = skl_plane_downscale_amount(intel_pstate);
 
-	return data_rate * down_scale_amount >> 16;
+	return (uint64_t)data_rate * down_scale_amount >> 16;
 }
 
 /*
