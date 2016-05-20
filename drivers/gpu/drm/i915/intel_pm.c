@@ -3121,8 +3121,10 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate,
 		src_h /= 2;
 	}
 
-	plane_bpp = y ? drm_format_plane_cpp(fb->pixel_format, 0) :
-		drm_format_plane_cpp(fb->pixel_format, 1);
+	if (fb->pixel_format == DRM_FORMAT_NV12 && !y)
+		plane_bpp = drm_format_plane_cpp(fb->pixel_format, 1);
+	else
+		plane_bpp = drm_format_plane_cpp(fb->pixel_format, 0);
 
 	if (intel_rotation_90_or_270(pstate->rotation)) {
 		switch (plane_bpp) {
