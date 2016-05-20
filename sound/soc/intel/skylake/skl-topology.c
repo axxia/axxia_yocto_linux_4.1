@@ -1534,19 +1534,27 @@ static int skl_tplg_tlv_probe_set(struct snd_kcontrol *kcontrol,
 			return -EINVAL;
 
 		if (pconfig->probe_count) {
-			if (ap->is_connect == SKL_PROBE_CONNECT) {
+			/* In the case of extraction, additional probe points can be set when
+			 * the stream is in progress and the driver can immediately send the
+			 * connect IPC. But in the case of injector, for each probe point
+			 * connection a new stream with the DAI number corresponding to that
+			 * control has to be opened. Hence below check ensures that the
+			 * connect IPC is sent only in case of extractor.
+			 */
+			if ((ap->is_connect == SKL_PROBE_CONNECT)
+				&& (ap->is_ext_inj == SKL_PROBE_EXTRACT)) {
 
 				memcpy(&connect_point.params, &ap->params, sizeof(u32));
-				connect_point.connection = ap->is_connect;
+				connect_point.connection = ap->is_ext_inj;
 				memcpy(&connect_point.node_id, (&ap->node_id), sizeof(u32));
 				return skl_set_module_params(skl->skl_sst, (void *)&connect_point,
-						sizeof(struct probe_pt_param), &ap->is_connect, mconfig);
+						sizeof(struct probe_pt_param), ap->is_connect, mconfig);
 
 			} else if (ap->is_connect == SKL_PROBE_DISCONNECT) {
 
 				disconnect_point = (int)ap->params;
 				return skl_set_module_params(skl->skl_sst, (void *)&disconnect_point,
-						sizeof(disconnect_point), &ap->is_connect, mconfig);
+						sizeof(disconnect_point), ap->is_connect, mconfig);
 			}
 		}
 	}
