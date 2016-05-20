@@ -3134,6 +3134,12 @@ skl_ddb_min_alloc(const struct drm_plane_state *pstate,
 		case 2:
 			min_scanlines = 16;
 			break;
+		case 4:
+			min_scanlines = 8;
+			break;
+		case 8:
+			min_scanlines = 4;
+			break;
 		default:
 			WARN(1, "Unsupported pixel depth %u for rotation",
 			     plane_bpp);
