@@ -2590,6 +2590,7 @@ int soc_new_pcm(struct snd_soc_pcm_runtime *rtd, int num)
 		rtd->ops.silence	= platform->driver->ops->silence;
 		rtd->ops.page		= platform->driver->ops->page;
 		rtd->ops.mmap		= platform->driver->ops->mmap;
+		rtd->ops.appl_ptr_update = platform->driver->ops->appl_ptr_update;
 	}
 
 	if (playback)
