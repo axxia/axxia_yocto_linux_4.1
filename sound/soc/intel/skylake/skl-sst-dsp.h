@@ -23,7 +23,6 @@
 struct sst_dsp;
 struct skl_sst;
 struct sst_dsp_device;
-struct skl_dfw_manifest;
 
 /* Intel HD Audio General DSP Registers */
 #define SKL_ADSP_GEN_BASE		0x0
@@ -132,8 +131,7 @@ enum skl_dsp_states {
 struct skl_dsp_fw_ops {
 	int (*load_fw)(struct sst_dsp  *ctx);
 	/* FW module parser/loader */
-	int (*load_library)(struct sst_dsp *ctx,
-		struct skl_dfw_manifest *minfo);
+	int (*load_library)(struct sst_dsp *ctx);
 	int (*parse_fw)(struct sst_dsp *ctx);
 	int (*set_state_D0)(struct sst_dsp *ctx, unsigned int core_id);
 	int (*set_state_D3)(struct sst_dsp *ctx, unsigned int core_id);
@@ -217,10 +215,8 @@ int skl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
 int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
-int skl_sst_dsp_init_fw(struct device *dev,
-	struct skl_sst *ctx, struct skl_dfw_manifest *minfo);
-int bxt_sst_dsp_init_fw(struct device *dev,
-	struct skl_sst *ctx, struct skl_dfw_manifest *minfo);
+int skl_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx);
+int bxt_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 

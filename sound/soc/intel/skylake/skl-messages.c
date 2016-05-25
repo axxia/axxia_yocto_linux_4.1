@@ -293,7 +293,7 @@ int skl_init_dsp_fw(struct skl *skl)
 		return ret;
 	}
 
-	ret = dsp_ops[index].init_fw(bus->dev, skl->skl_sst, &skl->manifest);
+	ret = dsp_ops[index].init_fw(bus->dev, skl->skl_sst);
 
 	if (ret < 0) {
 		skl_free_dsp(skl);

@@ -403,10 +403,11 @@ static unsigned int cnl_get_errorcode(struct sst_dsp *ctx)
 	 return sst_dsp_shim_read(ctx, CNL_ADSP_ERROR_CODE);
 }
 
-static int cnl_load_library(struct sst_dsp *ctx, struct skl_dfw_manifest *minfo)
+static int cnl_load_library(struct sst_dsp *ctx)
 {
 	struct snd_dma_buffer dmab;
 	struct skl_sst *cnl = ctx->thread_context;
+	struct skl_dfw_manifest *minfo = &cnl->manifest;
 	const struct firmware *fw = NULL;
 	struct skl_ext_manifest_header *hdr;
 	u32 size;
@@ -663,8 +664,7 @@ int cnl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 }
 EXPORT_SYMBOL_GPL(cnl_sst_dsp_init_hw);
 
-int cnl_sst_dsp_init_fw(struct device *dev,
-			struct skl_sst *ctx, struct skl_dfw_manifest *minfo)
+int cnl_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx)
 {
 	int ret;
 
@@ -675,8 +675,8 @@ int cnl_sst_dsp_init_fw(struct device *dev,
 	}
 	ctx->fw_loaded = true;
 
-	if (minfo->lib_count > 1) {
-		ret = ctx->dsp->fw_ops.load_library(ctx->dsp, minfo);
+	if (ctx->manifest.lib_count > 1) {
+		ret = ctx->dsp->fw_ops.load_library(ctx->dsp);
 		if (ret < 0) {
 			dev_err(dev, "Load library failed: %d", ret);
 			return ret;

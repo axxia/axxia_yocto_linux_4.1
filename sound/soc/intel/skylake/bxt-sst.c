@@ -71,8 +71,7 @@ static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id);
 static int bxt_schedule_dsp_D0i3(struct sst_dsp *ctx);
 static int bxt_set_dsp_D0i0(struct sst_dsp *ctx);
 static void bxt_set_dsp_D0i3(struct work_struct *work);
-static int bxt_load_library(struct sst_dsp *ctx,
-		struct skl_dfw_manifest *minfo);
+static int bxt_load_library(struct sst_dsp *ctx);
 
 static unsigned int bxt_get_errorcode(struct sst_dsp *ctx)
 {
@@ -169,8 +168,7 @@ int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 }
 EXPORT_SYMBOL_GPL(bxt_sst_dsp_init_hw);
 
-int bxt_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx,
-			struct skl_dfw_manifest *minfo)
+int bxt_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx)
 {
 	int ret;
 
@@ -182,8 +180,8 @@ int bxt_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx,
 		return ret;
 	}
 	ctx->fw_loaded = true;
-	if (minfo->lib_count > 1) {
-		ret = ctx->dsp->fw_ops.load_library(ctx->dsp, minfo);
+	if (ctx->manifest.lib_count > 1) {
+		ret = ctx->dsp->fw_ops.load_library(ctx->dsp);
 		if (ret < 0) {
 			dev_err(dev, "Load Library failed : %x", ret);
 			return ret;
@@ -604,10 +602,11 @@ sst_load_base_firmware_failed:
 	return ret;
 }
 
-static int bxt_load_library(struct sst_dsp *ctx, struct skl_dfw_manifest *minfo)
+static int bxt_load_library(struct sst_dsp *ctx)
 {
 	struct snd_dma_buffer dmab;
 	struct skl_sst *skl = ctx->thread_context;
+	struct skl_dfw_manifest *minfo = &skl->manifest;
 	struct firmware *fw = NULL;
 	struct skl_ext_manifest_header *hdr;
 	u32 size;

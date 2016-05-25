@@ -489,8 +489,7 @@ int skl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 }
 EXPORT_SYMBOL_GPL(skl_sst_dsp_init_hw);
 
-int skl_sst_dsp_init_fw(struct device *dev,
-		struct skl_sst *ctx, struct skl_dfw_manifest *minfo)
+int skl_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx)
 {
 	int ret;
 

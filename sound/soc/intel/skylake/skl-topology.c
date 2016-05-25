@@ -2120,7 +2120,7 @@ static int skl_manifest_load(struct snd_soc_component *cmpnt,
 	int ret = 0;
 	u8 *mdata;
 
-	minfo = &skl->manifest;
+	minfo = &skl->skl_sst->manifest;
 	mdata = manifest->priv.data;
 	minfo->lib_count = *mdata;
 

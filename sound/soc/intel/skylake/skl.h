@@ -79,7 +79,6 @@ struct skl {
 
 	struct skl_debug *debugfs;
 	bool nhlt_override;
-	struct skl_dfw_manifest manifest;
 };
 
 struct platform_info {
@@ -110,8 +109,7 @@ struct skl_dsp_ops {
 
 	int (*init_hw)(struct device *dev, void __iomem *mmio_base, int irq,
 		struct skl_dsp_loader_ops loader_ops, struct skl_sst **skl_sst);
-	int (*init_fw)(struct device *dev, struct skl_sst *ctx,
-		struct skl_dfw_manifest *minfo);
+	int (*init_fw)(struct device *dev, struct skl_sst *ctx);
 	void (*cleanup)(struct device *dev, struct skl_sst *ctx);
 };
 
