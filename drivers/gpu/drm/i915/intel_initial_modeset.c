@@ -545,26 +545,33 @@ static void modeset_config_fn(struct work_struct *work)
 	int ret;
 	bool found = false;
 
+	intel_splash_screen_init(dev);
+
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
 		return;
 
+	mutex_lock(&dev->mode_config.mutex);
+
 	drm_modeset_acquire_init(&ctx, 0);
 	state->acquire_ctx = &ctx;
-	drm_modeset_lock_all_ctx(dev, &ctx);
-
-	intel_splash_screen_init(dev);
-
 retry:
+	ret = drm_modeset_lock_all_ctx(dev, &ctx);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		goto retry;
+	} else if(ret) {
+		goto out;
+	}
+
 	ret = disable_planes(dev, state);
 	if (ret)
-		goto early_fail;
+		goto fail;
 
 	/*
 	 * For each connector that we want to set up, update the atomic
 	 * state to include the connector and crtc mode.
 	 */
-	mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
 		struct drm_encoder *encoder;
 
@@ -603,22 +610,13 @@ retry:
 	}
 
 	if (found) {
-		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
-				       state->acquire_ctx);
-		if (ret)
-			goto fail;
-
 		ret = drm_atomic_commit(state);
 		if (ret)
 			goto fail;
 	}
-	mutex_unlock(&dev->mode_config.mutex);
 	goto out;
 
 fail:
-	mutex_unlock(&dev->mode_config.mutex);
-
-early_fail:
 	if (ret == -EDEADLK) {
 		DRM_DEBUG_KMS("modeset commit deadlock, retry...\n");
 		drm_modeset_backoff(&ctx);
@@ -636,6 +634,8 @@ out:
 	}
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
+
+	mutex_unlock(&dev->mode_config.mutex);
 }
 
 void intel_initial_mode_config_init(struct drm_device *dev)
