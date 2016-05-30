@@ -46,6 +46,7 @@
 #define CNL_ROM_INIT_DONE_TIMEOUT	500
 #define CNL_FW_ROM_BASEFW_ENTERED_TIMEOUT	500
 #define CNL_FW_ROM_BASEFW_ENTERED	0x5
+#define CNL_D0I3_DELAY 10000
 
 /* Intel HD Audio SRAM Window 0*/
 #define CNL_ADSP_SRAM0_BASE	0x80000
@@ -64,6 +65,8 @@
 
 #define CNL_INSTANCE_ID		0
 #define CNL_BASE_FW_MODULE_ID	0
+
+static void cnl_set_dsp_D0i3(struct work_struct *work);
 
 void cnl_ipc_int_enable(struct sst_dsp *ctx)
 {
@@ -316,6 +319,91 @@ cnl_load_base_firmware_failed:
 	return ret;
 }
 
+static void cnl_set_dsp_D0i3(struct work_struct *work)
+{
+	int ret;
+	struct skl_ipc_d0ix_msg msg;
+	struct skl_sst *cnl = container_of(work,
+			struct skl_sst, d0i3_data.d0i3_work.work);
+	struct sst_dsp *ctx = cnl->dsp;
+
+	dev_dbg(ctx->dev, "In %s:\n", __func__);
+
+	/* D0i3 entry allowed only if core 0 alone is running */
+	if (SKL_DSP_CORE0_MASK != cnl_dsp_get_enabled_cores(ctx)) {
+		dev_warn(ctx->dev,
+				"D0i3 allowed when only core0 running:Exit\n");
+		return;
+	}
+
+	msg.instance_id = 0;
+	msg.module_id = 0;
+	msg.wake = 1;
+	msg.streaming = 1;
+
+	ret =  skl_ipc_set_d0ix(&cnl->ipc, &msg);
+
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to set DSP to D0i3 state\n");
+		return;
+	}
+	/* Set Vendor specific register D0I3C.I3 to enable D0i3*/
+	if (cnl->update_d0i3c)
+		cnl->update_d0i3c(cnl->dev, true);
+
+	ctx->core_info.core_state[SKL_DSP_CORE0_ID] = SKL_DSP_RUNNING_D0I3;
+}
+
+static int cnl_schedule_dsp_D0i3(struct sst_dsp *ctx)
+{
+	struct skl_sst *skl = ctx->thread_context;
+	struct skl_d0i3_data *d0i3_data = &skl->d0i3_data;
+
+	if ((d0i3_data->d0i3_stream_count > 0) &&
+			(d0i3_data->non_d0i3_stream_count == 0))
+		schedule_delayed_work(&d0i3_data->d0i3_work,
+				msecs_to_jiffies(CNL_D0I3_DELAY));
+
+	return 0;
+}
+
+static int cnl_set_dsp_D0i0(struct sst_dsp *ctx)
+{
+	int ret;
+	struct skl_ipc_d0ix_msg msg;
+	struct skl_sst *cnl = ctx->thread_context;
+
+	dev_dbg(ctx->dev, "In %s:\n", __func__);
+
+	/* First Cancel any pending attempt to put DSP to D0i3 */
+	cancel_delayed_work_sync(&cnl->d0i3_data.d0i3_work);
+
+	/* If DSP is currently in D0i3, bring it to D0i0 */
+	if (ctx->core_info.core_state[SKL_DSP_CORE0_ID] != SKL_DSP_RUNNING_D0I3)
+		return 0;
+
+	dev_dbg(ctx->dev, "Set DSP to D0i0\n");
+
+	msg.instance_id = 0;
+	msg.module_id = 0;
+	msg.streaming = 1;
+	msg.wake = 0;
+
+	/* Clear Vendor specific register D0I3C.I3 to disable D0i3*/
+	if (cnl->update_d0i3c)
+		cnl->update_d0i3c(cnl->dev, false);
+
+	ret = skl_ipc_set_d0ix(&cnl->ipc, &msg);
+	if (ret < 0) {
+		dev_err(ctx->dev, "Failed to set DSP to D0i0\n");
+		return ret;
+	}
+
+	ctx->core_info.core_state[SKL_DSP_CORE0_ID] = SKL_DSP_RUNNING;
+
+	return 0;
+}
+
 static int cnl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
 	int ret = 0;
@@ -480,6 +568,8 @@ load_library_failed:
 static struct skl_dsp_fw_ops cnl_fw_ops = {
 	.set_state_D0 = cnl_set_dsp_D0,
 	.set_state_D3 = cnl_set_dsp_D3,
+	.set_state_D0i3 = cnl_schedule_dsp_D0i3,
+	.set_state_D0i0 = cnl_set_dsp_D0i0,
 	.load_fw = cnl_load_base_firmware,
 	.get_fw_errcode = cnl_get_errorcode,
 	.load_library = cnl_load_library,
@@ -662,6 +752,8 @@ int cnl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 
 	cnl->boot_complete = false;
 	init_waitqueue_head(&cnl->boot_wait);
+
+	INIT_DELAYED_WORK(&cnl->d0i3_data.d0i3_work, cnl_set_dsp_D0i3);
 
 	if (dsp)
 		*dsp = cnl;

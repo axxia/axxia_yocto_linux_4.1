@@ -249,3 +249,26 @@ void cnl_dsp_free(struct sst_dsp *dsp)
 	cnl_dsp_disable_core(dsp, SKL_DSP_CORE_MASK(0));
 }
 EXPORT_SYMBOL_GPL(cnl_dsp_free);
+
+unsigned cnl_dsp_get_enabled_cores(struct sst_dsp *ctx)
+{
+	u32 val;
+	unsigned en_cores_mask;
+
+	val = sst_dsp_shim_read_unlocked(ctx, CNL_ADSP_REG_ADSPCS);
+
+	/* cores having CPA bit set */
+	en_cores_mask = (val & CNL_ADSPCS_CPA(CNL_DSP_CORES_MASK))
+						>> CNL_ADSPCS_CPA_SHIFT;
+	/* cores having CRST bit cleared */
+	en_cores_mask &= (~val & CNL_ADSPCS_CRST(CNL_DSP_CORES_MASK))
+						>> CNL_ADSPCS_CRST_SHIFT;
+	/* cores having CSTALL bit cleared */
+	en_cores_mask &= (~val & CNL_ADSPCS_CSTALL(CNL_DSP_CORES_MASK))
+						>> CNL_ADSPCS_CSTALL_SHIFT;
+	en_cores_mask &= CNL_DSP_CORES_MASK;
+
+	dev_dbg(ctx->dev, "DSP enabled cores mask = %#x\n", en_cores_mask);
+
+	return en_cores_mask;
+}

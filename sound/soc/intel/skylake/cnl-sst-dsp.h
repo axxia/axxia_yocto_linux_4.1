@@ -110,5 +110,5 @@ int cnl_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx);
 void cnl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);
 
 void cnl_ipc_int_disable(struct sst_dsp *ctx);
-
+unsigned cnl_dsp_get_enabled_cores(struct sst_dsp *ctx);
 #endif /*__CNL_SST_DSP_H__*/
