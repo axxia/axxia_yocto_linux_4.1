@@ -628,6 +628,36 @@ static struct skl_sst *skl_get_sst_compr(struct snd_compr_stream *stream)
 	return sst;
 }
 
+static int skl_trace_compr_open(struct snd_compr_stream *substream,
+		struct snd_soc_dai *dai)
+{
+	struct skl_sst *skl_sst = skl_get_sst_compr(substream);
+	struct sst_dsp *sst = skl_sst->dsp;
+	int core = skl_get_compr_core(substream);
+	int ret;
+
+	if (!skl_is_logging_core(core))
+		return -EINVAL;
+
+	ret = pm_runtime_get_sync(skl_sst->dev);
+	if (ret < 0) {
+		dev_err(skl_sst->dev,"trace open:pm_runtime_get failed\n");
+		return ret;
+	}
+
+
+	if (core != SKL_DSP_CORE0_ID) {
+		ret = skl_dsp_get_core(sst, core);
+		if (ret) {
+			dev_err(skl_sst->dev,
+					"trace open:get core%d failed\n", core);
+			pm_runtime_put_sync(skl_sst->dev);
+		}
+	}
+
+
+	return ret;
+}
 static int skl_trace_compr_set_params(struct snd_compr_stream *stream,
 					struct snd_compr_params *params,
 						struct snd_soc_dai *cpu_dai)
@@ -713,6 +743,9 @@ static int skl_trace_compr_free(struct snd_compr_stream *stream,
 		skl_dsp_put_log_buff(sst, core);
 		skl_dsp_done_log_buffer(sst, core);
 	}
+	if (core != SKL_DSP_CORE0_ID)
+		skl_dsp_put_core(sst, core);
+	pm_runtime_put_sync(ipc->dev);
 	return 0;
 }
 
@@ -730,6 +763,7 @@ static struct snd_soc_cdai_ops skl_probe_compr_ops = {
 };
 
 static struct snd_soc_cdai_ops skl_trace_compr_ops = {
+	.startup = skl_trace_compr_open,
 	.shutdown = skl_trace_compr_free,
 	.pointer = skl_trace_compr_tstamp,
 	.set_params = skl_trace_compr_set_params,
