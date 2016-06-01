@@ -1096,7 +1096,6 @@ static struct snd_soc_codec_driver soc_codec_dev_rt298 = {
 	.suspend = rt298_suspend,
 	.resume = rt298_resume,
 	.set_bias_level = rt298_set_bias_level,
-	.idle_bias_off = true,
 	.controls = rt298_snd_controls,
 	.num_controls = ARRAY_SIZE(rt298_snd_controls),
 	.dapm_widgets = rt298_dapm_widgets,
