@@ -13831,6 +13831,16 @@ static void finish_atomic_commit(struct work_struct *work)
 	if (hw_check)
 		intel_modeset_check_state(dev, state);
 
+	for_each_crtc_in_state(state, crtc, old_crtc_state, i) {
+		if (crtc && crtc->state->event) {
+			spin_lock_irq(&dev->event_lock);
+			drm_send_vblank_event(dev, to_intel_crtc(crtc)->pipe,
+					      crtc->state->event);
+			crtc->state->event = NULL;
+			spin_unlock_irq(&dev->event_lock);
+		}
+	}
+
 	/* Unblock other commits against these CRTC's */
 	flip_completion(commit);
 	kfree(commit);
