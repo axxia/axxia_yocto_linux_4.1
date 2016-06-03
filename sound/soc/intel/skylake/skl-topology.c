@@ -2139,6 +2139,55 @@ static void skl_load_widget_params(struct skl_dfw_module *dfw_config,
 		return;
 	}
 }
+static void skl_clear_pin_config(struct snd_soc_platform *platform,
+				struct snd_soc_dapm_widget *w)
+{
+	int i;
+	struct skl_module_cfg *mconfig;
+	struct skl_pipe *pipe;
+
+	if (!strncmp(w->dapm->component->name, platform->component.name,
+					strlen(platform->component.name))) {
+		mconfig = w->priv;
+		pipe = mconfig->pipe;
+		for (i = 0; i < mconfig->max_in_queue; i++) {
+			mconfig->m_in_pin[i].in_use = false;
+			mconfig->m_in_pin[i].pin_state = SKL_PIN_UNBIND;
+		}
+		for (i = 0; i < mconfig->max_out_queue; i++) {
+			mconfig->m_out_pin[i].in_use = false;
+			mconfig->m_out_pin[i].pin_state = SKL_PIN_UNBIND;
+		}
+		pipe->state = SKL_PIPE_INVALID;
+		mconfig->m_state = SKL_MODULE_UNINIT;
+	}
+}
+
+void skl_cleanup_resources(struct skl *skl)
+{
+	struct skl_sst *ctx = skl->skl_sst;
+	struct snd_soc_platform *soc_platform = ctx->platform;
+	struct snd_soc_dapm_widget *w;
+	struct snd_soc_card *card;
+
+	if (soc_platform == NULL)
+		return;
+
+	card = soc_platform->component.card;
+	if (!card || !card->instantiated)
+		return;
+
+	skl->resource.mem = 0;
+	skl->resource.mcps = 0;
+
+	list_for_each_entry(w, &card->widgets, list) {
+		if (is_skl_dsp_widget_type(w) && (w->priv != NULL))
+			skl_clear_pin_config(soc_platform, w);
+	}
+
+	skl_clear_module_cnt(ctx->dsp);
+}
+
 /*
  * Topology core widget load callback
  *

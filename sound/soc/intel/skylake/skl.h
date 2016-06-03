@@ -182,4 +182,5 @@ void skl_update_dsp_debug_info(struct skl_debug *d,
 
 #endif
 
+void skl_cleanup_resources(struct skl *skl);
 #endif /* __SOUND_SOC_SKL_H */
