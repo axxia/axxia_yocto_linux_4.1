@@ -211,6 +211,7 @@ struct skl_dfw_module {
 	u32 obs;
 	u32 ibs;
 	u32 vbus_id;
+	u32 dma_buffer_size; /* in milli sec */
 
 	u32 max_in_queue:8;
 	u32 max_out_queue:8;

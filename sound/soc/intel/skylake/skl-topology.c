@@ -2013,6 +2013,7 @@ static int skl_tplg_widget_load(struct snd_soc_component *cmpnt,
 	mconfig->fast_mode = dfw_config->fast_mode;
 	mconfig->in_frame_size = dfw_config->in_frame_size;
 	mconfig->out_frame_size = dfw_config->out_frame_size;
+	mconfig->dma_buffer_size = dfw_config->dma_buffer_size;
 
 	pipe = skl_tplg_add_pipe(bus->dev, skl, &dfw_config->pipe);
 	if (pipe)
