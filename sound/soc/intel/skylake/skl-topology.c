@@ -842,6 +842,7 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (ret < 0)
 			return ret;
 
+		skl_tplg_alloc_pipe_mcps(skl, mconfig);
 		ret = skl_tplg_set_module_params(w, ctx);
 		if (ret < 0)
 			return ret;
@@ -903,9 +904,6 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	if (!skl_is_pipe_mem_avail(skl, mconfig))
 		return -ENOMEM;
 
-	skl_tplg_alloc_pipe_mem(skl, mconfig);
-	skl_tplg_alloc_pipe_mcps(skl, mconfig);
-
 	/*
 	 * Create a list of modules for pipe.
 	 * This list contains modules from source to sink
@@ -913,6 +911,9 @@ static int skl_tplg_mixer_dapm_pre_pmu_event(struct snd_soc_dapm_widget *w,
 	ret = skl_create_pipeline(ctx, mconfig->pipe);
 	if (ret < 0)
 		return ret;
+
+	skl_tplg_alloc_pipe_mem(skl, mconfig);
+	skl_tplg_alloc_pipe_mcps(skl, mconfig);
 
 	/*
 	 * we create a w_list of all widgets in that pipe. This list is not
@@ -1248,13 +1249,17 @@ static int skl_tplg_mixer_dapm_post_pmd_event(struct snd_soc_dapm_widget *w,
 	struct skl_pipe *s_pipe = mconfig->pipe;
 	int ret = 0;
 
+	if (s_pipe->state == SKL_PIPE_INVALID)
+		return -EINVAL;
+
 	skl_tplg_free_pipe_mcps(skl, mconfig);
 	skl_tplg_free_pipe_mem(skl, mconfig);
 
 	list_for_each_entry(w_module, &s_pipe->w_list, node) {
 		dst_module = w_module->w->priv;
 
-		skl_tplg_free_pipe_mcps(skl, dst_module);
+		if (mconfig->m_state >= SKL_MODULE_INIT_DONE)
+			skl_tplg_free_pipe_mcps(skl, dst_module);
 		if (src_module == NULL) {
 			src_module = dst_module;
 			continue;
