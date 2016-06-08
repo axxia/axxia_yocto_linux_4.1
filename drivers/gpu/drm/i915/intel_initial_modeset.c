@@ -440,11 +440,9 @@ static void create_splash_fb(struct drm_device *dev,
 	struct splash_screen_info *splash_info;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (splash->fw) {
-		splash->fb = intel_splash_screen_fb(dev, splash);
-		if (IS_ERR(splash->fb))
-			splash->fb = NULL;
-	}
+	splash->fb = intel_splash_screen_fb(dev, splash);
+	if (IS_ERR(splash->fb))
+		splash->fb = NULL;
 
 	if (splash->fb)
 		list_for_each_entry(splash_info, &dev_priv->splash_list, link)
