@@ -133,6 +133,11 @@ struct skl_ipc_bind_unbind_msg {
 	bool bind;
 };
 
+struct skl_ipc_large_payload {
+	u32 module_id;
+	u32 param_data_size;
+};
+
 struct skl_ipc_large_config_msg {
 	u32 module_id;
 	u32 instance_id;

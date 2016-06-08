@@ -1553,13 +1553,28 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 	struct skl *skl = get_skl_ctx(dapm->dev);
 	struct skl_notify_data *notify_data;
 	int ret = 0;
+	struct skl_ipc_large_config_msg msg;
+	struct skl_ipc_large_payload tx_param;
 
 	dev_dbg(dapm->dev, "In%s control_name=%s, id=%u\n", __func__, kcontrol->id.name, bc->param_id);
 	dev_dbg(dapm->dev, "size = %u (%#x), max = %#x\n", size, size, bc->max);
 
-	if (w->power)
-		skl_get_module_params(skl->skl_sst, (void *)bc->params,
-				      bc->max, bc->param_id, mconfig);
+	if (w->power) {
+		if (bc->param_id == 0xFF){
+			msg.module_id = mconfig->id.module_id;
+			msg.instance_id = mconfig->id.instance_id;
+			msg.param_data_size = bc->max;
+			msg.large_param_id = bc->param_id;
+			memcpy(&tx_param.module_id, bc->params, sizeof(u32));
+			memcpy(&tx_param.param_data_size, &bc->max, sizeof(u32));
+			dev_dbg(dapm->dev, "getting module params size=%d\n", bc->max);
+			skl_ipc_get_large_config(&skl->skl_sst->ipc, &msg, (u32 *)bc->params,
+							(u32 *)&tx_param, sizeof(tx_param));
+		} else {
+			skl_get_module_params(skl->skl_sst, (void *)bc->params,
+				bc->max, bc->param_id, mconfig);
+		}
+	}
 
 	/* decrement size for TLV header */
 	size -= 2 * sizeof(u32);
