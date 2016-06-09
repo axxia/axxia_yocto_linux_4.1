@@ -475,6 +475,7 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 	union skl_connector_node_id node_id = {0};
 	union skl_ssp_dma_node ssp_node  = {0};
 	struct skl_pipe_params *params = mconfig->pipe->p_params;
+	u32 dma_io_buf;
 
 	switch (mconfig->dev_type) {
 	case SKL_DEVICE_BT:
@@ -526,10 +527,26 @@ static void skl_setup_cpr_gateway_cfg(struct skl_sst *ctx,
 
 	cpr_mconfig->gtw_cfg.node_id = node_id.val;
 
-	if (SKL_CONN_SOURCE == mconfig->hw_conn_type)
-		cpr_mconfig->gtw_cfg.dma_buffer_size = 2 * mconfig->obs;
-	else
-		cpr_mconfig->gtw_cfg.dma_buffer_size = 2 * mconfig->ibs;
+	switch (mconfig->hw_conn_type) {
+	case SKL_CONN_SOURCE:
+		if (mconfig->dev_type == SKL_DEVICE_HDAHOST)
+			dma_io_buf =  mconfig->ibs;
+		else
+			dma_io_buf =  mconfig->obs;
+		break;
+
+	case SKL_CONN_SINK:
+		if (mconfig->dev_type == SKL_DEVICE_HDAHOST)
+			dma_io_buf =  mconfig->obs;
+		else
+			dma_io_buf =  mconfig->ibs;
+		break;
+
+	default: /* This should not occur */
+		dma_io_buf =  mconfig->obs;
+	}
+
+	cpr_mconfig->gtw_cfg.dma_buffer_size = mconfig->dma_buffer_size * dma_io_buf;
 
 	cpr_mconfig->cpr_feature_mask = mconfig->fast_mode;
 	cpr_mconfig->gtw_cfg.config_length  = 0;
