@@ -164,7 +164,6 @@
 };
 
 &pci0 {
-
 	status = "okay";
 };
 
