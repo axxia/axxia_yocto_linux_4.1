@@ -26,8 +26,6 @@ struct sst_generic_ipc;
 
 #define NO_OF_INJECTOR 6
 #define NO_OF_EXTRACTOR 8
-#define MAX_FW_REG_SZ 4096
-#define TYPE2_EXCEPTION 2
 
 enum skl_ipc_pipeline_state {
 	PPL_INVALID_STATE =	0,
@@ -145,33 +143,6 @@ struct skl_log_state_msg {
 	u32	core_mask;
 	struct	skl_log_state logs_core[2];
 };
-
-struct fw_version {
-	u16 major;
-	u16 minor;
-	u16 hotfix;
-	u16 build;
-} __packed;
-
-struct sw_version {
-	u16 major;
-	u16 minor;
-	u16 hotfix;
-	u16 build;
-} __packed;
-
-struct skl_dsp_core_dump {
-	u32 type0;
-	u32 length1;
-	u32 crash_dump_ver;
-	u16 cavs_hw_version;
-	u16 bus_dev_id;
-	struct fw_version fw_ver;
-	struct sw_version sw_ver;
-	u32 type2;
-	u32 length2;
-	u8 fwreg[MAX_FW_REG_SZ];
-} __packed;
 
 /* Timeout values in milliseconds for response from FW */
 #define SKL_IPC_BOOT_MSECS              3000
