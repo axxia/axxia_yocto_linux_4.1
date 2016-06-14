@@ -145,6 +145,7 @@ int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		return ret;
 	}
 
+	INIT_LIST_HEAD(&sst->module_list);
 	ret = skl_ipc_init(dev, skl);
 	if (ret)
 		return ret;
