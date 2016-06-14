@@ -92,18 +92,27 @@ static bool use_connector(struct drm_connector *connector)
 	return false;
 }
 
-static void attach_crtc(struct drm_device *dev, struct drm_encoder *encoder)
+static bool attach_crtc(struct drm_device *dev, struct drm_encoder *encoder,
+			uint32_t *used_crtcs)
 {
 	struct drm_crtc *possible_crtc;
 
-	drm_for_each_crtc(possible_crtc, dev) {
-		if (!(encoder->possible_crtcs & drm_crtc_mask(possible_crtc)))
-			continue;
-		if (possible_crtc->state->enable)
-			continue;
-		encoder->crtc = possible_crtc;
-		break;
+	if(encoder->crtc != NULL &&
+	   !(*used_crtcs & drm_crtc_mask(encoder->crtc))) {
+		*used_crtcs |= drm_crtc_mask(encoder->crtc);
+		return true;
 	}
+
+	drm_for_each_crtc(possible_crtc, dev) {
+		if (!(encoder->possible_crtcs & drm_crtc_mask(possible_crtc))
+		    || (*used_crtcs & drm_crtc_mask(possible_crtc)))
+			continue;
+		*used_crtcs |= drm_crtc_mask(possible_crtc);
+		encoder->crtc = possible_crtc;
+		return true;
+	}
+
+	return false;
 }
 
 static struct drm_encoder *get_encoder(struct drm_device *dev,
@@ -114,17 +123,8 @@ static struct drm_encoder *get_encoder(struct drm_device *dev,
 
 	connector_funcs = connector->helper_private;
 	encoder = connector_funcs->best_encoder(connector);
-	if (!encoder) {
-		DRM_DEBUG_KMS("connector %s has no encoder\n",
-			      connector->name);
-		return NULL;
-	}
 
-	if (!encoder->crtc) {
-		attach_crtc(dev, encoder);
-		if (!encoder->crtc)
-			return NULL;
-	}
+	WARN_ON(encoder != NULL);
 
 	return encoder;
 }
@@ -542,6 +542,7 @@ static void modeset_config_fn(struct work_struct *work)
 	struct drm_plane *plane;
 	int ret;
 	bool found = false;
+	uint32_t used_crtcs;
 
 	intel_splash_screen_init(dev);
 
@@ -566,6 +567,7 @@ retry:
 	if (ret)
 		goto fail;
 
+	used_crtcs = 0;
 	/*
 	 * For each connector that we want to set up, update the atomic
 	 * state to include the connector and crtc mode.
@@ -575,6 +577,8 @@ retry:
 
 		if (use_connector(connector)) {
 			if (!(encoder = get_encoder(dev, connector)))
+				continue;
+			if (!attach_crtc(dev, encoder, &used_crtcs))
 				continue;
 
 			ret = update_atomic_state(dev, state,
@@ -586,6 +590,7 @@ retry:
 	}
 
 	if (!found) {
+		used_crtcs = 0;
 		/* Try to detect attached connectors */
 		drm_for_each_connector(connector, dev) {
 			struct drm_encoder *encoder;
@@ -594,6 +599,8 @@ retry:
 								     true);
 			if (connector->status == connector_status_connected) {
 				if (!(encoder = get_encoder(dev, connector)))
+					continue;
+				if (!attach_crtc(dev, encoder, &used_crtcs))
 					continue;
 
 				ret = update_atomic_state(dev, state,
