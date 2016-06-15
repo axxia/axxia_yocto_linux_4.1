@@ -102,13 +102,34 @@ static int dw_i2c_acpi_configure(struct platform_device *pdev)
 
 	/*
 	 * Try to get SDA hold time and *CNT values from an ACPI method if
-	 * it exists for both supported speed modes.
+	 * it exists for all supported speed modes.
 	 */
-	dw_i2c_acpi_params(pdev, "SSCN", &dev->ss_hcnt, &dev->ss_lcnt, NULL);
+	dw_i2c_acpi_params(pdev, "SSCN", &dev->ss_hcnt, &dev->ss_lcnt,
+			   &dev->ss_sda_ht);
 	dw_i2c_acpi_params(pdev, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt,
-			   &dev->sda_hold_time);
-	dw_i2c_acpi_params(pdev, "FPCN", &dev->fp_hcnt, &dev->fp_lcnt, NULL);
-	dw_i2c_acpi_params(pdev, "HSCN", &dev->hs_hcnt, &dev->hs_lcnt, NULL);
+			   &dev->fs_sda_ht);
+	dw_i2c_acpi_params(pdev, "FPCN", &dev->fp_hcnt, &dev->fp_lcnt,
+			   &dev->fp_sda_ht);
+	dw_i2c_acpi_params(pdev, "HSCN", &dev->hs_hcnt, &dev->hs_lcnt,
+			   &dev->hs_sda_ht);
+
+	switch (dev->clk_freq) {
+	case 100000:
+		if (dev->ss_sda_ht)
+			dev->sda_hold_time = dev->ss_sda_ht;
+		break;
+	case 1000000:
+		if (dev->fp_sda_ht)
+			dev->sda_hold_time = dev->fp_sda_ht;
+		break;
+	case 3400000:
+		if (dev->hs_sda_ht)
+			dev->sda_hold_time = dev->hs_sda_ht;
+		break;
+	default:
+		if (dev->fs_sda_ht)
+			dev->sda_hold_time = dev->fs_sda_ht;
+	}
 
 	id = acpi_match_device(pdev->dev.driver->acpi_match_table, &pdev->dev);
 	if (id && id->driver_data)

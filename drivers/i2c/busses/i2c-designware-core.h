@@ -106,6 +106,10 @@ struct dw_i2c_dev {
 	int			rx_outstanding;
 	u32			clk_freq;
 	u32			sda_hold_time;
+	u32			ss_sda_ht;
+	u32			fs_sda_ht;
+	u32			fp_sda_ht;
+	u32			hs_sda_ht;
 	u32			sda_falling_time;
 	u32			scl_falling_time;
 	u16			ss_hcnt;
