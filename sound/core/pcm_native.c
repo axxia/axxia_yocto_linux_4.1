@@ -3537,9 +3537,21 @@ static int snd_pcm_mmap(struct file *file, struct vm_area_struct *area)
 	case SNDRV_PCM_MMAP_OFFSET_STATUS:
 		if (pcm_file->no_compat_mmap)
 			return -ENXIO;
+		/*
+		 * we want to force sync pointer,
+		 * if driver implements appl_ptr_update
+		 */
+		if (substream->ops->appl_ptr_update)
+			return -ENXIO;
 		return snd_pcm_mmap_status(substream, file, area);
 	case SNDRV_PCM_MMAP_OFFSET_CONTROL:
 		if (pcm_file->no_compat_mmap)
+			return -ENXIO;
+		/*
+		 * we want to force sync pointer,
+		 * if driver implements appl_ptr_update
+		 */
+		if (substream->ops->appl_ptr_update)
 			return -ENXIO;
 		return snd_pcm_mmap_control(substream, file, area);
 	default:
