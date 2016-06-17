@@ -3877,6 +3877,11 @@ skl_compute_ddb(struct drm_atomic_state *state)
 	 * ensure a full DDB recompute.
 	 */
 	if (dev_priv->wm.distrust_bios_wm) {
+		ret = drm_modeset_lock(&dev->mode_config.connection_mutex,
+				       state->acquire_ctx);
+		if (ret)
+			return ret;
+
 		intel_state->active_pipe_changes = ~0;
 
 		/*
@@ -3885,7 +3890,8 @@ skl_compute_ddb(struct drm_atomic_state *state)
 		 * initialized during the sanitization process that happens
 		 * on the first commit too.
 		 */
-		intel_state->active_crtcs = dev_priv->active_crtcs;
+		if (!intel_state->modeset)
+			intel_state->active_crtcs = dev_priv->active_crtcs;
 	}
 
 	/*
