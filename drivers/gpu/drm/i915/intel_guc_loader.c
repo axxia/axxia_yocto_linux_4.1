@@ -406,7 +406,7 @@ int intel_guc_ucode_load(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct intel_guc_fw *guc_fw = &dev_priv->guc.guc_fw;
 	const char *fw_path = guc_fw->guc_fw_path;
-	int err = 0;
+	int retries, err = 0;
 	unsigned long long start = sched_clock();
 
 	DRM_DEBUG_DRIVER("GuC fw status: path %s, fetch %s, load %s\n",
@@ -448,29 +448,26 @@ int intel_guc_ucode_load(struct drm_device *dev)
 	 * steppings also so this is extended as well.
 	 */
 	/* WaEnableGuCBootHashCheckNotSet:skl,bxt */
-	err = guc_ucode_xfer(dev_priv);
-	if (err) {
-		int retries = 3;
-
-		DRM_ERROR("GuC fw load failed, err=%d, attempting reset and retry\n", err);
-
-		while (retries--) {
-			err = i915_reset_guc(dev_priv);
-			if (err)
-				break;
-
-			err = guc_ucode_xfer(dev_priv);
-			if (!err) {
-				DRM_DEBUG_DRIVER("GuC fw reload succeeded after reset\n");
-				break;
-			}
-			DRM_DEBUG_DRIVER("GuC fw reload retries left: %d\n", retries);
-		}
-
+	for (retries = 3; ; ) {
+		/*
+		 * Always reset the GuC just before (re)loading, so
+		 * that the state and timing are fairly predictable
+		 */
+		err = i915_reset_guc(dev_priv);
 		if (err) {
-			DRM_ERROR("GuC fw reload attempt failed, ret=%d\n", err);
+			DRM_ERROR("GuC reset failed, err %d\n", err);
 			goto fail;
 		}
+
+		err = guc_ucode_xfer(dev_priv);
+		if (!err)
+			break;
+
+		if (--retries == 0)
+			goto fail;
+
+		DRM_INFO("GuC fw load failed, err %d; will reset and "
+			"retry %d more time(s)\n", err, retries);
 	}
 
 	guc_fw->guc_fw_load_status = GUC_FIRMWARE_SUCCESS;
