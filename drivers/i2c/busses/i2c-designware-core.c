@@ -383,6 +383,8 @@ int i2c_dw_init(struct dw_i2c_dev *dev)
 			dev_err(dev->dev, "High Speed not supported!\n");
 			dev->master_cfg &= ~DW_IC_CON_SPEED_MASK;
 			dev->master_cfg |= DW_IC_CON_SPEED_FAST;
+			if (dev->fs_sda_ht)
+				dev->sda_hold_time = dev->fs_sda_ht;
 		} else if (dev->hs_hcnt && dev->hs_lcnt) {
 			hcnt = dev->hs_hcnt;
 			lcnt = dev->hs_lcnt;
