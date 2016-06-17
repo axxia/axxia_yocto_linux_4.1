@@ -813,6 +813,7 @@ static u32 i2c_dw_read_clear_intrbits(struct dw_i2c_dev *dev)
 static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 {
 	struct dw_i2c_dev *dev = dev_id;
+	struct i2c_msg *msgs = dev->msgs;
 	u32 stat, enabled;
 
 	enabled = dw_readl(dev, DW_IC_ENABLE);
@@ -824,15 +825,18 @@ static irqreturn_t i2c_dw_isr(int this_irq, void *dev_id)
 	stat = i2c_dw_read_clear_intrbits(dev);
 
 	if (stat & DW_IC_INTR_TX_ABRT) {
-		dev->cmd_err |= DW_IC_ERR_TX_ABRT;
-		dev->status = STATUS_IDLE;
+		if (!((dev->abort_source & DW_IC_TX_ABRT_NOACK) &&
+			(msgs->flags & I2C_M_IGNORE_NAK))) {
+			dev->cmd_err |= DW_IC_ERR_TX_ABRT;
+			dev->status = STATUS_IDLE;
 
-		/*
-		 * Anytime TX_ABRT is set, the contents of the tx/rx
-		 * buffers are flushed.  Make sure to skip them.
-		 */
-		dw_writel(dev, 0, DW_IC_INTR_MASK);
-		goto tx_aborted;
+			/*
+			 * Anytime TX_ABRT is set, the contents of the tx/rx
+			 * buffers are flushed.  Make sure to skip them.
+			 */
+			dw_writel(dev, 0, DW_IC_INTR_MASK);
+			goto tx_aborted;
+		}
 	}
 
 	if (stat & DW_IC_INTR_RX_FULL)
