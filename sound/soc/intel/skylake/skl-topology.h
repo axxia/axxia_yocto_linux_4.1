@@ -321,7 +321,6 @@ struct skl_module_cfg {
 	u32 vbus_id;
 	u32 mem_pages;
 	u32 fast_mode;
-	u32 dma_buf_dur_ms;
 	u32 in_frame_size;
 	u32 out_frame_size;
 	struct skl_module_pin *m_in_pin;
