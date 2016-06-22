@@ -300,6 +300,7 @@ static struct platform_driver broxton_audio = {
 	.remove = broxton_audio_remove,
 	.driver = {
 		.name = "bxt_alc298s_i2s",
+		.pm = &snd_soc_pm_ops,
 	},
 };
 
