@@ -589,8 +589,7 @@ static int allocate_wa_bb(struct drm_i915_private *dev_priv)
 			PAGE_SIZE, PIN_MAPPABLE);
 
 	if (ret) {
-		drm_gem_object_unreference_unlocked(
-			&dev_priv->rc6_wa_bb.obj->base);
+		drm_gem_object_unreference(&dev_priv->rc6_wa_bb.obj->base);
 		goto unlock;
 	}
 
@@ -598,8 +597,7 @@ static int allocate_wa_bb(struct drm_i915_private *dev_priv)
 						true);
 	if (ret) {
 		i915_gem_object_ggtt_unpin(dev_priv->rc6_wa_bb.obj);
-		drm_gem_object_unreference_unlocked(
-			&dev_priv->rc6_wa_bb.obj->base);
+		drm_gem_object_unreference(&dev_priv->rc6_wa_bb.obj->base);
 		goto unlock;
 	}
 
@@ -612,8 +610,7 @@ static int allocate_wa_bb(struct drm_i915_private *dev_priv)
 
 	if (!dev_priv->rc6_wa_bb.address) {
 		i915_gem_object_ggtt_unpin(dev_priv->rc6_wa_bb.obj);
-		drm_gem_object_unreference_unlocked(
-			&dev_priv->rc6_wa_bb.obj->base);
+		drm_gem_object_unreference(&dev_priv->rc6_wa_bb.obj->base);
 		ret =  -ENOMEM;
 		goto unlock;
 	}
@@ -627,6 +624,7 @@ static int allocate_wa_bb(struct drm_i915_private *dev_priv)
 
 unlock:
 	if (ret) {
+		atomic_dec(&dev_priv->rc6_wa_bb.enable);
 		dev_priv->rc6_wa_bb.obj = NULL;
 		dev_priv->rc6_wa_bb.offset = 0;
 	}
@@ -644,7 +642,7 @@ static void deallocate_wa_bb(struct drm_i915_private *dev_priv)
 	if (atomic_read(&dev_priv->rc6_wa_bb.enable) == 0)
 		goto unlock;
 
-	if (atomic_dec_return(&dev_priv->rc6_wa_bb.enable) > 1)
+	if (atomic_dec_return(&dev_priv->rc6_wa_bb.enable) > 0)
 		goto unlock;
 
 	I915_WRITE(GEN8_RC6_WA_BB, 0);
