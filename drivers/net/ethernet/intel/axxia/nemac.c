@@ -510,7 +510,6 @@ nemac_link_up(struct nemac_priv *priv)
 	/* Pause frames are a problem on the Axxia development board,
 	 * so don't enable them.
 	 */
-
 	nemac_clr(priv, NEM_GMAC_ENABLE_R, GMAC_RX_PAUSE_EN | GMAC_TX_PAUSE_EN);
 	nemac_clr(priv, NEM_DMA_CTL, DMACTL_ALLOW_TX_PAUSE);
 
