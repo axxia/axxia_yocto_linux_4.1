@@ -698,8 +698,7 @@ static bool is_gen8_shadowed(u32 offset)
 	REG_RANGE((reg), 0xB00,  0x2000)
 
 #define FORCEWAKE_GEN9_RENDER_RANGE_OFFSET(reg) \
-	(REG_RANGE((reg), 0x2000, 0x2700) || \
-	 REG_RANGE((reg), 0x3000, 0x4000) || \
+	(REG_RANGE((reg), 0x2000, 0x4000) || \
 	 REG_RANGE((reg), 0x5200, 0x8000) || \
 	 REG_RANGE((reg), 0x8140, 0x8160) || \
 	 REG_RANGE((reg), 0x8300, 0x8500) || \
