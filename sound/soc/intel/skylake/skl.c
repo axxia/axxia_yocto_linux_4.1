@@ -795,6 +795,8 @@ static int skl_probe(struct pci_dev *pci,
 	err = skl_first_init(ebus);
 	if (err < 0)
 		goto out_free;
+
+	device_disable_async_suspend(bus->dev);
 #if 0
 	/* NO NHLT On FPGA */
 	skl->nhlt = skl_nhlt_init(bus->dev);
