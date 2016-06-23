@@ -13,6 +13,7 @@ snd-skl_rt5650-objs := skl_rt5650.o
 snd-soc-bxt_mrgfld_dpcm_florida-objs := mrgfld_dpcm_florida.o
 snd-soc-bxt_rt298-objs := bxt_rt298.o
 snd-soc-cnl_wm8281-objs := cnl_wm8281.o
+snd-soc-apli_lhcrb_dummy-objs := apli_lhcrb_dummy.o
 
 obj-$(CONFIG_SND_SOC_INTEL_HASWELL_MACH) += snd-soc-sst-haswell.o
 obj-$(CONFIG_SND_SOC_INTEL_BYT_RT5640_MACH) += snd-soc-sst-byt-rt5640-mach.o
@@ -29,3 +30,4 @@ obj-$(CONFIG_SND_SOC_INTEL_SKL_RT5650_MACH) += snd-skl_rt5650.o
 obj-$(CONFIG_SND_SOC_INTEL_BXT_MRGFLD_MACH) += snd-soc-bxt_mrgfld_dpcm_florida.o
 obj-$(CONFIG_SND_SOC_INTEL_BXT_RT298_MACH) += snd-soc-bxt_rt298.o
 obj-$(CONFIG_SND_SOC_INTEL_CNL_WM8281_MACH) += snd-soc-cnl_wm8281.o
+obj-$(CONFIG_SND_SOC_INTEL_APLI_LHCRB_DUMMY_MACH) += snd-soc-apli_lhcrb_dummy.o

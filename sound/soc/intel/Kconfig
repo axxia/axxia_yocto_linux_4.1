@@ -258,3 +258,15 @@ config SND_SOC_INTEL_CNL_FPGA
 	bool "Enable CNL FPGA board settings"
 	help
 	  Say Y here to enable the support for CNL audio FPGA Device.
+
+config SND_SOC_INTEL_APLI_LHCRB_DUMMY_MACH
+    tristate "ASoC Audio driver for APLI LHCRB Dummy Codec"
+    depends on X86_INTEL_LPSS && I2C
+    select SND_SOC_INTEL_SST
+    select SND_SOC_INTEL_SKYLAKE
+    default n
+    help
+      This adds support for ASoC machine driver for  Intel(R)
+      Apollo Lake-I Leaf Hill Customer reference board platform.
+      Say Y if you have such a device
+      If unsure select "N".
