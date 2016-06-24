@@ -1228,6 +1228,8 @@ static int setup(struct spi_device *spi)
 		chip->dma_threshold = 0;
 		if (chip_info->enable_loopback)
 			chip->cr1 = SSCR1_LBM;
+		if (chip_info->pio_dma_threshold)
+			chip->pio_dma_threshold = chip_info->pio_dma_threshold;
 	} else if (ACPI_HANDLE(&spi->dev)) {
 		/*
 		 * Slave devices enumerated from ACPI namespace don't
