@@ -109,6 +109,9 @@ i915-y += i915_perfmon.o
 # initial modeset
 i915-y += intel_initial_modeset.o
 
+# Extended ioctl interface
+i915-y += i915_ext_ioctl.o
+
 obj-$(CONFIG_DRM_I915)  += i915.o
 
 CFLAGS_i915_trace_points.o := -I$(src)
