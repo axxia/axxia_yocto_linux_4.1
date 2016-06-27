@@ -58,6 +58,8 @@
 
 #include "i915_perfmon_defs.h"
 
+#include "i915_gem_userdata.h"
+
 /* General customization:
  */
 
@@ -2340,6 +2342,9 @@ struct drm_i915_gem_object {
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
+
+	/** Optional object userdata block */
+	struct i915_gem_userdata *userdata_blk;
 
 	union {
 		/** for phy allocated objects */
