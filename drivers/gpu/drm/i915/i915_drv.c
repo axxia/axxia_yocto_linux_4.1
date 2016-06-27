@@ -50,6 +50,8 @@
 #include "i915_vgpu.h"
 #include "intel_drv.h"
 
+#include "i915_ext_ioctl.h"
+
 static struct drm_driver driver;
 
 static unsigned int i915_load_fail_count;
@@ -2561,6 +2563,14 @@ static const struct drm_ioctl_desc i915_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(I915_GEM_USERPTR, i915_gem_userptr_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_GETPARAM, i915_gem_context_getparam_ioctl, DRM_RENDER_ALLOW),
 	DRM_IOCTL_DEF_DRV(I915_GEM_CONTEXT_SETPARAM, i915_gem_context_setparam_ioctl, DRM_RENDER_ALLOW),
+
+/*
+ * Extended ioctl layers extra ioctls into a single master ioctl
+ * Must allow full access to this ioctl - The i915_extended_ioctl
+ * handler will apply appropriate tests for the underlying ioctl
+ */
+	DRM_IOCTL_DEF_DRV(I915_EXT_IOCTL, i915_extended_ioctl,
+			  DRM_UNLOCKED|DRM_CONTROL_ALLOW|DRM_RENDER_ALLOW),
 };
 
 static struct drm_driver driver = {

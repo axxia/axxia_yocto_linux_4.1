@@ -111,6 +111,9 @@ i915-y += intel_gvt.o
 include $(src)/gvt/Makefile
 endif
 
+# Extended ioctl interface
+i915-y += i915_ext_ioctl.o
+
 obj-$(CONFIG_DRM_I915)  += i915.o
 
 CFLAGS_i915_trace_points.o := -I$(src)
