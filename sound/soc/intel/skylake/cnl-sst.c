@@ -789,10 +789,6 @@ EXPORT_SYMBOL_GPL(cnl_sst_dsp_init_fw);
 void cnl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {
 	cnl_ipc_free(&ctx->ipc);
-	ctx->dsp->cl_dev.ops.cl_cleanup_controller(ctx->dsp);
-	if (ctx->dsp->addr.lpe)
-		iounmap(ctx->dsp->addr.lpe);
-
 	ctx->dsp->ops->free(ctx->dsp);
 }
 EXPORT_SYMBOL_GPL(cnl_sst_dsp_cleanup);

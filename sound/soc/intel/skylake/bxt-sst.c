@@ -677,10 +677,6 @@ load_library_failed:
 void bxt_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx)
 {
 	skl_ipc_free(&ctx->ipc);
-	ctx->dsp->cl_dev.ops.cl_cleanup_controller(ctx->dsp);
-	if (ctx->dsp->addr.lpe)
-		iounmap(ctx->dsp->addr.lpe);
-
 	ctx->dsp->ops->free(ctx->dsp);
 }
 EXPORT_SYMBOL_GPL(bxt_sst_dsp_cleanup);
