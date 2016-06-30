@@ -234,7 +234,7 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 
 	/* Step 2: Purge FW request */
 	sst_dsp_shim_write(ctx, SKL_ADSP_REG_HIPCI, SKL_ADSP_REG_HIPCI_BUSY |
-					 BXT_IPC_PURGE_FW | (stream_tag - 1));
+					 BXT_IPC_PURGE_FW | (stream_tag - 1) << 9);
 
 	/* Step 3: Unset core0 reset state */
 	ret = skl_dsp_core_unset_reset_state(ctx, SKL_DSP_CORE0_MASK);
