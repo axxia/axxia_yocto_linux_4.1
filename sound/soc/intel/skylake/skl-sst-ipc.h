@@ -237,6 +237,8 @@ int skl_sst_ipc_load_library(struct sst_generic_ipc *ipc, u8 dma_id,
 
 int skl_ipc_set_d0ix(struct sst_generic_ipc *ipc,
 		struct skl_ipc_d0ix_msg *msg);
+int skl_ipc_set_dma_cfg(struct sst_generic_ipc *ipc, u8 instance_id,
+		u16 module_id, u32 *data);
 int skl_dsp_enable_logging(struct sst_generic_ipc *ipc, int core, int enable);
 
 void skl_ipc_int_enable(struct sst_dsp *dsp);

@@ -495,6 +495,13 @@ int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 					core_id);
 			goto err;
 		}
+	} else {
+		/* set dma config if available for CORE0 boot only */
+		if (skl->manifest.cfg.dmacfg.size) {
+			skl_ipc_set_dma_cfg(&skl->ipc, BXT_INSTANCE_ID,
+					BXT_BASE_FW_MODULE_ID,
+					(u32 *)(&skl->manifest.cfg.dmacfg));
+		}
 	}
 
 	ctx->core_info.core_state[core_id] = SKL_DSP_RUNNING;
@@ -597,6 +604,13 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 		} else {
 			skl_dsp_init_core_state(ctx);
 			ret = 0;
+			/* set dma config if available */
+			if (skl->manifest.cfg.dmacfg.size) {
+				skl_ipc_set_dma_cfg(&skl->ipc,
+					BXT_INSTANCE_ID,
+					BXT_BASE_FW_MODULE_ID,
+					(u32 *)(&skl->manifest.cfg.dmacfg));
+			}
 		}
 	}
 sst_load_base_firmware_failed:

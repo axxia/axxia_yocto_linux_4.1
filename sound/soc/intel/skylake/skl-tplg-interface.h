@@ -36,7 +36,7 @@
 
 #define LIB_NAME_LENGTH 512
 #define HDA_MAX_LIB    16
-
+#define MAX_DMA_CFG    24
 #define SKL_UUID_STR_SZ 40
 /* Event types goes here */
 /* Reserve event type 0 for no event handlers */
@@ -273,9 +273,45 @@ struct lib_info {
 	char name[LIB_NAME_LENGTH];
 } __packed;
 
+struct skl_dma_config {
+	u32 min_size;
+	u32 max_size;
+} __packed;
+
+struct skl_mem_status {
+	u32 type;
+	u32 size;
+	u32 mem_reclaim;
+} __packed;
+
+struct skl_dsp_freq {
+	u32 type;
+	u32 size;
+	u32 freq;
+} __packed;
+
+struct skl_dma_buff_cfg {
+	u32 type;
+	u32 size;
+	struct skl_dma_config dma_cfg[MAX_DMA_CFG];
+} __packed;
+
+struct fw_cfg_info {
+	struct skl_mem_status mem_sts;
+	struct skl_dsp_freq slw_frq;
+	struct skl_dsp_freq fst_frq;
+	struct skl_dma_buff_cfg dmacfg;
+} __packed;
+
 struct skl_dfw_manifest {
+
+	/* fw config info */
+	struct fw_cfg_info cfg;
+
+	/* library info */
 	u8 lib_count;
 	struct lib_info *lib;
+
 } __packed;
 
 #endif
