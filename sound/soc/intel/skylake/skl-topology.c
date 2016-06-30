@@ -700,8 +700,10 @@ int skl_tplg_set_probe_params(struct snd_soc_dapm_widget *w,
 				}
 			}
 		}
-		ret = skl_set_module_params(ctx, (void *)prb_pt_param, n * sizeof(struct probe_pt_param),
-					SKL_PROBE_CONNECT, mconfig);
+
+		if (n > 0)
+			ret = skl_set_module_params(ctx, (void *)prb_pt_param, n * sizeof(struct probe_pt_param),
+						SKL_PROBE_CONNECT, mconfig);
 
 	}
 	return ret;
@@ -1662,9 +1664,9 @@ static int skl_cache_probe_param(struct snd_kcontrol *kctl,
 		node_id.node.vindex = pconfig->iprobe[index].dma_id;
 		memcpy(&ap->node_id, &node_id, sizeof(u32));
 		if (ap->is_connect == SKL_PROBE_CONNECT)
-			pconfig->eprobe[index].set = 1;
+			pconfig->iprobe[index].set = 1;
 		else if (ap->is_connect == SKL_PROBE_DISCONNECT)
-			pconfig->eprobe[index].set = -1;
+			pconfig->iprobe[index].set = -1;
 	}
 	return 0;
 }
