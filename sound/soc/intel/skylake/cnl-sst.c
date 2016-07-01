@@ -269,6 +269,8 @@ static int cnl_load_base_firmware(struct sst_dsp *ctx)
 	u32 size;
 	const void *data;
 
+	cnl->boot_complete = false;
+
 	ret = request_firmware(&ctx->fw, "dsp_fw_release.bin", ctx->dev);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Request firmware failed: 0x%x\n", ret);
@@ -411,7 +413,6 @@ static int cnl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 	unsigned core_mask = SKL_DSP_CORE_MASK(core_id);
 	struct skl_ipc_dxstate_info dx;
 
-	cnl->boot_complete = false;
 
 	/* Re-download FW and library if needed. e.g. on coming back from S3 */
 	if (cnl->fw_loaded == false) {
@@ -427,6 +428,7 @@ static int cnl_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 	}
 
 	if (core_id == 0) {
+		cnl->boot_complete = false;
 		/* enable interrupt */
 		cnl_ipc_int_enable(ctx);
 		cnl_ipc_op_int_enable(ctx);

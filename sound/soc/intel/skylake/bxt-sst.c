@@ -547,6 +547,8 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 
 	dev_dbg(ctx->dev, "In %s\n", __func__);
 
+	skl->boot_complete = false;
+
 	ret = request_firmware(&fw, "dsp_fw_release.bin", ctx->dev);
 	if (ret < 0) {
 		dev_err(ctx->dev, "Request firmware failed %d\n", ret);
