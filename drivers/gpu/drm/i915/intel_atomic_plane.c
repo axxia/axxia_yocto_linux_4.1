@@ -216,8 +216,16 @@ intel_plane_atomic_get_property(struct drm_plane *plane,
 				struct drm_property *property,
 				uint64_t *val)
 {
-	DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
-	return -EINVAL;
+	struct drm_i915_private *dev_priv = state->plane->dev->dev_private;
+	struct intel_plane_state *intel_state = to_intel_plane_state(state);
+
+	if (property == dev_priv->render_comp_property) {
+		*val = intel_state->render_comp_enable;
+	} else {
+		DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+		return -EINVAL;
+	}
+	return 0;
 }
 
 /**
@@ -238,6 +246,14 @@ intel_plane_atomic_set_property(struct drm_plane *plane,
 				struct drm_property *property,
 				uint64_t val)
 {
-	DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
-	return -EINVAL;
+	struct drm_i915_private *dev_priv = state->plane->dev->dev_private;
+	struct intel_plane_state *intel_state = to_intel_plane_state(state);
+
+	if (property == dev_priv->render_comp_property) {
+		intel_state->render_comp_enable = val;
+	} else {
+		DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+		return -EINVAL;
+	}
+	return 0;
 }
