@@ -1318,6 +1318,9 @@ struct drm_mode_config {
 	 */
 	bool allow_fb_modifiers;
 
+	/* whether the driver supports render compression */
+	bool allow_aux_plane;
+
 	/* cursor size */
 	uint32_t cursor_width, cursor_height;
 
