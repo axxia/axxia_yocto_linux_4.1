@@ -83,6 +83,46 @@ struct crb_priv {
 	u8 __iomem *rsp;
 };
 
+static int __maybe_unused crb_pause(struct tpm_chip *chip)
+{
+	struct crb_priv *priv = chip->vendor.priv;
+	u32 req;
+
+	if (priv->flags & CRB_FL_ACPI_START)
+		return 0;
+
+	req = ioread32(&priv->cca->req);
+	iowrite32(cpu_to_le32(req | CRB_CTRL_REQ_GO_IDLE), &priv->cca->req);
+	msleep(chip->timeout_c);
+
+	if (ioread32(&priv->cca->req) & CRB_CTRL_REQ_GO_IDLE) {
+		dev_warn(&chip->dev, "goIdle timed out\n");
+		return -ETIME;
+	}
+
+	return 0;
+}
+
+static int __maybe_unused crb_resume(struct tpm_chip *chip)
+{
+	struct crb_priv *priv = chip->vendor.priv;
+	u32 req;
+
+	if (priv->flags & CRB_FL_ACPI_START)
+		return 0;
+
+	req = ioread32(&priv->cca->req);
+	iowrite32(cpu_to_le32(req | CRB_CTRL_REQ_CMD_READY), &priv->cca->req);
+	msleep(chip->timeout_c);
+
+	if (ioread32(&priv->cca->req) & CRB_CTRL_REQ_CMD_READY) {
+		dev_warn(&chip->dev, "cmdReady timed out\n");
+		return -ETIME;
+	}
+
+	return 0;
+}
+
 static SIMPLE_DEV_PM_OPS(crb_pm, tpm_pm_suspend, tpm_pm_resume);
 
 static u8 crb_status(struct tpm_chip *chip)
@@ -192,6 +232,10 @@ static const struct tpm_class_ops tpm_crb = {
 	.recv = crb_recv,
 	.send = crb_send,
 	.cancel = crb_cancel,
+#ifdef CONFIG_PM
+	.resume = crb_resume,
+	.pause = crb_pause,
+#endif
 	.req_canceled = crb_req_canceled,
 	.req_complete_mask = CRB_DRV_STS_COMPLETE,
 	.req_complete_val = CRB_DRV_STS_COMPLETE,

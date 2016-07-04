@@ -351,6 +351,11 @@ ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 	}
 
 	mutex_lock(&chip->tpm_mutex);
+	if (chip->ops->resume) {
+		rc = chip->ops->resume(chip);
+		if (rc)
+			goto out;
+	}
 
 	rc = chip->ops->send(chip, (u8 *) buf, count);
 	if (rc < 0) {
@@ -393,6 +398,8 @@ out_recv:
 		dev_err(&chip->dev,
 			"tpm_transmit: tpm_recv: error %zd\n", rc);
 out:
+	if (chip->ops->pause)
+		chip->ops->pause(chip);
 	mutex_unlock(&chip->tpm_mutex);
 	return rc;
 }
