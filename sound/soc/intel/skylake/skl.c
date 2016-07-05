@@ -40,8 +40,8 @@
  * BIOS. Enable it if the bios supports it. Other wise disable it
  * and use alternative methods like debugfs if available
  */
-#define SKL_USE_NHLT_FROM_BIOS 0
-static char *machine;
+#define SKL_USE_NHLT_FROM_BIOS 1
+static char *machine = NULL;
 
 module_param(machine, charp, 0644);
 MODULE_PARM_DESC(machine, "machine driver string for Intel soundcard.");
