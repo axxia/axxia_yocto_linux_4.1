@@ -147,7 +147,7 @@ err_i1:
 	if (kdata != stack_kdata)
 		kfree(kdata);
 	if (retcode)
-		DRM_ERROR("ret = %d\n", retcode);
+		DRM_DEBUG("ret = %d\n", retcode);
 	return retcode;
 }
 

@@ -139,7 +139,15 @@ i915_gem_userdata(struct drm_device *dev,
 		set = 1;
 	case I915_USERDATA_GET_OP:
 		if (!userdata_blk) {
-			DRM_ERROR("Can't set/get: userdata not created\n");
+			if (set)
+				DRM_ERROR("Can't set: userdata not created\n");
+			else
+				/*
+				 * Not necessarily an error if client is using
+				 * GET to determine if userdata has been
+				 * created.
+				*/
+				DRM_DEBUG("Can't get: userdata not created\n");
 			goto unref;
 		}
 
