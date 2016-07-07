@@ -27,6 +27,7 @@
 #include <sound/soc.h>
 #include "skl.h"
 #include "skl-tplg-interface.h"
+#include "skl-sst-ipc.h"
 
 #define BITS_PER_BYTE 8
 #define MAX_TS_GROUPS 8

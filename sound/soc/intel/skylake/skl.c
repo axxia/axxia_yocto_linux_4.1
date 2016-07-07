@@ -675,6 +675,12 @@ static int skl_create(struct pci_dev *pci,
 	return 0;
 }
 
+/*
+ * Enable this section of the code if HDMI audio(i.e. audio
+ * via iDISP codec of the SoC) is to be enabled and the
+ * necessary graphics driver support is available.
+ */
+#if 0
 static int skl_i915_init(struct hdac_bus *bus)
 {
 	int err;
@@ -695,6 +701,7 @@ static int skl_i915_init(struct hdac_bus *bus)
 
 	return err;
 }
+#endif
 
 static int skl_first_init(struct hdac_ext_bus *ebus)
 {
@@ -785,8 +792,10 @@ static int skl_probe(struct pci_dev *pci,
 	struct skl *skl;
 	struct hdac_ext_bus *ebus = NULL;
 	struct hdac_bus *bus = NULL;
-	const struct firmware *nhlt_fw = NULL;
 	struct hdac_ext_link *hlink = NULL;
+#ifdef CONFIG_SND_SOC_INTEL_CNL_FPGA
+	const struct firmware *nhlt_fw = NULL;
+#endif
 	int err;
 
 	/* we use ext core ops, so provide NULL for ops here */
@@ -883,7 +892,6 @@ out_nhlt_free:
 #if SKL_USE_NHLT_FROM_BIOS
 	skl_nhlt_free(skl->nhlt);
 #endif
-out_dsp_free:
 	skl_free_dsp(skl);
 out_free:
 	skl->init_failed = 1;

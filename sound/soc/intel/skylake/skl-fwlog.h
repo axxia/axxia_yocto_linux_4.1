@@ -1,4 +1,5 @@
 #include "../common/sst-dsp-priv.h"
+#include "skl.h"
 
 int skl_dsp_init_trace_window(struct sst_dsp *sst, u32 *wp, u32 offset,
 				u32 size, int nr_cores);

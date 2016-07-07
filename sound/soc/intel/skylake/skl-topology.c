@@ -660,8 +660,8 @@ int skl_tplg_attach_probe_dma(struct snd_soc_dapm_widget *w,
 		ad.dma_buff_size = SKL_INJECT_PROBE_DMA_BUFF_SIZE;
 	}
 
-	ret = skl_set_module_params(ctx, &ad, sizeof(struct skl_attach_probe_dma),
-						1, mconfig);
+	ret = skl_set_module_params(ctx, (u32 *)&ad,
+				sizeof(struct skl_attach_probe_dma), 1, mconfig);
 	return ret;
 
 }
@@ -676,7 +676,7 @@ int skl_tplg_set_probe_params(struct snd_soc_dapm_widget *w,
 	struct soc_bytes_ext *sb;
 	struct skl_probe_data *bc;
 	struct skl_probe_config *pconfig = &ctx->probe_config;
-	struct probe_pt_param prb_pt_param[8] = {0};
+	struct probe_pt_param prb_pt_param[8] = { {0} };
 
 	if (direction == SND_COMPRESS_PLAYBACK) {
 
@@ -2104,7 +2104,7 @@ static int skl_tplg_notification_log_get(struct snd_kcontrol *kcontrol,
 	events = (struct skl_tcn_events *)sb->dobj.private;
 	ret = copy_to_user(data, &type, sizeof(u32));
 	ret = copy_to_user(((unsigned char *)data) + sizeof(u32),
-				sb->max, sizeof(u32));
+				&(sb->max), sizeof(u32));
 	ret = copy_to_user(((unsigned char *)data) + 2*sizeof(u32),
 				events, sizeof(struct skl_tcn_events));
 
@@ -2113,7 +2113,7 @@ static int skl_tplg_notification_log_get(struct snd_kcontrol *kcontrol,
 }
 
 static int skl_tplg_notification_log_put(struct snd_kcontrol *kcontrol,
-		unsigned int __user *data, unsigned int size)
+		const unsigned int __user *data, unsigned int size)
 {
 	return 0;
 }

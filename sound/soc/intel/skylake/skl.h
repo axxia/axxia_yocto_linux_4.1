@@ -65,6 +65,7 @@ struct skl_dsp_resource {
 };
 
 struct skl_debug;
+struct snd_soc_dapm_widget;
 
 struct skl {
 	struct hdac_ext_bus ebus;

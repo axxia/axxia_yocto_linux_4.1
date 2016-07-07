@@ -554,7 +554,7 @@ static int bxt_load_base_firmware(struct sst_dsp *ctx)
 	u32 size;
 	const void *data;
 	int ret = 0;
-	struct firmware *fw = NULL;
+	const struct firmware *fw = NULL;
 	struct skl_sst *skl = ctx->thread_context;
 
 	dev_dbg(ctx->dev, "In %s\n", __func__);
@@ -629,7 +629,7 @@ static int bxt_load_library(struct sst_dsp *ctx)
 	struct snd_dma_buffer dmab;
 	struct skl_sst *skl = ctx->thread_context;
 	struct skl_dfw_manifest *minfo = &skl->manifest;
-	struct firmware *fw = NULL;
+	const struct firmware *fw = NULL;
 	struct skl_ext_manifest_header *hdr;
 	u32 size;
 	const void *data;
@@ -659,7 +659,7 @@ static int bxt_load_library(struct sst_dsp *ctx)
 		}
 
 		dev_dbg(ctx->dev, "Starting to preapre host dma for library name \
-			: %s of size:%zx\n", minfo->lib[i].name, size);
+			: %s of size:%zx\n", minfo->lib[i].name, (size_t)size);
 		stream_tag = ctx->dsp_ops.prepare(ctx->dev, 0x40, size,
 						&dmab);
 		if (stream_tag <= 0) {

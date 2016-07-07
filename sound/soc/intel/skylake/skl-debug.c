@@ -830,7 +830,7 @@ struct skl_debug *skl_debugfs_init(struct skl *skl)
 	if (!debugfs_create_file("fw_soft_regs_rd", 0644, d->fs, d,
 				 &soft_regs_ctrl_fops)) {
 		dev_err(d->dev, "fw soft regs control debugfs init failed\n");
-		return -EIO;
+		goto err;
 	}
 
 	if (!debugfs_create_file("core_power", 0644, d->fs, d,

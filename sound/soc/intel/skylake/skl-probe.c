@@ -61,7 +61,7 @@ int skl_probe_compr_open(struct snd_compr_stream *substream,
 						struct snd_soc_dai *dai)
 {
 	struct hdac_ext_bus *ebus = dev_get_drvdata(dai->dev);
-	struct hdac_ext_stream *stream;
+	struct hdac_ext_stream *stream = NULL;
 	struct snd_compr_runtime *runtime = substream->runtime;
 	struct skl *skl = get_skl_ctx(dai->dev);
 	struct skl_probe_config *pconfig =  &skl->skl_sst->probe_config;
