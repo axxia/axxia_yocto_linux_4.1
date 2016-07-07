@@ -325,39 +325,6 @@ static int bxt_dmic_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	return 0;
 }
-static unsigned int rates[] = {
-	48000,
-};
-static unsigned int channels_dmic[] = {
-	2, 4,
-};
-static struct snd_pcm_hw_constraint_list constraints_rates = {
-	.count = ARRAY_SIZE(rates),
-	.list  = rates,
-	.mask = 0,
-};
-
-static struct snd_pcm_hw_constraint_list constraints_dmic_channels = {
-	.count = ARRAY_SIZE(channels_dmic),
-	.list = channels_dmic,
-	.mask = 0,
-};
-
-static int bxt_dmic_startup(struct snd_pcm_substream *substream)
-{
-	struct snd_pcm_runtime *runtime = substream->runtime;
-
-	runtime->hw.channels_max = 4;
-	snd_pcm_hw_constraint_list(runtime, 0, SNDRV_PCM_HW_PARAM_CHANNELS,
-					   &constraints_dmic_channels);
-
-	return snd_pcm_hw_constraint_list(substream->runtime, 0,
-			SNDRV_PCM_HW_PARAM_RATE, &constraints_rates);
-}
-
-static struct snd_soc_ops bxt_dmic_ops = {
-	.startup = bxt_dmic_startup,
-};
 
 static const struct snd_soc_dapm_route mrgfld_wm5110_map[] = {
 	/*Headphones*/
@@ -580,7 +547,6 @@ static struct snd_soc_ops mrgfld_florida_ops = {
 static int mrgfld_florida_btfm_fixup(struct snd_soc_pcm_runtime *rtd,
 			    struct snd_pcm_hw_params *params)
 {
-	int slot_width = 16;
 	struct snd_interval *rate = hw_param_interval(params,
 			SNDRV_PCM_HW_PARAM_RATE);
 	struct snd_interval *channels = hw_param_interval(params,
@@ -753,7 +719,7 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.platform_name = "0000:00:0e.0",
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
-		.params = &bxtn_florida_dai_params_bt,
+		.params = bxtn_florida_dai_params_bt,
 		.num_params = ARRAY_SIZE(bxtn_florida_dai_params_bt),
 		.dsp_loopback = true,
 	},
@@ -974,7 +940,7 @@ struct snd_soc_dai_link mrgfld_wm8998_msic_dailink[] = {
 		.platform_name = "0000:00:0e.0",
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
-		.params = &bxtn_florida_dai_params_bt,
+		.params = bxtn_florida_dai_params_bt,
 		.num_params = ARRAY_SIZE(bxtn_florida_dai_params_bt),
 		.dsp_loopback = true,
 	},
