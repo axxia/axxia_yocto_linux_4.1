@@ -190,7 +190,7 @@ i915_gem_userdata(struct drm_device *dev,
 	}
 
 unref:
-	drm_gem_object_unreference(&obj->base);
+	drm_gem_object_unreference_unlocked(&obj->base);
 
 	return ret;
 #undef SIZE_LIMIT
