@@ -52,7 +52,7 @@ static char splash[PATH_MAX] = "";
 module_param_string(splash, splash, sizeof(splash), 0400);
 MODULE_PARM_DESC(splash,
 		 "Load a splash screen binary image for a specific display."
-		 "splash=<connector>:<image>:w,h,crtc_x,crtc_y,crtc_w,crtc_h");
+		 "splash=<connector>:<image>:w,h,pitch,crtc_x,crtc_y,crtc_w,crtc_h");
 
 /*
  * This makes use of the video= kernel command line to determine what
