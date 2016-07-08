@@ -319,21 +319,29 @@ static int skl_init_nhlt(struct skl_debug *d)
 	int i;
 	char name[12];
 
-	if (!debugfs_create_file("control", 0644, d->nhlt, d, &ssp_cntrl_nhlt_fops)) {
+	if (!debugfs_create_file("control",
+				0644, d->nhlt,
+				d, &ssp_cntrl_nhlt_fops)) {
 		dev_err(d->dev, "nhlt control debugfs init failed\n");
 		return -EIO;
 	}
 
 	for (i = 0; i < MAX_SSP; i++) {
-		snprintf(name, (sizeof(name)-1),"ssp%dp", i);
-		if (!debugfs_create_file(name, 0644, d->nhlt, &d->ssp_blob[i], &nhlt_fops))
+		snprintf(name, (sizeof(name)-1), "ssp%dp", i);
+		if (!debugfs_create_file(name,
+					0644, d->nhlt,
+					&d->ssp_blob[i], &nhlt_fops))
 			dev_err(d->dev, "%s: debugfs init failed\n", name);
-		snprintf(name, (sizeof(name)-1),"ssp%dc", i);
-		if (!debugfs_create_file(name, 0644, d->nhlt, &d->ssp_blob[MAX_SSP + i], &nhlt_fops))
+		snprintf(name, (sizeof(name)-1), "ssp%dc", i);
+		if (!debugfs_create_file(name,
+					0644, d->nhlt,
+					&d->ssp_blob[MAX_SSP + i], &nhlt_fops))
 			dev_err(d->dev, "%s: debugfs init failed\n", name);
 	}
 
-	if (!debugfs_create_file("dmic", 0644, d->nhlt, &d->dmic_blob, &nhlt_fops))
+	if (!debugfs_create_file("dmic", 0644,
+				d->nhlt, &d->dmic_blob,
+				&nhlt_fops))
 		dev_err(d->dev, "%s: debugfs init failed\n", name);
 
 	return 0;
@@ -348,7 +356,8 @@ static ssize_t skl_print_pins(struct skl_module_pin *m_pin, char *buf,
 		ret += snprintf(buf + ret, MOD_BUF - ret,
 				"%s%d\n\tModule %d\n\tInstance %d\n\t%s\n\t%s\n\tIndex:%d\n",
 				direction ? "Input Pin:" : "Output Pin:",
-				i, m_pin[i].id.module_id, m_pin[i].id.instance_id,
+				i, m_pin[i].id.module_id,
+				m_pin[i].id.instance_id,
 				m_pin[i].in_use ? "Used" : "Unused",
 				m_pin[i].is_dynamic ? "Dynamic" : "Static",
 				i);
@@ -425,8 +434,10 @@ static ssize_t module_read(struct file *file, char __user *user_buf,
 			mconfig->pipe->p_params->linktype,
 			mconfig->pipe->p_params->stream);
 
-	ret += skl_print_pins(mconfig->m_in_pin, buf, mconfig->max_in_queue, ret, true);
-	ret += skl_print_pins(mconfig->m_out_pin, buf, mconfig->max_out_queue, ret, false);
+	ret += skl_print_pins(mconfig->m_in_pin, buf,
+			mconfig->max_in_queue, ret, true);
+	ret += skl_print_pins(mconfig->m_out_pin, buf,
+			mconfig->max_out_queue, ret, false);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buf, ret);
 
@@ -445,7 +456,9 @@ void skl_debug_init_module(struct skl_debug *d,
 			struct snd_soc_dapm_widget *w,
 			struct skl_module_cfg *mconfig)
 {
-	if (!debugfs_create_file(w->name, 0444, d->modules, mconfig, &mcfg_fops))
+	if (!debugfs_create_file(w->name, 0444,
+				d->modules, mconfig,
+				&mcfg_fops))
 		dev_err(d->dev, "%s: module debugfs init failed\n", w->name);
 }
 
@@ -474,8 +487,9 @@ static ssize_t adsp_control_read(struct file *file,
 	for (ofs = 0 ; ofs < replysz ; ofs += 16) {
 		ret += snprintf(buf1 + ret, MOD_BUF1 - ret,
 			"0x%.4x : ", ofs);
-		hex_dump_to_buffer((u8 *)(&(d->fw_ipc_data.mailbx[0])) + ofs, 16, 16, 4,
-				buf1 + ret, MOD_BUF1 - ret, 0);
+		hex_dump_to_buffer((u8 *)(&(d->fw_ipc_data.mailbx[0])) + ofs,
+					16, 16, 4,
+					buf1 + ret, MOD_BUF1 - ret, 0);
 		ret += strlen(buf1 + ret);
 		if (MOD_BUF1 - ret > 0)
 			buf1[ret++] = '\n';
@@ -571,9 +585,9 @@ static ssize_t adsp_control_write(struct file *file,
 	replysz = PIPELINE_LIST_INFO_SZ;
 	break;
 
-        case PIPELINE_PROPS:
-        replysz = PIPELINE_PROPS_SZ;
-        break;
+	case PIPELINE_PROPS:
+	replysz = PIPELINE_PROPS_SZ;
+	break;
 
 	case SCHEDULERS_INFO:
 	replysz = SCHEDULERS_INFO_SZ;
@@ -600,7 +614,7 @@ static ssize_t adsp_control_write(struct file *file,
 	msg.module_id = 0x0;
 	msg.instance_id = 0x0;
 
-	if(tx_param == 1)
+	if (tx_param == 1)
 		msg.large_param_id = 0xFF;
 	else
 		msg.large_param_id = dsp_property;
@@ -609,7 +623,8 @@ static ssize_t adsp_control_write(struct file *file,
 
 	if (tx_param == 1)
 		skl_ipc_get_large_config(&ctx->ipc, &msg,
-				ipc_data, tx_data, EXTENDED_PARAMS_SZ*sizeof(u32));
+				ipc_data, tx_data,
+				EXTENDED_PARAMS_SZ*sizeof(u32));
 	else
 		skl_ipc_get_large_config(&ctx->ipc, &msg,
 							ipc_data, NULL, 0);
