@@ -99,10 +99,8 @@ static int bxtp_ssp0_gpio_init(struct snd_soc_pcm_runtime *rtd)
 	u32 gpio_value2 = 0x44000600;
 
 	gpio_addr = (void *)ioremap_nocache(0xd0c40610, 0x30);
-        if (gpio_addr == NULL) {
-                printk("failed to remap the address for SSP0\n");
-                return(-EIO);
-        }
+	if (gpio_addr == NULL)
+		return(-EIO);
 
 	memcpy_toio(gpio_addr + 0x8, &gpio_value1, sizeof(gpio_value1));
 	memcpy_toio(gpio_addr + 0x10, &gpio_value2, sizeof(gpio_value2));
@@ -182,22 +180,22 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.name = "Bxt Compress Probe playback",
 		.stream_name = "Probe Playback",
 		.cpu_dai_name = "Compress Probe0 Pin",
-                .codec_name = "snd-soc-dummy",
-                .codec_dai_name = "snd-soc-dummy-dai",
-                .platform_name = "0000:00:0e.0",
-                .init = NULL,
-                .nonatomic = 1,
-        },
-        {
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:0e.0",
+		.init = NULL,
+		.nonatomic = 1,
+	},
+	{
 		.name = "Bxt Compress Probe capture",
 		.stream_name = "Probe Capture",
 		.cpu_dai_name = "Compress Probe1 Pin",
-                .codec_name = "snd-soc-dummy",
-                .codec_dai_name = "snd-soc-dummy-dai",
-                .platform_name = "0000:00:0e.0",
-                .init = NULL,
-                .nonatomic = 1,
-        },
+		.codec_name = "snd-soc-dummy",
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:0e.0",
+		.init = NULL,
+		.nonatomic = 1,
+	},
 
 
 	/* Back End DAI links */

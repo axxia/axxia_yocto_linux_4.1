@@ -60,82 +60,57 @@ static int bxtp_ssp0_gpio_init(struct snd_soc_pcm_runtime *rtd)
 	u32 gpio_value2 = 0x44000600;
 
 	gpio_addr = (void *)ioremap_nocache(0xd0c40610, 0x30);
-        if (gpio_addr == NULL) {
-                printk("failed to remap the address for SSP0\n");
-                return(-EIO);
-        }
+	if (gpio_addr == NULL)
+		return(-EIO);
 
 	memcpy_toio(gpio_addr + 0x8, &gpio_value1, sizeof(gpio_value1));
 	memcpy_toio(gpio_addr + 0x10, &gpio_value2, sizeof(gpio_value2));
 	memcpy_toio(gpio_addr + 0x18, &gpio_value2, sizeof(gpio_value2));
 	memcpy_toio(gpio_addr + 0x20, &gpio_value2, sizeof(gpio_value2));
 
-        printk("SSP0: %p has %#x\n", gpio_addr + 0x8, *(u32 *)(gpio_addr + 0x8));
-        printk("SSP0: %p has %#x\n", gpio_addr + 0x10, *(u32 *)(gpio_addr + 0x10));
-        printk("SSP0: %p has %#x\n", gpio_addr + 0x18, *(u32 *)(gpio_addr + 0x18));
-        printk("SSP0: %p has %#x\n", gpio_addr + 0x20, *(u32 *)(gpio_addr + 0x20));
-
-        iounmap(gpio_addr);
-        return 0;
-
+	iounmap(gpio_addr);
+	return 0;
 }
 
 static int bxtp_ssp1_gpio_init(struct snd_soc_pcm_runtime *rtd)
 {
-        int ret = 0;
-        char *gpio_addr;
-        u32 gpio_value1 = 0x44000400;
 
-        gpio_addr = (void *)ioremap_nocache(0xd0c40660, 0x30);
-        if (gpio_addr == NULL) {
-                printk("failed to remap the address for SSP1\n");
-                return(-EIO);
-        }
+	int ret = 0;
+	char *gpio_addr;
+	u32 gpio_value1 = 0x44000400;
 
-        printk("%p has %#x\n", gpio_addr, *(u32 *)gpio_addr);
+	gpio_addr = (void *)ioremap_nocache(0xd0c40660, 0x30);
+	if (gpio_addr == NULL)
+		return(-EIO);
 
-        memcpy_toio(gpio_addr + 0x8, &gpio_value1, sizeof(gpio_value1));
-        memcpy_toio(gpio_addr + 0x10, &gpio_value1, sizeof(gpio_value1));
-        memcpy_toio(gpio_addr + 0x18, &gpio_value1, sizeof(gpio_value1));
-        memcpy_toio(gpio_addr + 0x20, &gpio_value1, sizeof(gpio_value1));
+	memcpy_toio(gpio_addr + 0x8, &gpio_value1, sizeof(gpio_value1));
+	memcpy_toio(gpio_addr + 0x10, &gpio_value1, sizeof(gpio_value1));
+	memcpy_toio(gpio_addr + 0x18, &gpio_value1, sizeof(gpio_value1));
+	memcpy_toio(gpio_addr + 0x20, &gpio_value1, sizeof(gpio_value1));
 
-        printk("SSP1: %p has %#x\n", gpio_addr + 0x8, *(u32 *)(gpio_addr + 0x8));
-        printk("SSP1: %p has %#x\n", gpio_addr + 0x10, *(u32 *)(gpio_addr + 0x10));
-        printk("SSP1: %p has %#x\n", gpio_addr + 0x18, *(u32 *)(gpio_addr + 0x18));
-        printk("SSP1: %p has %#x\n", gpio_addr + 0x20, *(u32 *)(gpio_addr + 0x20));
-
-        iounmap(gpio_addr);
-        return 0;
-
+	iounmap(gpio_addr);
+	return 0;
 }
 
 static int bxtp_ssp4_gpio_init(struct snd_soc_pcm_runtime *rtd)
 {
-        int ret = 0;
-        char *gpio_addr;
-        u32 gpio_value1 = 0x44000A00;
-        u32 gpio_value2 = 0x44000800;
 
-        gpio_addr = (void *)ioremap_nocache(0xd0c705A0, 0x30);
-        if (gpio_addr == NULL) {
-                printk("failed to remap the address for SSP4\n");
-                return(-EIO);
-        }
+	int ret = 0;
+	char *gpio_addr;
+	u32 gpio_value1 = 0x44000A00;
+	u32 gpio_value2 = 0x44000800;
 
-        printk("%p has %#x\n", gpio_addr, *(u32 *)gpio_addr);
+	gpio_addr = (void *)ioremap_nocache(0xd0c705A0, 0x30);
+	if (gpio_addr == NULL)
+		return(-EIO);
 
-        memcpy_toio(gpio_addr, &gpio_value1, sizeof(gpio_value1));
-        memcpy_toio(gpio_addr + 0x8, &gpio_value1, sizeof(gpio_value1));
-        memcpy_toio(gpio_addr + 0x10, &gpio_value1, sizeof(gpio_value1));
-        memcpy_toio(gpio_addr + 0x18, &gpio_value2, sizeof(gpio_value2));
+	memcpy_toio(gpio_addr, &gpio_value1, sizeof(gpio_value1));
+	memcpy_toio(gpio_addr + 0x8, &gpio_value1, sizeof(gpio_value1));
+	memcpy_toio(gpio_addr + 0x10, &gpio_value1, sizeof(gpio_value1));
+	memcpy_toio(gpio_addr + 0x18, &gpio_value2, sizeof(gpio_value2));
 
-        printk("SSP4: %p has %#x\n", gpio_addr, *(u32 *)(gpio_addr));
-        printk("SSP4: %p has %#x\n", gpio_addr + 0x8, *(u32 *)(gpio_addr + 0x8));
-        printk("SSP4: %p has %#x\n", gpio_addr + 0x10, *(u32 *)(gpio_addr + 0x10));
-        printk("SSP4: %p has %#x\n", gpio_addr + 0x18, *(u32 *)(gpio_addr + 0x18));
-
-        iounmap(gpio_addr);
-        return 0;
+	iounmap(gpio_addr);
+	return 0;
 
 }
 
@@ -308,11 +283,11 @@ static struct snd_soc_dai_link broxton_rt298_dais[] = {
 		.stream_name = "Probe Capture",
 		.cpu_dai_name = "Compress Probe1 Pin",
 		.codec_name = "snd-soc-dummy",
-                .codec_dai_name = "snd-soc-dummy-dai",
-                .platform_name = "0000:00:0e.0",
-                .init = NULL,
-                .nonatomic = 1,
-        },
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.platform_name = "0000:00:0e.0",
+		.init = NULL,
+		.nonatomic = 1,
+	},
 
 
 
