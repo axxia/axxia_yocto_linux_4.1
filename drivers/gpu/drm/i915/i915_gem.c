@@ -2585,7 +2585,7 @@ i915_gem_init_seqno(struct drm_device *dev, u32 seqno)
 
 	/* Also reset sw batch tracking state */
 	for_each_engine(engine, dev_priv) {
-		intel_write_status_page(engine, I915_BATCH_DONE_SEQNO, 0);
+		intel_write_status_page(engine, I915_BATCH_DONE_SEQNO, seqno);
 		intel_write_status_page(engine, I915_BATCH_ACTIVE_SEQNO, 0);
 		intel_write_status_page(engine, I915_PREEMPTIVE_DONE_SEQNO, 0);
 		intel_write_status_page(engine, I915_PREEMPTIVE_ACTIVE_SEQNO, 0);
