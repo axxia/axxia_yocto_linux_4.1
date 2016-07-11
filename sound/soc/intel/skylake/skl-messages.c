@@ -731,6 +731,7 @@ static u16 skl_get_module_param_size(struct skl_sst *ctx,
 		return sizeof(struct skl_probe_cfg);
 
 	case SKL_MODULE_TYPE_SRCINT:
+	case SKL_MODULE_TYPE_ASRC:
 		return sizeof(struct skl_src_module_cfg);
 
 	case SKL_MODULE_TYPE_UPDWMIX:
@@ -790,6 +791,7 @@ static int skl_set_module_format(struct skl_sst *ctx,
 		break;
 
 	case SKL_MODULE_TYPE_SRCINT:
+	case SKL_MODULE_TYPE_ASRC:
 		skl_set_src_format(ctx, module_config, *param_data);
 		break;
 
