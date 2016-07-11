@@ -164,9 +164,25 @@
 };
 
 &pci0 {
-	status = "okay";
+      status = "okay";
 };
 
 &usb0 {
-	status = "okay";
+      status = "okay";
+};
+
+&i2c0 {
+      status = "okay";
+};
+
+&i2c1 {
+      status = "okay";
+};
+
+&i2c2 {
+      status = "okay";
+};
+
+&i2c3 {
+      status = "okay";
 };
