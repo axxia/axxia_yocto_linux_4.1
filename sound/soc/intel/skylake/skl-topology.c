@@ -2094,6 +2094,30 @@ int skl_tplg_be_update_params(struct snd_soc_dai *dai,
 	return 0;
 }
 
+static int skl_tplg_notification_log_get(struct snd_kcontrol *kcontrol,
+		unsigned int __user *data, unsigned int size)
+{
+	struct skl_tcn_events *events;
+	struct soc_bytes_ext *sb = (struct soc_bytes_ext *) kcontrol->private_value;
+	int ret, type = 0xff;
+
+	events = (struct skl_tcn_events *)sb->dobj.private;
+	ret = copy_to_user(data, &type, sizeof(u32));
+	ret = copy_to_user(((unsigned char *)data) + sizeof(u32),
+				sb->max, sizeof(u32));
+	ret = copy_to_user(((unsigned char *)data) + 2*sizeof(u32),
+				events, sizeof(struct skl_tcn_events));
+
+	memset(events, 0, sizeof(struct skl_tcn_events));
+	return ret;
+}
+
+static int skl_tplg_notification_log_put(struct snd_kcontrol *kcontrol,
+		unsigned int __user *data, unsigned int size)
+{
+	return 0;
+}
+
 static const struct snd_soc_tplg_widget_events skl_tplg_widget_ops[] = {
 	{SKL_MIXER_EVENT, skl_tplg_mixer_event},
 	{SKL_VMIXER_EVENT, skl_tplg_vmixer_event},
@@ -2105,7 +2129,10 @@ const struct snd_soc_tplg_bytes_ext_ops skl_tlv_ops[] = {
 					skl_tplg_tlv_control_set},
 	{SKL_CONTROL_TYPE_BYTE_PROBE, skl_tplg_tlv_control_get,
 					skl_tplg_tlv_probe_set},
+	{SKL_CONTROL_TYPE_NOTIFICATION_LOG, skl_tplg_notification_log_get,
+					skl_tplg_notification_log_get},
 };
+
 static const struct snd_soc_tplg_kcontrol_ops skl_tplg_kcontrol_ops[] = {
 	{SKL_CONTROL_TYPE_VOLUME, skl_tplg_volume_get,
 					skl_tplg_volume_set},

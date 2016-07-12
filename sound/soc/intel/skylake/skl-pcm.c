@@ -891,6 +891,23 @@ static int skl_dsp_cb_event(struct skl_sst *skl, unsigned int event,
 		param_length = sizeof(struct skl_notify_data) + sizeof(struct skl_hwd_event);
 		memcpy(bc->params, (char *)notify_data, param_length);
 		snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE, &kcontrol->id);
+		break;
+
+	case SKL_TPLG_CHG_NOTIFY:
+		card = soc_platform->component.card;
+		kcontrol = snd_soc_card_get_kcontrol(card,
+				"Topology Change Notification");
+		if (!kcontrol) {
+			dev_err(skl->dev, " NOTIFICATION Controls not found\n");
+			return -EINVAL;
+		}
+
+		sb = (struct soc_bytes_ext *)kcontrol->private_value;
+		memcpy(sb->dobj.private, (void *)(notify_data->data),
+						sizeof(struct skl_tcn_events));
+		snd_ctl_notify(card->snd_card, SNDRV_CTL_EVENT_MASK_VALUE,
+					&kcontrol->id);
+		break;
 	}
 	return 0;
 }
@@ -1622,16 +1639,16 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 			dev_dbg(bus->dev, "error failed while initializing topology\n");
 			return ret;
 		}
+		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
+		skl->skl_sst->platform = platform;
+		skl->skl_sst->notify_ops = cb_ops;
+		skl->skl_sst->enable_miscbdcge = skl_enable_miscbdcge;
 
 		ret = skl_init_dsp_fw(skl);
 		if (ret < 0) {
 			dev_dbg(bus->dev, "error failed to register dsp\n");
 			goto out_free;
 		}
-		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
-		skl->skl_sst->platform = platform;
-		skl->skl_sst->notify_ops = cb_ops;
-		skl->skl_sst->enable_miscbdcge = skl_enable_miscbdcge;
 	}
 
 	skl_get_probe_widget(platform, skl);

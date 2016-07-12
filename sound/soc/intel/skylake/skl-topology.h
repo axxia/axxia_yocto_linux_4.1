@@ -40,6 +40,7 @@
 
 #define MODULE_MAX_IN_PINS	8
 #define MODULE_MAX_OUT_PINS	8
+#define SKL_TPLG_CHG_NOTIFY	3
 
 enum skl_channel_index {
 	SKL_CHANNEL_LEFT = 0,

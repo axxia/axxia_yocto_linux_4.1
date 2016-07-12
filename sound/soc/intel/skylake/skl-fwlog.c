@@ -22,6 +22,7 @@
 #include "../common/sst-dsp-priv.h"
 #include "skl-sst-ipc.h"
 #include "skl.h"
+#include "skl-topology.h"
 
 #define DEF_LOG_PRIORITY 3
 
@@ -191,6 +192,30 @@ void skl_dsp_done_log_buffer(struct sst_dsp *sst, int core)
 	skl_dsp_put_log_buff(sst, core);
 }
 EXPORT_SYMBOL_GPL(skl_dsp_done_log_buffer);
+
+int skl_update_topology_change_event_data(struct skl_sst *ctx, int type)
+{
+	struct skl_notify_data *notify_data;
+	struct skl_tcn_events tcn_data;
+
+	notify_data = kzalloc((sizeof(struct skl_notify_data)
+				+ sizeof(struct skl_tcn_events)), GFP_KERNEL);
+
+	if (!notify_data)
+		return -ENOMEM;
+	tcn_data.type = type;
+	do_gettimeofday(&(tcn_data.tv));
+
+	/* Copying tcn event specific data */
+	memcpy(notify_data->data, &tcn_data, sizeof(struct skl_tcn_events));
+	notify_data->length = sizeof(struct skl_tcn_events);
+	notify_data->type = 0xFF;
+	ctx->notify_ops.notify_cb(ctx, SKL_TPLG_CHG_NOTIFY, notify_data);
+	kfree(notify_data);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(skl_update_topology_change_event_data);
 
 /* Module Information */
 MODULE_AUTHOR("Ashish Panwar <ashish.panwar@intel.com");

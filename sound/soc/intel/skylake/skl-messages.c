@@ -31,6 +31,7 @@
 #include "../common/sst-dsp-priv.h"
 #include "skl-topology.h"
 #include "skl-tplg-interface.h"
+#include "skl-fwlog.h"
 
 static int skl_alloc_dma_buf(struct device *dev,
 		struct snd_dma_buffer *dmab, size_t size)
@@ -1244,8 +1245,9 @@ int skl_delete_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 		dev_err(ctx->dev, "Failed to delete pipeline\n");
 		return ret;
 	}
-
 	pipe->state = SKL_PIPE_INVALID;
+	skl_update_topology_change_event_data(ctx,
+			SKL_TPLG_CHG_NOTIF_PIPELINE_STOP);
 
 	return ret;
 }
@@ -1282,6 +1284,8 @@ int skl_run_pipe(struct skl_sst *ctx, struct skl_pipe *pipe)
 
 	pipe->state = SKL_PIPE_STARTED;
 
+	skl_update_topology_change_event_data(ctx,
+		SKL_TPLG_CHG_NOTIF_PIPELINE_START);
 	return 0;
 }
 

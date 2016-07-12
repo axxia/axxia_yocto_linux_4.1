@@ -19,6 +19,7 @@
 #include <linux/interrupt.h>
 #include <sound/memalloc.h>
 #include "skl-sst-cldma.h"
+#include <linux/time.h>
 
 struct sst_dsp;
 struct skl_sst;
@@ -179,6 +180,18 @@ struct skl_notify_data {
 
 struct skl_dsp_notify_ops {
 	int (*notify_cb)(struct skl_sst *skl, unsigned int event, struct skl_notify_data *notify_data);
+};
+
+enum skl_event_type {
+	SKL_TPLG_CHG_NOTIF_PIPELINE_START = 1,
+	SKL_TPLG_CHG_NOTIF_PIPELINE_STOP,
+	SKL_TPLG_CHG_NOTIF_DSP_D0,
+	SKL_TPLG_CHG_NOTIF_DSP_D3,
+};
+
+struct skl_tcn_events {
+	enum skl_event_type type;
+	struct timeval tv;
 };
 
 struct skl_load_module_info {

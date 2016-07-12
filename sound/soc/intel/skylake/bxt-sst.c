@@ -506,6 +506,8 @@ int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 	}
 
 	ctx->core_info.core_state[core_id] = SKL_DSP_RUNNING;
+	skl_update_topology_change_event_data(skl, SKL_TPLG_CHG_NOTIF_DSP_D0);
+
 	return 0;
 err:
 	skl_dsp_disable_core(ctx, core_mask);
@@ -540,6 +542,8 @@ static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id)
 		return ret;
 
 	ctx->core_info.core_state[core_id] = SKL_DSP_RESET;
+	skl_update_topology_change_event_data(skl, SKL_TPLG_CHG_NOTIF_DSP_D3);
+
 	return 0;
 
 }
