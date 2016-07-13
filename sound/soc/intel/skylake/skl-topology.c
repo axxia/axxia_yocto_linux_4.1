@@ -28,6 +28,8 @@
 #include "skl.h"
 #include "skl-tplg-interface.h"
 #include "skl-fwlog.h"
+#include "../common/sst-dsp.h"
+#include "../common/sst-dsp-priv.h"
 
 #define SKL_CH_FIXUP_MASK		(1 << 0)
 #define SKL_RATE_FIXUP_MASK		(1 << 1)
@@ -808,10 +810,9 @@ skl_tplg_init_pipe_modules(struct skl *skl, struct skl_pipe *pipe)
 		if (!skl_is_pipe_mcps_avail(skl, mconfig))
 			return -ENOMEM;
 
-		skl_tplg_alloc_pipe_mcps(skl, mconfig);
-
-		if (mconfig->is_loadable) {
-			ret = skl_load_modules(ctx, mconfig);
+		if (mconfig->is_loadable && ctx->dsp->fw_ops.load_mod) {
+			ret = ctx->dsp->fw_ops.load_mod(ctx->dsp,
+				mconfig->id.module_id, mconfig->guid);
 			if (ret < 0)
 				return ret;
 		}
@@ -859,9 +860,9 @@ static int skl_tplg_unload_pipe_modules(struct skl_sst *ctx,
 		mconfig  = w_module->w->priv;
 		dev_dbg(ctx->dev, "unload module_id=%d\n", mconfig->id.module_id);
 
-		if (mconfig->is_loadable)
-			ret = skl_unload_modules(ctx, mconfig);
-
+		if (mconfig->is_loadable && ctx->dsp->fw_ops.unload_mod)
+			return ctx->dsp->fw_ops.unload_mod(ctx->dsp,
+						mconfig->id.module_id);
 		ret = skl_dsp_put_core(ctx->dsp, mconfig->core_id);
 		if (ret < 0) {
 			/* notify error, continue with other modules */
