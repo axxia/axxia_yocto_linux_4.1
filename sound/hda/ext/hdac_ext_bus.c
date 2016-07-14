@@ -140,9 +140,6 @@ int snd_hdac_ext_bus_init(struct hdac_ext_bus *ebus, struct device *dev,
 	INIT_LIST_HEAD(&ebus->hlink_list);
 	ebus->idx = idx++;
 
-	spin_lock_init(&ebus->lock);
-	ebus->cmd_io = 1;
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_hdac_ext_bus_init);
