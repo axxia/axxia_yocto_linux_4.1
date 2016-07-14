@@ -34,7 +34,7 @@
 #define SKL_MOD_NAME 40 /* Length of GUID string */
 #define STEREO 2
 
-#define LIB_NAME_LENGTH 512
+#define LIB_NAME_LENGTH 128
 #define HDA_MAX_LIB    16
 #define MAX_DMA_CFG    24
 #define SKL_UUID_STR_SZ 40
@@ -310,7 +310,7 @@ struct skl_dfw_manifest {
 
 	/* library info */
 	u8 lib_count;
-	struct lib_info *lib;
+	struct lib_info lib[HDA_MAX_LIB];
 
 } __packed;
 

@@ -2463,36 +2463,13 @@ static int skl_manifest_load(struct snd_soc_component *cmpnt,
 
 	minfo = &skl->skl_sst->manifest;
 	mdata = manifest->priv.data;
-
-	memcpy(&minfo->cfg.mem_sts, mdata, (sizeof(minfo->cfg.mem_sts)));
-	mdata += sizeof(struct skl_mem_status);
-	memcpy(&minfo->cfg.slw_frq, mdata, (sizeof(minfo->cfg.slw_frq)));
-	mdata += sizeof(struct skl_dsp_freq);
-	memcpy(&minfo->cfg.fst_frq, mdata, (sizeof(minfo->cfg.fst_frq)));
-	mdata += sizeof(struct skl_dsp_freq);
-	memcpy(&minfo->cfg.dmacfg, mdata, (sizeof(minfo->cfg.dmacfg)));
-	mdata += sizeof(struct skl_dma_buff_cfg);
-
-	minfo->lib_count = *mdata;
-
+	memcpy(minfo, mdata, sizeof(*minfo));
 	if (minfo->lib_count > HDA_MAX_LIB) {
 		dev_err(bus->dev, "Exceeding max Library count. Got:%d\n",
 				minfo->lib_count);
 		ret = -EINVAL;
 		goto exit_manifest;
 	}
-
-	mdata++;
-	minfo->lib = devm_kzalloc(bus->dev, minfo->lib_count *
-			(sizeof(struct lib_info)), GFP_KERNEL);
-
-	if (!minfo->lib) {
-		ret = -ENOMEM;
-		goto exit_manifest;
-	}
-
-	memcpy(minfo->lib, mdata, (u32) (minfo->lib_count *
-				(sizeof(struct lib_info))));
 
 exit_manifest:
 	return ret;
