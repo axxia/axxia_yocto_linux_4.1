@@ -1398,18 +1398,29 @@ intel_hdmi_detect(struct drm_connector *connector, bool force)
 	struct intel_hdmi *intel_hdmi = intel_attached_hdmi(connector);
 	struct drm_i915_private *dev_priv = to_i915(connector->dev);
 	bool live_status = false;
-	unsigned int try;
+	unsigned int try = 0;
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
 	intel_display_power_get(dev_priv, POWER_DOMAIN_GMBUS);
 
-	for (try = 0; !live_status && try < 9; try++) {
-		if (try)
+	live_status = intel_digital_port_connected(dev_priv,
+		hdmi_to_dig_port(intel_hdmi));
+
+	/*
+	 * During a HDMI plug-in, the live status register can take a
+	 * while to get stable, thus we sample it for upto 80ms to
+	 * make sure we get its right status. However, on an unplug
+	 * we must report it straight away in order to pass HDCP
+	 * compliance test.
+	 */
+	if (connector->status != connector_status_connected) {
+		while (!live_status && try++ < 8) {
 			msleep(10);
-		live_status = intel_digital_port_connected(dev_priv,
+			live_status = intel_digital_port_connected(dev_priv,
 				hdmi_to_dig_port(intel_hdmi));
+		}
 	}
 
 	if (!live_status)
