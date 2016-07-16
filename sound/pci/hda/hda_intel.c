@@ -2038,9 +2038,7 @@ static int azx_probe_continue(struct azx *chip)
 		}
 	}
 
-#ifdef CONFIG_SND_HDA_I915
- skip_i915:
-#endif
+skip_i915:
 	err = azx_first_init(chip);
 	if (err < 0)
 		goto out_free;
