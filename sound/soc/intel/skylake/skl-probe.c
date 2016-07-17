@@ -76,7 +76,7 @@ static int set_injector_stream(struct hdac_ext_stream *stream,
 	struct skl_probe_config *pconfig =  &skl->skl_sst->probe_config;
 	int i;
 
-	i = skl_get_probe_index(dai, pconfig);
+	i = skl_probe_get_index(dai, pconfig);
 	if (i != -1) {
 		pconfig->iprobe[i].stream = stream;
 		pconfig->iprobe[i].dma_id =
@@ -182,11 +182,11 @@ int skl_probe_compr_set_params(struct snd_compr_stream *substream,
 	}
 
 	if (substream->direction == SND_COMPRESS_PLAYBACK) {
-		index = skl_get_probe_index(dai, pconfig);
+		index = skl_probe_get_index(dai, pconfig);
 		if (index < 0)
 			return -EINVAL;
 
-		ret = skl_tplg_probe_attach_injector_dma(pconfig->w, skl->skl_sst, index);
+		ret = skl_probe_attach_inj_dma(pconfig->w, skl->skl_sst, index);
 		if (ret < 0)
 			return -EINVAL;
 
@@ -220,7 +220,7 @@ int skl_probe_compr_close(struct snd_compr_stream *substream,
 		goto probe_uninit;
 
 	if (substream->direction == SND_COMPRESS_PLAYBACK) {
-		index = skl_get_probe_index(dai, pconfig);
+		index = skl_probe_get_index(dai, pconfig);
 		if (index < 0)
 			return -EINVAL;
 
@@ -234,7 +234,7 @@ int skl_probe_compr_close(struct snd_compr_stream *substream,
 
 		pconfig->i_refc--;
 	} else if (substream->direction == SND_COMPRESS_CAPTURE) {
-		ret = skl_disconnect_probe_point(skl->skl_sst, pconfig->w);
+		ret = skl_probe_point_disconnect_ext(skl->skl_sst, pconfig->w);
 		if (ret < 0)
 			return -EINVAL;
 
@@ -405,7 +405,7 @@ int skl_probe_compr_trigger(struct snd_compr_stream *substream, int cmd,
 		/* FW starts probe module soon after its params are set.
 		 * So to avoid xruns, start DMA first and then set probe params.
 		 */
-		ret = skl_tplg_set_probe_params(pconfig->w, skl->skl_sst, substream->direction, dai);
+		ret = skl_probe_point_set_config(pconfig->w, skl->skl_sst, substream->direction, dai);
 		if (ret < 0)
 			return -EINVAL;
 	}

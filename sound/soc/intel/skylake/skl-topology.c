@@ -631,7 +631,7 @@ static int skl_tplg_alloc_pipe_widget(struct device *dev,
 	return 0;
 }
 
-int skl_get_probe_index(struct snd_soc_dai *dai,
+int skl_probe_get_index(struct snd_soc_dai *dai,
 				struct skl_probe_config *pconfig)
 {
 	int i, ret = -1;
@@ -645,12 +645,12 @@ int skl_get_probe_index(struct snd_soc_dai *dai,
 	return ret;
 }
 
-int skl_tplg_probe_attach_injector_dma(struct snd_soc_dapm_widget *w,
+int skl_probe_attach_inj_dma(struct snd_soc_dapm_widget *w,
 				struct skl_sst *ctx, int index)
 {
 	int ret = -EINVAL;
 	struct skl_module_cfg *mconfig = w->priv;
-	struct skl_attach_probe_dma ad;
+	struct skl_probe_attach_inj_dma ad;
 	struct skl_probe_config *pconfig = &ctx->probe_config;
 
 	if (pconfig->iprobe[index].state == SKL_PROBE_STATE_INJ_NONE) {
@@ -660,7 +660,7 @@ int skl_tplg_probe_attach_injector_dma(struct snd_soc_dapm_widget *w,
 		ad.node_id.node.rsvd = 0;
 		ad.dma_buff_size = SKL_INJECT_PROBE_DMA_BUFF_SIZE;
 
-		ret = skl_set_module_params(ctx, (void *)&ad, sizeof(struct skl_attach_probe_dma),
+		ret = skl_set_module_params(ctx, (void *)&ad, sizeof(struct skl_probe_attach_inj_dma),
 						SKL_PROBE_INJECT_DMA_ATTACH, mconfig);
 		if (ret < 0)
 			return -EINVAL;
@@ -705,7 +705,7 @@ int skl_probe_detach_inj_dma(struct skl_sst *ctx, struct snd_soc_dapm_widget *w,
 	return ret;
 }
 
-int skl_tplg_set_probe_params(struct snd_soc_dapm_widget *w,
+int skl_probe_point_set_config(struct snd_soc_dapm_widget *w,
 					struct skl_sst *ctx, int direction,
 					struct snd_soc_dai *dai)
 {
@@ -719,7 +719,7 @@ int skl_tplg_set_probe_params(struct snd_soc_dapm_widget *w,
 	if (direction == SND_COMPRESS_PLAYBACK) {
 
 		/* only one injector point can be set at a time*/
-		n = skl_get_probe_index(dai, pconfig);
+		n = skl_probe_get_index(dai, pconfig);
 		if (n < 0)
 			return -EINVAL;
 
@@ -1747,18 +1747,18 @@ static int skl_probe_set_tlv_ext(struct snd_kcontrol *kcontrol)
 	if (index < 0)
 		return -EINVAL;
 
-	if ((ap->is_connect == SKL_PROBE_CONNECT) &&
+	if ((ap->operation == SKL_PROBE_CONNECT) &&
 		(pconfig->eprobe[index].state == SKL_PROBE_STATE_EXT_NONE)) {
 		/* cache extractor params */
-		pconfig->eprobe[index].operation = ap->is_connect;
-		pconfig->eprobe[index].purpose = ap->is_ext_inj;
-		pconfig->eprobe[index].probe_point_id = ap->params;
+		pconfig->eprobe[index].operation = ap->operation;
+		pconfig->eprobe[index].purpose = ap->purpose;
+		pconfig->eprobe[index].probe_point_id = ap->probe_point_id;
 
 		/* Below check ensures that atleast one extractor stream is in progress
 		in which case the driver can send the CONNECT IPC */
 		if (pconfig->e_refc > 0) {
-			memcpy(&connect_point.params, &ap->params, sizeof(u32));
-			connect_point.connection = ap->is_ext_inj;
+			memcpy(&connect_point.params, &ap->probe_point_id, sizeof(u32));
+			connect_point.connection = ap->purpose;
 			connect_point.node_id = -1;
 			ret = skl_set_module_params(skl->skl_sst, (void *)&connect_point,
 				sizeof(struct probe_pt_param), SKL_PROBE_CONNECT, mconfig);
@@ -1769,10 +1769,10 @@ static int skl_probe_set_tlv_ext(struct snd_kcontrol *kcontrol)
 			pconfig->eprobe[index].state = SKL_PROBE_STATE_EXT_CONNECTED;
 			dev_dbg(dapm->dev, "eprobe[%d].state %d\n", index, pconfig->eprobe[index].state);
 		}
-	} else if ((ap->is_connect == SKL_PROBE_DISCONNECT) &&
+	} else if ((ap->operation == SKL_PROBE_DISCONNECT) &&
 			(pconfig->eprobe[index].state == SKL_PROBE_STATE_EXT_CONNECTED) &&
 			(pconfig->e_refc > 0)) {
-		disconnect_point = (int)ap->params;
+		disconnect_point = (int)ap->probe_point_id;
 		ret = skl_set_module_params(skl->skl_sst, (void *)&disconnect_point,
 			sizeof(disconnect_point), SKL_PROBE_DISCONNECT, mconfig);
 		if (ret < 0) {
@@ -1813,16 +1813,16 @@ static int skl_probe_set_tlv_inj(struct snd_kcontrol *kcontrol)
 	if (index < 0)
 		return -EINVAL;
 
-	if ((ap->is_connect == SKL_PROBE_CONNECT) &&
+	if ((ap->operation == SKL_PROBE_CONNECT) &&
 		(pconfig->iprobe[index].state == SKL_PROBE_STATE_INJ_NONE)) {
 		/* cache injector params */
-		pconfig->iprobe[index].operation = ap->is_connect;
-		pconfig->iprobe[index].purpose = ap->is_ext_inj;
-		pconfig->iprobe[index].probe_point_id = ap->params;
-	} else if ((ap->is_connect == SKL_PROBE_DISCONNECT) &&
+		pconfig->iprobe[index].operation = ap->operation;
+		pconfig->iprobe[index].purpose = ap->purpose;
+		pconfig->iprobe[index].probe_point_id = ap->probe_point_id;
+	} else if ((ap->operation == SKL_PROBE_DISCONNECT) &&
 		(pconfig->iprobe[index].state == SKL_PROBE_STATE_INJ_CONNECTED) &&
 		(pconfig->i_refc > 0)) {
-		disconnect_point = (int)ap->params;
+		disconnect_point = (int)ap->probe_point_id;
 		ret = skl_set_module_params(skl->skl_sst, (void *)&disconnect_point,
 			sizeof(disconnect_point), SKL_PROBE_DISCONNECT, mconfig);
 		if (ret < 0) {
@@ -1853,22 +1853,22 @@ static int skl_tplg_tlv_probe_set(struct snd_kcontrol *kcontrol,
 	if (data) {
 		offset = (unsigned char *)data;
 		offset += 2 * sizeof(u32); /* To skip TLV heeader */
-		if (copy_from_user(&ap->is_connect,
-					offset, sizeof(ap->is_connect)))
+		if (copy_from_user(&ap->operation,
+					offset, sizeof(ap->operation)))
 			return -EIO;
 
-		offset += sizeof(ap->is_connect);
-		if (copy_from_user(&ap->is_ext_inj,
-					offset, sizeof(ap->is_ext_inj)))
+		offset += sizeof(ap->operation);
+		if (copy_from_user(&ap->purpose,
+					offset, sizeof(ap->purpose)))
 			return -EIO;
 
-		offset += sizeof(ap->is_ext_inj);
-		if (copy_from_user(&ap->params,
-					offset, sizeof(ap->params)))
+		offset += sizeof(ap->purpose);
+		if (copy_from_user(&ap->probe_point_id,
+					offset, sizeof(ap->probe_point_id)))
 			return -EIO;
 
-		dev_dbg(dapm->dev, "connect state = %d, extract_inject = %d, params = %d\n",
-						ap->is_connect, ap->is_ext_inj, ap->params);
+		dev_dbg(dapm->dev, "operation = %d, purpose = %d, probe_point_id = %d\n",
+						ap->operation, ap->purpose, ap->probe_point_id);
 
 		/* In the case of extraction, additional probe points can be set when
 		 * the stream is in progress and the driver can immediately send the
@@ -1877,7 +1877,7 @@ static int skl_tplg_tlv_probe_set(struct snd_kcontrol *kcontrol,
 		 * control has to be opened. Hence below implementation ensures that the
 		 * connect IPC is sent only in case of extractor.
 		 */
-		switch (ap->is_ext_inj) {
+		switch (ap->purpose) {
 		case SKL_PROBE_EXTRACT:
 			ret = skl_probe_set_tlv_ext(kcontrol);
 			break;

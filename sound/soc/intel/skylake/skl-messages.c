@@ -1049,7 +1049,7 @@ static void skl_dump_bind_info(struct skl_sst *ctx, struct skl_module_cfg
 		src_module->m_state, dst_module->m_state);
 }
 
-int skl_disconnect_probe_point(struct skl_sst *ctx,
+int skl_probe_point_disconnect_ext(struct skl_sst *ctx,
 				struct snd_soc_dapm_widget *w)
 {
 	struct skl_ipc_large_config_msg msg;
