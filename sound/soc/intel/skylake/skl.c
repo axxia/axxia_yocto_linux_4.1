@@ -36,6 +36,11 @@
 #include "skl-sst-dsp.h"
 #include "skl-sst-ipc.h"
 
+/* Use the following macro to enable or disable obtaining NHLT from
+ * BIOS. Enable it if the bios supports it. Other wise disable it
+ * and use alternative methods like debugfs if available
+ */
+#define SKL_USE_NHLT_FROM_BIOS 0
 static char *machine = NULL;
 
 module_param(machine, charp, 0444);
@@ -797,7 +802,7 @@ static int skl_probe(struct pci_dev *pci,
 		goto out_free;
 
 	device_disable_async_suspend(bus->dev);
-#if 0
+#if SKL_USE_NHLT_FROM_BIOS
 	/* NO NHLT On FPGA */
 	skl->nhlt = skl_nhlt_init(bus->dev);
 
@@ -875,7 +880,9 @@ out_dmic_free:
 out_mach_free:
 	skl_machine_device_unregister(skl);
 out_nhlt_free:
+#if SKL_USE_NHLT_FROM_BIOS
 	skl_nhlt_free(skl->nhlt);
+#endif
 out_dsp_free:
 	skl_free_dsp(skl);
 out_free:
@@ -933,7 +940,9 @@ static void skl_remove(struct pci_dev *pci)
 	skl_free_dsp(skl);
 	skl_machine_device_unregister(skl);
 	skl_dmic_device_unregister(skl);
+#if SKL_USE_NHLT_FROM_BIOS
 	skl_nhlt_free(skl->nhlt);
+#endif
 	skl_free(ebus);
 	dev_set_drvdata(&pci->dev, NULL);
 }
