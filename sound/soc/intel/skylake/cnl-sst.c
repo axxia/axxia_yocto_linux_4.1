@@ -746,6 +746,7 @@ int cnl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		dev_err(dev, "FW tracing init failed : %x", ret);
 		return ret;
 	}
+	INIT_LIST_HEAD(&sst->module_list);
 	ret = cnl_ipc_init(dev, cnl);
 	if (ret)
 		return ret;
