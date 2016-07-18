@@ -1,0 +1,39 @@
+Replay Protected Memory Block (RPMB) subsystem
+
+Few storage technologies such is EMMC, UFS, and NVMe support RPMB
+hardware partition with common protocol and frame layout.
+The RPMB partition cannot be accessed via standard block layer, but by a
+set of specific commands: WRITE, READ, GET_WRITE_COUNTER, and
+PROGRAM_KEY.
+Such a partition provides authenticated and replay protected access,
+hence suitable as a secure storage.
+
+The RPMB layer aims to provide in-kernel API for Trusted Execution
+Environment (TEE) devices that are capable to securely compute block
+frame signature. In case a TEE device wish to store a replay protected
+data, it creates an RPMB frame with requested data and computes HMAC of
+the frame, then it requests the storage device via RPMB layer to store
+the data.
+A TEE driver can claim the RPMB interface, for example, via
+class_interface_register ().
+The layer provides two APIs, for rpmb_req_cmd() for issuing one of RPMB
+specific commands and rpmb_seq_cmd() for issuing of raw RPMB protocol
+frames, which is close to the functionality provided by emmc multi ioctl
+interface.
+
+A storage device registers its RPMB hardware (eMMC) partition or RPMB
+W-LUN (UFS) with the RPMB layer providing an implementation for
+rpmb_seq_cmd() handler. The interface enables sending sequence of RPMB
+standard frames.
+
+A parallel user space API is provided via /dev/rpmbX character
+device with two IOCTL commands.
+Simplified one, RPMB_IOC_REQ_CMD, were read result cycles is performed
+by the framework on behalf the user and second, RPMB_IOC_SEQ_CMD where
+the whole RPMB sequence, including RESULT_READ is supplied by the caller.
+The latter is intended for easier adjusting of the applications that
+use MMC_IOC_MULTI_CMD ioctl, such as
+https://android.googlesource.com/trusty/app/storage/
+
+There is a also sample tool under tools/rpmb/ directory that exercises
+these interfaces and a simulation device that implements the device part.
