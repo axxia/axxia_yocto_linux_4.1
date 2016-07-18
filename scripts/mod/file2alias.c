@@ -1266,7 +1266,7 @@ static int do_ehda_entry(const char *filename,
 	return 1;
 
 }
-ADD_TO_DEVTABLE("ehdaudio", hda_device_id, do_hda_entry);
+ADD_TO_DEVTABLE("ehdaudio", hda_device_id, do_ehda_entry);
 
 static void do_table(void *symval, unsigned long size,
 		     unsigned long id_size,
