@@ -473,7 +473,7 @@ static int mrgfld_florida_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	be_cpu_dai = rtd->cpu_dai;
 	return 0;
-	ret = snd_soc_dai_set_tdm_slot(be_cpu_dai, SLOT_MASK(4) , SLOT_MASK(4), 4, slot_width);
+	ret = snd_soc_dai_set_tdm_slot(be_cpu_dai, SLOT_MASK(4), SLOT_MASK(4), 4, slot_width);
 	if (ret < 0) {
 		pr_err("can't set cpu dai pcm format %d\n", ret);
 		return ret;
@@ -554,7 +554,7 @@ struct snd_soc_dai_link mrgfld_florida_msic_dailink[] = {
 		.dynamic = 1,
 		.ops = &cnl_dmic_ops,
 	},
-	        /* Trace Buffer DAI links */
+	/* Trace Buffer DAI links */
 	{
 		.name = "CNL Trace Buffer0",
 		.stream_name = "Core 0 Trace Buffer",
