@@ -379,7 +379,7 @@ static int hdac_hdmi_playback_prepare(struct snd_pcm_substream *substream,
 
 	dai_map = &hdmi->dai_map[dai->id];
 
-	dd = (struct hdac_ext_dma_params*)snd_soc_dai_get_dma_data(dai, substream);
+	dd = (struct hdac_ext_dma_params *)snd_soc_dai_get_dma_data(dai, substream);
 	dev_dbg(&hdac->hdac.dev, "stream tag from cpu dai %d format in cvt 0x%x\n",
 			dd->stream_tag,	dd->format);
 
@@ -1401,7 +1401,7 @@ static int hdmi_codec_probe(struct snd_soc_codec *codec)
 	 */
 	hlink = snd_hdac_ext_bus_get_link(edev->ebus, dev_name(&edev->hdac.dev));
 	if (!hlink) {
-		dev_err(&edev->hdac.dev, "Cannot find link bus for codec %s\n",dev_name(&edev->hdac.dev));
+		dev_err(&edev->hdac.dev, "Cannot find link bus for codec %s\n", dev_name(&edev->hdac.dev));
 		return -EINVAL;
 	}
 	snd_hdac_ext_bus_link_get(edev->ebus, hlink);
@@ -1511,7 +1511,7 @@ static int hdac_hdmi_dev_probe(struct hdac_ext_device *edev)
 	/* hold the ref while we probe */
 	hlink = snd_hdac_ext_bus_get_link(edev->ebus, dev_name(&edev->hdac.dev));
 	if (!hlink) {
-		dev_err(&codec->dev, "Cannot find link bus for codec %s\n",dev_name(&edev->hdac.dev));
+		dev_err(&codec->dev, "Cannot find link bus for codec %s\n", dev_name(&edev->hdac.dev));
 		return -EINVAL;
 	}
 	snd_hdac_ext_bus_link_get(edev->ebus, hlink);
@@ -1620,7 +1620,7 @@ static int hdac_hdmi_runtime_suspend(struct device *dev)
 
 	hlink = snd_hdac_ext_bus_get_link(ebus, dev_name(dev));
 	if (!hlink) {
-		dev_err(bus->dev, "Cannot find link bus for codec %s\n",dev_name(dev));
+		dev_err(bus->dev, "Cannot find link bus for codec %s\n", dev_name(dev));
 		return -EINVAL;
 	}
 	snd_hdac_ext_bus_link_put(ebus, hlink);
@@ -1645,7 +1645,7 @@ static int hdac_hdmi_runtime_resume(struct device *dev)
 
 	hlink = snd_hdac_ext_bus_get_link(ebus, dev_name(dev));
 	if (!hlink) {
-		dev_err(bus->dev, "Cannot find link bus for codec %s\n",dev_name(dev));
+		dev_err(bus->dev, "Cannot find link bus for codec %s\n", dev_name(dev));
 		return -EINVAL;
 	}
 	snd_hdac_ext_bus_link_get(ebus, hlink);
