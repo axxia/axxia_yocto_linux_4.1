@@ -488,7 +488,7 @@ static int rt298_adc_event(struct snd_soc_dapm_widget *w,
 		 /* If MCLK doesn't exist, reset AD filter */
 		if (!(snd_soc_read(codec, RT298_VAD_CTRL) & 0x200)) {
 			pr_info("NO MCLK\n");
-			switch(nid) {
+			switch (nid) {
 			case RT298_ADC_IN1:
 				snd_soc_update_bits(codec,
 					RT298_D_FILTER_CTRL, 0x2, 0x2);
@@ -1125,8 +1125,8 @@ static const struct i2c_device_id rt298_i2c_id[] = {
 MODULE_DEVICE_TABLE(i2c, rt298_i2c_id);
 
 static struct rt298_platform_data rt298_acpi_data = {
-        .cbj_en = true,
-        .gpio2_en = false,
+	.cbj_en = true,
+	.gpio2_en = false,
 };
 
 static const struct acpi_device_id rt298_acpi_match[] = {
