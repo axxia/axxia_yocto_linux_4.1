@@ -493,7 +493,6 @@ static int skl_pcm_trigger(struct snd_pcm_substream *substream, int cmd,
 		if (ret < 0)
 			return ret;
 		return skl_run_pipe(ctx, mconfig->pipe);
-		break;
 
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
@@ -705,7 +704,7 @@ static int skl_trace_compr_open(struct snd_compr_stream *substream,
 
 	ret = pm_runtime_get_sync(skl_sst->dev);
 	if (ret < 0) {
-		dev_err(skl_sst->dev,"trace open:pm_runtime_get failed\n");
+		dev_err(skl_sst->dev, "trace open:pm_runtime_get failed\n");
 		return ret;
 	}
 
@@ -1187,7 +1186,7 @@ static struct snd_soc_dai_driver skl_platform_dai[] = {
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 |
 			SNDRV_PCM_RATE_48000 | SNDRV_PCM_RATE_88200 |
 			SNDRV_PCM_RATE_96000 | SNDRV_PCM_RATE_176400 |
-			SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_64000 ,
+			SNDRV_PCM_RATE_192000 | SNDRV_PCM_RATE_64000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |
 			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE,
 	},
@@ -1633,6 +1632,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 	int ret = 0;
 	struct skl *skl = ebus_to_skl(ebus);
 	struct platform_info *dbg_info;
+
 	if (ebus->ppcap) {
 		ret = skl_tplg_init(platform, ebus);
 		if (ret < 0) {
@@ -1683,7 +1683,7 @@ static int skl_platform_soc_remove(struct snd_soc_platform *platform)
 
 	if (skl->tplg) {
 		release_firmware(skl->tplg);
-		skl->tplg= NULL;
+		skl->tplg = NULL;
 	}
 	return 0;
 }

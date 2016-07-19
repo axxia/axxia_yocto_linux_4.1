@@ -222,7 +222,7 @@ int skl_ipc_bind_unbind(struct sst_generic_ipc *sst_ipc,
 		struct skl_ipc_bind_unbind_msg *msg);
 
 int skl_ipc_load_modules(struct sst_generic_ipc *ipc, u8 module_cnt,
-							void* data);
+							void *data);
 
 int skl_ipc_unload_modules(struct sst_generic_ipc *ipc, u8 module_cnt,
 							void *data);

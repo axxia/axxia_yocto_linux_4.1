@@ -280,8 +280,7 @@ static int cnl_load_base_firmware(struct sst_dsp *ctx)
 	size = ctx->fw->size;
 	data = ctx->fw->data;
 	hdr = (struct skl_ext_manifest_header *)ctx->fw->data;
-	if (hdr->ext_manifest_id == SKL_EXT_MANIFEST_MAGIC_HEADER_ID)
-	{
+	if (hdr->ext_manifest_id == SKL_EXT_MANIFEST_MAGIC_HEADER_ID) {
 		dev_dbg(ctx->dev, "Found Extended manifest in FW Binary\n");
 		if (hdr->ext_manifest_len >= ctx->fw->size) {
 			ret = -EINVAL;

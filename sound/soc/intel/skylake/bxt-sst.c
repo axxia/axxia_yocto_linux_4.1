@@ -59,7 +59,7 @@
 #define BXT_ADSP_SRAM1_BASE	0xA0000
 #define BXT_ADSP_W0_STAT_SZ	0x1000
 #define BXT_ADSP_W0_UP_SZ	0x1000
-#define BXT_ADSP_W1_SZ  	0x1000
+#define BXT_ADSP_W1_SZ		0x1000
 
 /* Delay before scheduling D0i3 entry */
 #define BXT_D0I3_DELAY 5000
@@ -658,13 +658,13 @@ static int bxt_load_library(struct sst_dsp *ctx)
 			data = (u8 *)fw->data + hdr->ext_manifest_len;
 		}
 
-		dev_dbg(ctx->dev, "Starting to preapre host dma for library name \
-			: %s of size:%zx\n", minfo->lib[i].name, (size_t)size);
+		dev_dbg(ctx->dev, "Starting to preapre host dma for library name : %s of size:%zx\n",
+						minfo->lib[i].name, (size_t)size);
 		stream_tag = ctx->dsp_ops.prepare(ctx->dev, 0x40, size,
 						&dmab);
 		if (stream_tag <= 0) {
-			dev_err(ctx->dev, "Failed to prepare DMA engine for \
-				FW loading, err: %x\n", stream_tag);
+			dev_err(ctx->dev, "Failed to prepare DMA engine for FW loading, err: %x\n",
+						stream_tag);
 			ret = stream_tag;
 			goto load_library_failed;
 		}

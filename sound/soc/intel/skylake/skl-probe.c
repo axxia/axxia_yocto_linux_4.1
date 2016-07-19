@@ -49,7 +49,8 @@ static int set_injector_stream(struct hdac_ext_stream *stream,
 	struct skl_probe_config *pconfig =  &skl->skl_sst->probe_config;
 	int i;
 
-	if ((i = skl_get_probe_index(dai, pconfig)) != -1) {
+	i = skl_get_probe_index(dai, pconfig);
+	if (i != -1) {
 		pconfig->iprobe[i].stream = stream;
 		pconfig->iprobe[i].dma_id =
 				hdac_stream(stream)->stream_tag - 1;

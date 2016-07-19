@@ -403,11 +403,11 @@ static void skl_tplg_update_params(struct skl_module_fmt *fmt,
 	if (fixup & SKL_CH_FIXUP_MASK) {
 		fmt->channels = params->ch;
 		skl_tplg_update_chmap(fmt, fmt->channels);
-		if (fmt->channels == 1) {
+		if (fmt->channels == 1)
 			fmt->ch_cfg = SKL_CH_CFG_MONO;
-		} else if (fmt->channels == 2) {
+		else if (fmt->channels == 2)
 			fmt->ch_cfg = SKL_CH_CFG_STEREO;
-		}
+
 	}
 	if (fixup & SKL_FMT_FIXUP_MASK)
 		fmt->valid_bit_depth = skl_get_bit_depth(params->s_fmt);
@@ -653,7 +653,8 @@ int skl_tplg_attach_probe_dma(struct snd_soc_dapm_widget *w,
 	struct skl_attach_probe_dma ad;
 	struct skl_probe_config *pconfig = &ctx->probe_config;
 
-	if ((i = skl_get_probe_index(dai, pconfig)) != -1) {
+	i = skl_get_probe_index(dai, pconfig);
+	if (i != -1) {
 		ad.node_id.node.vindex = pconfig->iprobe[i].dma_id;
 		ad.node_id.node.dma_type = SKL_DMA_HDA_HOST_OUTPUT_CLASS;
 		ad.node_id.node.rsvd = 0;
@@ -690,7 +691,7 @@ int skl_tplg_set_probe_params(struct snd_soc_dapm_widget *w,
 		if (k->access & SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK) {
 			sb = (void *) k->private_value;
 			bc = (struct skl_probe_data *)sb->dobj.private;
-			pr_debug("bc->is_ext_inj = %d, bc->params = %d, bc->is_connect = %d \n",
+			pr_debug("bc->is_ext_inj = %d, bc->params = %d, bc->is_connect = %d\n",
 						bc->is_ext_inj, bc->params, bc->is_connect);
 			if (!(bc->is_ext_inj == SKL_PROBE_INJECT ||
 					bc->is_ext_inj == SKL_PROBE_INJECT_REEXTRACT))
@@ -712,11 +713,11 @@ int skl_tplg_set_probe_params(struct snd_soc_dapm_widget *w,
 				sb = (void *) k->private_value;
 				bc = (struct skl_probe_data *)sb->dobj.private;
 
-				pr_debug("bc->is_ext_inj = %d, bc->params = %d, bc->is_connect = %d \n",
+				pr_debug("bc->is_ext_inj = %d, bc->params = %d, bc->is_connect = %d\n",
 							bc->is_ext_inj, bc->params, bc->is_connect);
 				if (bc->is_ext_inj == SKL_PROBE_EXTRACT &&
 						pconfig->eprobe[i].set == 1) {
-					pr_debug("Retrieving the exractor params \n");
+					pr_debug("Retrieving the exractor params\n");
 					prb_pt_param[n].params = (int)bc->params;
 					prb_pt_param[n].connection = bc->is_ext_inj;
 					prb_pt_param[n].node_id = -1;
@@ -1100,9 +1101,9 @@ static int skl_tplg_bind_sinks(struct snd_soc_dapm_widget *w,
  * A PGA represents a module in a pipeline. So in the Pre-PMU event of PGA
  * we need to do following:
  *   - Bind to sink pipeline
- *   	Since the sink pipes can be running and we don't get mixer event on
- *   	connect for already running mixer, we need to find the sink pipes
- *   	here and bind to them. This way dynamic connect works.
+ *	Since the sink pipes can be running and we don't get mixer event on
+ *	connect for already running mixer, we need to find the sink pipes
+ *	here and bind to them. This way dynamic connect works.
  *   - Start sink pipeline, if not running
  *   - Then run current pipe
  */
@@ -1140,7 +1141,7 @@ static struct snd_soc_dapm_widget *skl_get_src_dsp_widget(
 	struct snd_soc_dapm_widget *src_w = NULL;
 	struct skl_sst *ctx = skl->skl_sst;
 
-	snd_soc_dapm_widget_for_each_source_path(w,p) {
+	snd_soc_dapm_widget_for_each_source_path(w, p) {
 		src_w = p->source;
 		if (!p->connect)
 			continue;
@@ -1152,9 +1153,9 @@ static struct snd_soc_dapm_widget *skl_get_src_dsp_widget(
 		 * be any widgets type and we are only interested if they are
 		 * ones used for SKL so check that first
 		 */
-		if ((p->source->priv != NULL) && is_skl_dsp_widget_type(p->source)) {
+		if ((p->source->priv != NULL) && is_skl_dsp_widget_type(p->source))
 			return p->source;
-		}
+
 	}
 
 	if (src_w != NULL)
@@ -1591,7 +1592,7 @@ static int skl_tplg_tlv_control_get(struct snd_kcontrol *kcontrol,
 	dev_dbg(dapm->dev, "size = %u (%#x), max = %#x\n", size, size, bc->max);
 
 	if (w->power) {
-		if (bc->param_id == 0xFF){
+		if (bc->param_id == 0xFF) {
 			msg.module_id = mconfig->id.module_id;
 			msg.instance_id = mconfig->id.instance_id;
 			msg.param_data_size = bc->max;
@@ -1649,7 +1650,7 @@ static int skl_tplg_tlv_control_set(struct snd_kcontrol *kcontrol,
 	if (ac->params && (ac->access_type == SKL_WIDGET_WRITE ||
 				ac->access_type == SKL_WIDGET_READ_WRITE)) {
 		memset(ac->params, 0, ac->max);
-                /* skip copying first two u32 words from user which is the TLV header */
+		/* skip copying first two u32 words from user which is the TLV header */
 		if (copy_from_user(ac->params,
 				   ((unsigned char *)data) + 2*sizeof(u32),
 				   size - 2*sizeof(u32)))
@@ -1753,7 +1754,7 @@ static int skl_tplg_tlv_probe_set(struct snd_kcontrol *kcontrol,
 					offset, sizeof(ap->params)))
 			return -EIO;
 
-		dev_dbg(dapm->dev, "connect state = %d, extract_inject = %d, params = %d \n",
+		dev_dbg(dapm->dev, "connect state = %d, extract_inject = %d, params = %d\n",
 						ap->is_connect, ap->is_ext_inj, ap->params);
 
 		ret = skl_cache_probe_param(kcontrol, ap, skl->skl_sst);
@@ -2232,7 +2233,7 @@ static void skl_tplg_fill_fmt(struct skl_module_fmt *dst_fmt,
 static void skl_load_widget_params(struct skl_dfw_module *dfw_config,
 				struct skl_module_cfg *mconfig)
 {
-	switch(dfw_config->module_type) {
+	switch (dfw_config->module_type) {
 	case SKL_MODULE_TYPE_GAIN:
 		mconfig->gain_data.ramp_duration = 0;
 		mconfig->gain_data.ramp_type = SKL_CURVE_NONE;

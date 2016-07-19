@@ -41,7 +41,7 @@
  * and use alternative methods like debugfs if available
  */
 #define SKL_USE_NHLT_FROM_BIOS 0
-static char *machine = NULL;
+static char *machine;
 
 module_param(machine, charp, 0444);
 MODULE_PARM_DESC(machine, "machine driver string for Intel soundcard.");
@@ -159,7 +159,7 @@ static void update_pci_dword(struct pci_dev *pci,
  * @dev: device pointer
  * @enable: enable/disable flag
  */
- void skl_enable_miscbdcge(struct device *dev, bool enable)
+void skl_enable_miscbdcge(struct device *dev, bool enable)
 {
 	struct pci_dev *pci = to_pci_dev(dev);
 	u32 val;
@@ -330,7 +330,7 @@ static int skl_suspend(struct device *dev)
 	struct hdac_ext_bus *ebus = pci_get_drvdata(pci);
 	struct skl *skl = ebus_to_skl(ebus);
 	struct skl_sst *ctx = skl->skl_sst;
-	int ret=0;
+	int ret = 0;
 	struct hdac_bus *bus = ebus_to_hbus(ebus);
 
 	/*
@@ -779,9 +779,9 @@ static int skl_first_init(struct hdac_ext_bus *ebus)
 	snd_hdac_set_codec_wakeup(bus, false);
 
 	/* codec detection */
-	if (!bus->codec_mask) {
+	if (!bus->codec_mask)
 		dev_err(bus->dev, "no hda codecs found!\n");
-	}
+
 
 	return 0;
 }

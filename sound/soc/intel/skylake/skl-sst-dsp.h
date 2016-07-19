@@ -206,11 +206,11 @@ struct skl_module_table {
 };
 
 struct skl_ext_manifest_header {
-    u32  ext_manifest_id;
-    u32  ext_manifest_len;
-    u16  ext_manifest_version_major;
-    u16  ext_manifest_version_minor;
-    u32  ext_manifest_entries;
+	u32  ext_manifest_id;
+	u32  ext_manifest_len;
+	u16  ext_manifest_version_major;
+	u16  ext_manifest_version_minor;
+	u32  ext_manifest_entries;
 } __packed;
 
 void skl_cldma_process_intr(struct sst_dsp *ctx);

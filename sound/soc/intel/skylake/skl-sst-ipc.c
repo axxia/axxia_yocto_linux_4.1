@@ -444,9 +444,9 @@ skl_process_log_buffer(struct sst_dsp *sst, struct skl_ipc_header header)
 		return;
 	}
 	if (skl_dsp_get_buff_users(sst, core) > 2) {
-		dev_err(sst->dev, "Can't handle log buffer notification, \
-			previous writer is not finished yet !\n \
-			dropping log buffer\n");
+		dev_err(sst->dev, "Can't handle log buffer notification,");
+		dev_err(sst->dev, "previous writer is not finished yet!\n");
+		dev_err(sst->dev, "dropping log buffer\n");
 		return;
 	}
 	skl_dsp_get_log_buff(sst, core);
@@ -1023,7 +1023,7 @@ int skl_ipc_bind_unbind(struct sst_generic_ipc *ipc,
 EXPORT_SYMBOL_GPL(skl_ipc_bind_unbind);
 
 int skl_ipc_load_modules(struct sst_generic_ipc *ipc, u8 module_cnt,
-							void* data)
+							void *data)
 {
 	struct skl_ipc_header header = {0};
 	u64 *ipc_header = (u64 *)(&header);
@@ -1142,10 +1142,10 @@ int skl_ipc_get_large_config(struct sst_generic_ipc *ipc,
 	header.primary |= IPC_MOD_INSTANCE_ID(msg->instance_id);
 	header.primary |= IPC_MOD_ID(msg->module_id);
 
-	if(!size)
-                header.extension = IPC_DATA_OFFSET_SZ(msg->param_data_size);
-        else
-                header.extension = IPC_DATA_OFFSET_SZ(size);
+	if (!size)
+		header.extension = IPC_DATA_OFFSET_SZ(msg->param_data_size);
+	else
+		header.extension = IPC_DATA_OFFSET_SZ(size);
 
 	header.extension |= IPC_LARGE_PARAM_ID(msg->large_param_id);
 	header.extension |= IPC_FINAL_BLOCK(1);
