@@ -371,7 +371,7 @@ struct sst_dsp {
 	struct snd_dma_buffer dmab;
 	struct skl_dsp_core_info core_info;
 #if IS_ENABLED(CONFIG_SND_SOC_INTEL_CNL_FPGA)
-        struct snd_dma_buffer dsp_fw_buf;
+	struct snd_dma_buffer dsp_fw_buf;
 #endif
 };
 
