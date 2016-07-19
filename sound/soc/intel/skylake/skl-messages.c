@@ -369,7 +369,14 @@ int skl_resume_dsp(struct skl *skl)
 		ret = skl_dsp_wake(ctx->dsp);
 		if (ret < 0)
 			return ret;
-		skl_dsp_enable_notification(skl->skl_sst, false);
+		/*
+		 * It is correct for skl_dsp_wake() to return success without
+		 * loading the FW if it gets called before first boot, say
+		 * because of runtime PM resume. In this case, call the
+		 * notification enable function only if FW is loaded since
+		 * this function sends an IPC */
+		if (ctx->fw_loaded)
+			skl_dsp_enable_notification(skl->skl_sst, false);
 	}
 
 	return ret;
