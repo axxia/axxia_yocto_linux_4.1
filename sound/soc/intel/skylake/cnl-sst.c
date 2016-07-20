@@ -751,6 +751,7 @@ int cnl_sst_dsp_init_hw(struct device *dev, struct skl_sst **dsp,
 		return ret;
 
 	sst->core_info.cores = 4;
+	cnl->is_first_boot = true;
 
 	cnl->boot_complete = false;
 	init_waitqueue_head(&cnl->boot_wait);
@@ -782,6 +783,10 @@ int cnl_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx)
 			return ret;
 		}
 	}
+
+	/* First boot successfully done */
+	ctx->is_first_boot = false;
+
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cnl_sst_dsp_init_fw);

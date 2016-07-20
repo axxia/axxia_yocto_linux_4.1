@@ -307,8 +307,7 @@ int skl_init_dsp_fw(struct skl *skl)
 	ret = dsp_ops[index].init_fw(bus->dev, skl->skl_sst);
 
 	if (ret < 0) {
-		skl_free_dsp(skl);
-		dev_err(bus->dev, "Firmware load failed\n");
+		dev_err(bus->dev, "Firmware or Library load failed\n");
 		pm_runtime_put_sync(bus->dev);
 		return ret;
 	}
@@ -349,12 +348,17 @@ int skl_suspend_dsp(struct skl *skl)
 	if (!skl->ebus.ppcap)
 		return 0;
 
+	/* Do not proceed to DSP suspend if DSP 1st boot is yet to be done */
+	if (ctx->is_first_boot == true)
+		goto disable_ppcap;
+
 	if (ctx && ctx->fw_loaded) {
 		ret = skl_dsp_sleep(ctx->dsp);
 		if (ret < 0)
 			return ret;
 	}
 
+disable_ppcap:
 	/* disable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, false);
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, false);
@@ -374,6 +378,10 @@ int skl_resume_dsp(struct skl *skl)
 	/* enable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, true);
 	snd_hdac_ext_bus_ppcap_int_enable(&skl->ebus, true);
+
+	/* just return if DSP 1st boot is yet to be done */
+	if (ctx->is_first_boot == true)
+		return 0;
 
 	if (ctx) {
 		ret = skl_dsp_wake(ctx->dsp);

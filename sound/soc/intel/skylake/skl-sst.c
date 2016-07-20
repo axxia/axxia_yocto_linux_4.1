@@ -495,6 +495,7 @@ int skl_sst_dsp_init_hw(struct device *dev, struct skl_sst **dsp, struct dsp_ini
 
 	sst->core_info.cores = 2;
 	sst->num_i2s_ports = d->num_ssp;
+	skl->is_first_boot = true;
 
 	if (dsp)
 		*dsp = skl;
@@ -510,8 +511,11 @@ int skl_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx)
 	ret = ctx->dsp->fw_ops.load_fw(ctx->dsp);
 	if (ret < 0)
 		dev_err(dev, "Load base fw failed : %d", ret);
-	else
+	else {
 		ctx->fw_loaded = true;
+		/* First boot successfully done */
+		ctx->is_first_boot = false;
+	}
 
 	return ret;
 }

@@ -162,6 +162,7 @@ int bxt_sst_dsp_init_hw(struct device *dev, struct skl_sst **dsp,
 
 	sst->core_info.cores = 2;
 	sst->num_i2s_ports = d->num_ssp;
+	skl->is_first_boot = true;
 
 	skl->boot_complete = false;
 	init_waitqueue_head(&skl->boot_wait);
@@ -195,6 +196,8 @@ int bxt_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx)
 		}
 	}
 
+	/* First boot successfully done */
+	ctx->is_first_boot = false;
 	dev_dbg(dev, "Exit %s\n", __func__);
 	return 0;
 }

@@ -1709,7 +1709,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 		ret = skl_tplg_init(platform, ebus);
 		if (ret < 0) {
 			dev_dbg(bus->dev, "error failed while initializing topology\n");
-			return ret;
+			goto out_free;
 		}
 		skl->skl_sst->update_d0i3c = skl_update_d0i3c;
 		skl->skl_sst->platform = platform;
@@ -1725,8 +1725,10 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 
 	skl_get_probe_widget(platform, skl);
 	dbg_info = kzalloc(sizeof(struct platform_info), GFP_KERNEL);
-	if (!dbg_info)
-		return -ENOMEM;
+	if (!dbg_info) {
+		ret = -ENOMEM;
+		goto out_free;
+	}
 
 	dbg_info->sram0_base = skl->skl_sst->dsp->addr.sram0_base;
 	dbg_info->sram1_base = skl->skl_sst->dsp->addr.sram1_base;
@@ -1744,6 +1746,7 @@ static int skl_platform_soc_probe(struct snd_soc_platform *platform)
 
 	return ret;
 out_free:
+	skl->skl_sst->platform = NULL;
 	skl->init_failed = 1;
 	return ret;
 }

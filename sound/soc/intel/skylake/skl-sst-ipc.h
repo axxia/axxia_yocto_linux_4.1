@@ -127,6 +127,9 @@ struct skl_sst {
 	void (*enable_miscbdcge)(struct device *dev, bool enable);
 	/*Is CGCTL.MISCBDCGE disabled*/
 	bool miscbdcg_disabled;
+
+	/* is first boot yet to be done? */
+	bool is_first_boot;
 };
 
 struct skl_ipc_init_instance_msg {
