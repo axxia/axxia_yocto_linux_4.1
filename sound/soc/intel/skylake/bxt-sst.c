@@ -43,6 +43,15 @@
 #define BXT_FW_ROM_BASEFW_ENTERED	0x5
 #define BXT_ADSP_SRAM0_BASE	0x80000
 
+/* BXT SSP/I2S Registers */
+#define I2S_SSC1_OFF  0x4
+#define SET_SLAVE_MASK        0x03000000
+
+/*BXT I2S Clock Gating*/
+#define BXT_DSP_CLK_CTL 0x78
+#define BXT_DISABLE_ALL_SSP_CLK_GT 0xFC0000
+#define BXT_DISABLE_4_SSP_CLK_GT 0x3C0000
+
 /* Trace Buffer Winddow */
 #define BXT_ADSP_SRAM2_BASE	0x0C0000
 #define BXT_ADSP_W2_SIZE	0x2000
@@ -65,6 +74,7 @@
 /* Delay before scheduling D0i3 entry */
 #define BXT_D0I3_DELAY 5000
 
+static void bxt_set_ssp_slave(struct sst_dsp *ctx);
 static int bxt_load_base_firmware(struct sst_dsp *ctx);
 static int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id);
 static int bxt_set_dsp_D3(struct sst_dsp *ctx, unsigned int core_id);
@@ -233,6 +243,10 @@ static int sst_bxt_prepare_fw(struct sst_dsp *ctx, const void *fwdata,
 	if (ret < 0)
 		goto prepare_fw_load_failed;
 #endif
+
+	/* DSP is powered up, set all SSPs to slave mode */
+	bxt_set_ssp_slave(ctx);
+
 
 	/* Step 2: Purge FW request */
 	sst_dsp_shim_write(ctx, SKL_ADSP_REG_HIPCI, SKL_ADSP_REG_HIPCI_BUSY |
@@ -416,6 +430,40 @@ static int bxt_set_dsp_D0i0(struct sst_dsp *ctx)
 	return 0;
 }
 
+#define GET_SSP_BASE(N) (N > 4 ? 0x2000 : 0x4000)
+
+static void bxt_set_ssp_slave(struct sst_dsp *ctx)
+{
+	u32 reg;
+	u32 mask, i2s_base_addr;
+	int i;
+
+	if (ctx->num_i2s_ports == 4)
+		mask = BXT_DISABLE_4_SSP_CLK_GT;
+	else
+		mask = BXT_DISABLE_ALL_SSP_CLK_GT;
+
+	/* disable clock gating on all SSPs */
+	reg = sst_dsp_shim_read_unlocked(ctx, BXT_DSP_CLK_CTL);
+	reg |= mask;
+	sst_dsp_shim_write_unlocked(ctx, BXT_DSP_CLK_CTL, reg);
+
+	/* set all SSPs to slave */
+	i2s_base_addr = GET_SSP_BASE(ctx->num_i2s_ports);
+	for (i = 0; i < ctx->num_i2s_ports; i++) {
+		reg = sst_dsp_shim_read_unlocked(ctx,
+				(i2s_base_addr + (i * 0x1000) + I2S_SSC1_OFF));
+		reg |= SET_SLAVE_MASK;
+		sst_dsp_shim_write_unlocked(ctx,
+			(i2s_base_addr + (i * 0x1000) + I2S_SSC1_OFF), reg);
+	}
+
+	/* re-enable clock gating */
+	reg = sst_dsp_shim_read_unlocked(ctx, BXT_DSP_CLK_CTL);
+	reg &= ~mask;
+	sst_dsp_shim_write_unlocked(ctx, BXT_DSP_CLK_CTL, reg);
+}
+
 int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 {
 	int ret;
@@ -445,6 +493,10 @@ int bxt_set_dsp_D0(struct sst_dsp *ctx, unsigned int core_id)
 		goto err;
 
 	if (core_id == SKL_DSP_CORE0_ID) {
+
+		/* set all SSPs to slave mode */
+		bxt_set_ssp_slave(ctx);
+
 		dev_dbg(ctx->dev, "Enable Interrupts\n");
 		/* Enable interrupt after SPA is set and before DSP is unstalled */
 		skl_ipc_int_enable(ctx);
