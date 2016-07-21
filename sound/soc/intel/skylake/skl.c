@@ -977,11 +977,11 @@ static struct sst_machines sst_bxt_devdata[] = {
 };
 
 static struct sst_machines sst_bxtp_devdata[] = {
-	{ "INT343A", "bxt_alc298s_i2s", BXTP_NUM_I2S_PORTS },
-	/* Workaround: INT34C1 does not match with actual codec
+	/* Workaround: INT343A does not match with actual codec
 	used. This only server as an example for user to
 	follow */
-	{ "INT34C1", "lfcrb_dummy_i2s", BXTP_NUM_I2S_PORTS },
+	/* { "INT343A", "bxt_alc298s_i2s", BXTP_NUM_I2S_PORTS }, */
+	{ "INT343A", "lhcrb_dummy_i2s", BXTP_NUM_I2S_PORTS },
 	{ 0, 0, 0 }
 };
 
