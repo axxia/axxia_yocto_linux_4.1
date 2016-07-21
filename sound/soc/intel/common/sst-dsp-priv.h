@@ -356,6 +356,9 @@ struct sst_dsp {
 	/* DMA FW loading */
 	struct sst_dma *dma;
 	bool fw_use_dma;
+	/* cAVS I2S data */
+	u8 num_i2s_ports;
+
 
 	/* SKL data */
 

@@ -25,6 +25,7 @@
 #include <sound/hdaudio_ext.h>
 #include "skl-nhlt.h"
 #include "skl-tplg-interface.h"
+#include "skl-sst-dsp.h"
 
 #define SKL_SUSPEND_DELAY 2000
 
@@ -66,6 +67,13 @@ struct skl_dsp_resource {
 
 struct skl_debug;
 struct snd_soc_dapm_widget;
+
+struct dsp_init {
+	void __iomem *mmio_base;
+	int irq;
+	struct skl_dsp_loader_ops dsp_ops;
+	u8 num_ssp;
+};
 
 struct skl {
 	struct hdac_ext_bus ebus;
@@ -113,8 +121,8 @@ struct skl_dsp_ops {
 	int id;
 	struct skl_dsp_loader_ops (*loader_ops)(void);
 
-	int (*init_hw)(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops loader_ops, struct skl_sst **skl_sst);
+	int (*init_hw)(struct device *dev, struct skl_sst **skl_sst,
+		struct dsp_init *d);
 	int (*init_fw)(struct device *dev, struct skl_sst *ctx);
 	void (*cleanup)(struct device *dev, struct skl_sst *ctx);
 };
@@ -127,7 +135,7 @@ void skl_nhlt_free(struct nhlt_acpi_table *addr);
 struct nhlt_specific_cfg *skl_get_ep_blob(struct skl *skl, u32 instance,
 			u8 link_type, u8 s_fmt, u8 no_ch, u32 s_rate, u8 dirn);
 
-int skl_init_dsp_hw(struct skl *skl);
+int skl_init_dsp_hw(struct skl *skl, u32 num_ssp);
 int skl_init_dsp_fw(struct skl *skl);
 int skl_free_dsp(struct skl *skl);
 int skl_suspend_dsp(struct skl *skl);

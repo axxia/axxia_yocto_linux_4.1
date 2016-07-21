@@ -23,6 +23,7 @@
 #include "../common/sst-ipc.h"
 #include "skl-sst-ipc.h"
 #include "skl-fwlog.h"
+#include "skl.h"
 
 #define SKL_BASEFW_TIMEOUT	300
 #define SKL_INIT_TIMEOUT	1000
@@ -450,8 +451,7 @@ static struct sst_dsp_device skl_dev = {
 	.ops = &skl_ops,
 };
 
-int skl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
+int skl_sst_dsp_init_hw(struct device *dev, struct skl_sst **dsp, struct dsp_init *d)
 {
 	struct skl_sst *skl;
 	struct sst_dsp *sst;
@@ -465,7 +465,7 @@ int skl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 	skl->dev = dev;
 	skl_dev.thread_context = skl;
 
-	skl->dsp = skl_dsp_ctx_init(dev, &skl_dev, irq);
+	skl->dsp = skl_dsp_ctx_init(dev, &skl_dev, d->irq);
 	if (!skl->dsp) {
 		dev_err(skl->dev, "%s: no device\n", __func__);
 		return -ENODEV;
@@ -473,8 +473,8 @@ int skl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 
 	sst = skl->dsp;
 
-	sst->addr.lpe = mmio_base;
-	sst->addr.shim = mmio_base;
+	sst->addr.lpe = d->mmio_base;
+	sst->addr.shim = d->mmio_base;
 	sst_dsp_mailbox_init(sst, (SKL_ADSP_SRAM0_BASE + SKL_ADSP_W0_STAT_SZ),
 			SKL_ADSP_W0_UP_SZ, SKL_ADSP_SRAM1_BASE, SKL_ADSP_W1_SZ);
 
@@ -486,7 +486,7 @@ int skl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 	}
 
 	INIT_LIST_HEAD(&sst->module_list);
-	sst->dsp_ops = dsp_ops;
+	sst->dsp_ops = d->dsp_ops;
 	sst->fw_ops = skl_fw_ops;
 
 	ret = skl_ipc_init(dev, skl);
@@ -494,7 +494,7 @@ int skl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		return ret;
 
 	sst->core_info.cores = 2;
-
+	sst->num_i2s_ports = d->num_ssp;
 
 	if (dsp)
 		*dsp = skl;

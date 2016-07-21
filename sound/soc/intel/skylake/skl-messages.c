@@ -247,7 +247,7 @@ static int skl_get_dsp_ops(int pci_id)
 	return -EINVAL;
 }
 
-int skl_init_dsp_hw(struct skl *skl)
+int skl_init_dsp_hw(struct skl *skl, u32 num_ssp)
 {
 	void __iomem *mmio_base;
 	struct hdac_ext_bus *ebus = &skl->ebus;
@@ -255,6 +255,7 @@ int skl_init_dsp_hw(struct skl *skl)
 	struct skl_dsp_loader_ops loader_ops;
 	int irq = bus->irq;
 	int ret, index;
+	struct dsp_init *d;
 
 	/* enable ppcap interrupt */
 	snd_hdac_ext_bus_ppcap_enable(&skl->ebus, true);
@@ -275,8 +276,13 @@ int skl_init_dsp_hw(struct skl *skl)
 	}
 
 	loader_ops = dsp_ops[index].loader_ops();
-	ret = dsp_ops[index].init_hw(bus->dev, mmio_base, irq,
-		loader_ops, &skl->skl_sst);
+	d = kzalloc(sizeof(struct dsp_init), GFP_KERNEL);
+	d->mmio_base = mmio_base;
+	d->irq = irq;
+	d->dsp_ops = loader_ops;
+	d->num_ssp = num_ssp;
+	ret = dsp_ops[index].init_hw(bus->dev, &skl->skl_sst, d);
+	kfree(d);
 dsp_init_exit:
 	dev_dbg(bus->dev, "dsp registration status=%d\n", ret);
 

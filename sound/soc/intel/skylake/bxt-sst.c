@@ -31,6 +31,7 @@
 #include "skl-sst-ipc.h"
 #include "skl-tplg-interface.h"
 #include "skl-fwlog.h"
+#include "skl.h"
 
 #define FW_ROM_INIT_DONE                0x1
 
@@ -101,14 +102,13 @@ static struct sst_dsp_device skl_dev = {
 	.ops = &skl_ops,
 };
 
-int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
+int bxt_sst_dsp_init_hw(struct device *dev, struct skl_sst **dsp,
+			struct dsp_init *d)
 {
 	struct skl_sst *skl;
 	struct sst_dsp *sst;
 	u32 dsp_wp[] = {BXT_ADSP_WP_DSP0, BXT_ADSP_WP_DSP1};
 	int ret = 0;
-
 	dev_dbg(dev, "In %s\n", __func__);
 
 	skl = devm_kzalloc(dev, sizeof(*skl), GFP_KERNEL);
@@ -119,7 +119,7 @@ int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 	skl->dev = dev;
 	skl_dev.thread_context = skl;
 
-	skl->dsp = skl_dsp_ctx_init(dev, &skl_dev, irq);
+	skl->dsp = skl_dsp_ctx_init(dev, &skl_dev, d->irq);
 	if (!skl->dsp) {
 		dev_err(skl->dev, "%s: no device\n", __func__);
 		return -ENODEV;
@@ -127,10 +127,10 @@ int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 
 	sst = skl->dsp;
 
-	sst->dsp_ops = dsp_ops;
+	sst->dsp_ops = d->dsp_ops;
 	sst->fw_ops = bxt_fw_ops;
-	sst->addr.lpe = mmio_base;
-	sst->addr.shim = mmio_base;
+	sst->addr.lpe = d->mmio_base;
+	sst->addr.shim = d->mmio_base;
 	sst->addr.sram0_base = BXT_ADSP_SRAM0_BASE;
 	sst->addr.sram1_base = BXT_ADSP_SRAM1_BASE;
 	sst->addr.w0_stat_sz = BXT_ADSP_W0_STAT_SZ;
@@ -151,6 +151,7 @@ int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 		return ret;
 
 	sst->core_info.cores = 2;
+	sst->num_i2s_ports = d->num_ssp;
 
 	skl->boot_complete = false;
 	init_waitqueue_head(&skl->boot_wait);

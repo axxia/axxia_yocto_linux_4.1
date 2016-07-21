@@ -709,8 +709,8 @@ static int cnl_ipc_init(struct device *dev, struct skl_sst *cnl)
 	return 0;
 }
 
-int cnl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp)
+int cnl_sst_dsp_init_hw(struct device *dev, struct skl_sst **dsp,
+			struct dsp_init *d)
 {
 	struct skl_sst *cnl;
 	struct sst_dsp *sst;
@@ -725,7 +725,7 @@ int cnl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 	cnl->dev = dev;
 	cnl_dev.thread_context = cnl;
 
-	cnl->dsp = skl_dsp_ctx_init(dev, &cnl_dev, irq);
+	cnl->dsp = skl_dsp_ctx_init(dev, &cnl_dev, d->irq);
 	if (!cnl->dsp) {
 		dev_err(cnl->dev, "%s: no device\n", __func__);
 		return -ENODEV;
@@ -733,10 +733,10 @@ int cnl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
 
 	sst = cnl->dsp;
 
-	sst->dsp_ops = dsp_ops;
+	sst->dsp_ops = d->dsp_ops;
 	sst->fw_ops = cnl_fw_ops;
-	sst->addr.lpe = mmio_base;
-	sst->addr.shim = mmio_base;
+	sst->addr.lpe = d->mmio_base;
+	sst->addr.shim = d->mmio_base;
 	sst_dsp_mailbox_init(sst, (CNL_ADSP_SRAM0_BASE + CNL_ADSP_W0_STAT_SZ),
 			CNL_ADSP_W0_UP_SZ, CNL_ADSP_SRAM1_BASE, CNL_ADSP_W1_SZ);
 	ret = skl_dsp_init_trace_window(sst, dsp_wp, CNL_ADSP_SRAM2_BASE,

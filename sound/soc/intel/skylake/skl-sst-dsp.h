@@ -24,6 +24,7 @@
 struct sst_dsp;
 struct skl_sst;
 struct sst_dsp_device;
+struct dsp_init;
 
 /* Intel HD Audio General DSP Registers */
 #define SKL_ADSP_GEN_BASE		0x0
@@ -238,10 +239,10 @@ int skl_dsp_get_core(struct sst_dsp *ctx, unsigned int core_id);
 int skl_dsp_put_core(struct sst_dsp *ctx, unsigned int core_id);
 
 int skl_dsp_boot(struct sst_dsp *ctx);
-int skl_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
-int bxt_sst_dsp_init_hw(struct device *dev, void __iomem *mmio_base, int irq,
-		struct skl_dsp_loader_ops dsp_ops, struct skl_sst **dsp);
+int skl_sst_dsp_init_hw(struct device *dev, struct skl_sst **dsp,
+			struct dsp_init *d);
+int bxt_sst_dsp_init_hw(struct device *dev, struct skl_sst **dsp,
+			struct dsp_init *d);
 int skl_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx);
 int bxt_sst_dsp_init_fw(struct device *dev, struct skl_sst *ctx);
 void skl_sst_dsp_cleanup(struct device *dev, struct skl_sst *ctx);

@@ -46,10 +46,15 @@ static char *machine;
 module_param(machine, charp, 0444);
 MODULE_PARM_DESC(machine, "machine driver string for Intel soundcard.");
 
+#define SKL_NUM_I2S_PORTS	3
+#define BXT_NUM_I2S_PORTS	4
+#define BXTP_NUM_I2S_PORTS	6
+#define CNL_NUM_I2S_PORTS	3
 
 struct sst_machines {
 	char *codec_id;
 	char *machine;
+	unsigned int num_i2s_ports;
 };
 
 /*
@@ -488,8 +493,8 @@ static struct sst_machines *sst_acpi_find_machine(
 
 /* TODO fill codec acpi name */
 static struct sst_machines sst_cnl_devdata[] = {
-	{ "dummy", "cnl_florida" },
-	{ "dummy", "cnl_florida" },
+	{ "dummy", "cnl_florida", CNL_NUM_I2S_PORTS },
+	{ "dummy", "cnl_florida", CNL_NUM_I2S_PORTS },
 };
 
 static int skl_machine_device_register(struct skl *skl, void *driver_data)
@@ -797,6 +802,7 @@ static int skl_probe(struct pci_dev *pci,
 	const struct firmware *nhlt_fw = NULL;
 #endif
 	int err;
+	struct sst_machines *mch = (struct sst_machines *)(pci_id->driver_data);
 
 	/* we use ext core ops, so provide NULL for ops here */
 	err = skl_create(pci, NULL, &skl);
@@ -835,7 +841,7 @@ static int skl_probe(struct pci_dev *pci,
 
 	/* check if dsp is there */
 	if (ebus->ppcap) {
-		err = skl_init_dsp_hw(skl);
+		err = skl_init_dsp_hw(skl, mch->num_i2s_ports);
 		if (err) {
 			dev_err(bus->dev, "DSP HW Init failed\n");
 			goto out_free;
@@ -956,17 +962,17 @@ static void skl_remove(struct pci_dev *pci)
 }
 
 static struct sst_machines sst_skl_devdata[] = {
-	{ "INT343A", "skl_alc286s_i2s" },
-	{ "INT343B", "skl_nau88l25_ssm4567_i2s" },
+	{ "INT343A", "skl_alc286s_i2s", SKL_NUM_I2S_PORTS },
+	{ "INT343B", "skl_nau88l25_ssm4567_i2s", SKL_NUM_I2S_PORTS },
 };
 
 static struct sst_machines sst_bxt_devdata[] = {
-	{ "INT34C1", "mrgfld_florida" },
-	{ "INT34E0", "mrgfld_florida" },
+	{ "INT34C1", "mrgfld_florida", BXT_NUM_I2S_PORTS },
+	{ "INT34E0", "mrgfld_florida", BXT_NUM_I2S_PORTS },
 };
 
 static struct sst_machines sst_bxtp_devdata[] = {
-	{ "INT343A", "bxt_alc298s_i2s" },
+	{ "INT343A", "bxt_alc298s_i2s", BXTP_NUM_I2S_PORTS },
 };
 
 /* PCI IDs */
