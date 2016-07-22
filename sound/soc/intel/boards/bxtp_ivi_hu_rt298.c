@@ -93,7 +93,6 @@ static const struct snd_soc_dapm_route broxton_rt298_map[] = {
 
 static int bxtp_ssp0_gpio_init(struct snd_soc_pcm_runtime *rtd)
 {
-	int ret = 0;
 	char *gpio_addr;
 	u32 gpio_value1 = 0x40900500;
 	u32 gpio_value2 = 0x44000600;
@@ -236,9 +235,9 @@ static struct snd_soc_card broxton_rt298 = {
 
 static int broxton_audio_probe(struct platform_device *pdev)
 {
-	broxton_rt298.dev = &pdev->dev;
 	int ret_val;
 	struct bxtp_ivi_hu_prv *drv;
+	broxton_rt298.dev = &pdev->dev;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
 	if (!drv)

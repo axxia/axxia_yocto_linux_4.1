@@ -54,7 +54,6 @@ static const struct snd_soc_dapm_route broxton_rt298_map[] = {
 
 static int bxtp_ssp0_gpio_init(struct snd_soc_pcm_runtime *rtd)
 {
-	int ret = 0;
 	char *gpio_addr;
 	u32 gpio_value1 = 0x40900500;
 	u32 gpio_value2 = 0x44000600;
@@ -75,7 +74,6 @@ static int bxtp_ssp0_gpio_init(struct snd_soc_pcm_runtime *rtd)
 static int bxtp_ssp1_gpio_init(struct snd_soc_pcm_runtime *rtd)
 {
 
-	int ret = 0;
 	char *gpio_addr;
 	u32 gpio_value1 = 0x44000400;
 
@@ -95,7 +93,6 @@ static int bxtp_ssp1_gpio_init(struct snd_soc_pcm_runtime *rtd)
 static int bxtp_ssp4_gpio_init(struct snd_soc_pcm_runtime *rtd)
 {
 
-	int ret = 0;
 	char *gpio_addr;
 	u32 gpio_value1 = 0x44000A00;
 	u32 gpio_value2 = 0x44000800;
