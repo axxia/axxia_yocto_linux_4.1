@@ -2131,7 +2131,7 @@ const struct snd_soc_tplg_bytes_ext_ops skl_tlv_ops[] = {
 	{SKL_CONTROL_TYPE_BYTE_PROBE, skl_tplg_tlv_control_get,
 					skl_tplg_tlv_probe_set},
 	{SKL_CONTROL_TYPE_NOTIFICATION_LOG, skl_tplg_notification_log_get,
-					skl_tplg_notification_log_get},
+					skl_tplg_notification_log_put},
 };
 
 static const struct snd_soc_tplg_kcontrol_ops skl_tplg_kcontrol_ops[] = {
