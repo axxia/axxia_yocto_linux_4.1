@@ -2300,7 +2300,7 @@ S:	Supported
 F:	drivers/pinctrl/intel/pinctrl-apl-dev.c
 F:	include/linux/pinctrl/pinctrl-apl.h
 
-BROXTON PLATFORM TESTING
+BROXTON PLATFORM BOARD FILE
 M:	Yu, Ong Hock <ong.hock.yu@intel.com>
 S:	Supported
 F:	arch/x86/platform/bxt/*
