@@ -193,7 +193,41 @@ static struct snd_soc_dai_driver dummy_dai[] = {
                         .formats = STUB_FORMATS,
                 },
         },
+	{
+		.name = "snd-soc-dummy-dai4",
+		.playback = {
+			.stream_name    = "Dummy Playback4",
+			.channels_min   = 1,
+			.channels_max   = 384,
+			.rates          = STUB_RATES,
+			.formats        = STUB_FORMATS,
+		},
+		.capture = {
+			.stream_name    = "Dummy Capture4",
+			.channels_min   = 1,
+			.channels_max   = 384,
+			.rates = STUB_RATES,
+			.formats = STUB_FORMATS,
+		},
+	},
 
+	{
+		.name = "snd-soc-dummy-dai5",
+		.playback = {
+			.stream_name    = "Dummy Playback5",
+			.channels_min   = 1,
+			.channels_max   = 384,
+			.rates          = STUB_RATES,
+			.formats        = STUB_FORMATS,
+		},
+		.capture = {
+			.stream_name    = "Dummy Capture5",
+			.channels_min   = 1,
+			.channels_max   = 384,
+			.rates = STUB_RATES,
+			.formats = STUB_FORMATS,
+		},
+	},
 
 };
 int snd_soc_dai_is_dummy(struct snd_soc_dai *dai)
