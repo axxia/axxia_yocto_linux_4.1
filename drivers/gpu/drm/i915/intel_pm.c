@@ -5416,6 +5416,8 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 			   rc6_mask);
 	}
 
+	i915_guc_sample_forcewake(dev_priv);
+
 	/*
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
 	 * WaRsDisableCoarsePowerGating:skl,bxt - Render/Media PG need to be disabled with RC6.

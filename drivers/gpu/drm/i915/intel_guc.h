@@ -159,6 +159,7 @@ extern int intel_guc_resume(struct drm_device *dev);
 /* i915_guc_submission.c */
 int i915_guc_submission_init(struct drm_i915_private *dev_priv);
 int i915_guc_submission_enable(struct drm_i915_private *dev_priv);
+int i915_guc_sample_forcewake(struct drm_i915_private *dev_priv);
 int i915_guc_wq_reserve(struct drm_i915_gem_request *rq);
 void i915_guc_wq_unreserve(struct drm_i915_gem_request *request);
 void i915_guc_submission_disable(struct drm_i915_private *dev_priv);
