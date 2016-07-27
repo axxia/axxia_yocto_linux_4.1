@@ -137,5 +137,6 @@ int i915_guc_submit(struct i915_guc_client *client,
 void i915_guc_submission_disable(struct drm_device *dev);
 void i915_guc_submission_fini(struct drm_device *dev);
 int i915_guc_wq_check_space(struct i915_guc_client *client);
+int i915_guc_sample_forcewake(struct drm_device *dev);
 
 #endif

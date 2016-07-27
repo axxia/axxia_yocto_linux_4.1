@@ -218,11 +218,10 @@ static int host2guc_release_doorbell(struct intel_guc *guc,
 	return host2guc_action(guc, data, 2);
 }
 
-static int host2guc_sample_forcewake(struct intel_guc *guc,
-				     struct i915_guc_client *client)
+int i915_guc_sample_forcewake(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
-	struct drm_device *dev = dev_priv->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_guc *guc = &dev_priv->guc;
 	u32 data[2];
 
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
@@ -1039,8 +1038,6 @@ int i915_guc_submission_enable(struct drm_device *dev)
 	if (!client)
 		DRM_ERROR("Failed to create preemptive guc_client\n");
 	guc->preempt_client = client;
-
-	host2guc_sample_forcewake(guc, client);
 
 	return 0;
 }
