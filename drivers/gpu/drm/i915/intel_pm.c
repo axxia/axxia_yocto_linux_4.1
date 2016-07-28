@@ -59,6 +59,10 @@ static void bxt_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	/* WaEnableChickenDCPR:skl,bxt,kbl */
+	I915_WRITE(GEN8_CHICKEN_DCPR_1,
+		   I915_READ(GEN8_CHICKEN_DCPR_1) | MASK_WAKEMEM);
+
 	/* WaDisableSDEUnitClockGating:bxt */
 	I915_WRITE(GEN8_UCGCTL6, I915_READ(GEN8_UCGCTL6) |
 		   GEN8_SDEUNIT_CLOCK_GATE_DISABLE);
