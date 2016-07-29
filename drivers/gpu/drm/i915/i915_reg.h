@@ -1617,6 +1617,8 @@ enum skl_disp_power_wells {
 #define BB_PREEMPT_ADDR		_MMIO(0x02148)
 #define SBB_PREEMPT_ADDR	_MMIO(0x0213c)
 #define RS_PREEMPT_STATUS	_MMIO(0x0215c)
+#define PREEMPT_DEBUG(ring)	_MMIO((ring)->mmio_base+0x248)
+#define   PREEMPT_ON_ARB_CHK_ONLY	(1<<8)
 
 #define HSW_GTT_CACHE_EN	_MMIO(0x4024)
 #define   GTT_CACHE_EN_ALL	0xF0007FFF

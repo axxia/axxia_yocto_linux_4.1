@@ -947,7 +947,8 @@ int i915_scheduler_queue_execbuffer(struct i915_scheduler_queue_entry *qe)
 
 	want_preempt = node->priority >= scheduler->priority_level_preempt;
 
-	if (!i915.enable_preemption)
+	/* Pre-emption is disabled if the level control is set to 0 */
+	if (i915.preemption_level == 0)
 		want_preempt = false;
 
 	/* Pre-emption is not yet implemented in non-execlist mode */

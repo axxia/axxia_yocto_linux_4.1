@@ -62,7 +62,7 @@ struct i915_params i915 __read_mostly = {
 	.hpd_sense_invert = -1,
 	.enable_ipc = 0,
 	.enable_scheduler = 1,
-	.enable_preemption = 1,
+	.preemption_level = -1,
 	.enable_dpcd_backlight = false,
 	.enable_initial_modeset = false,
 };
@@ -234,8 +234,9 @@ MODULE_PARM_DESC(enable_ipc,
 module_param_named_unsafe(enable_scheduler, i915.enable_scheduler, int, 0600);
 MODULE_PARM_DESC(enable_scheduler, "Enable scheduler (0 = disable, 1 = enable [default])");
 
-module_param_named_unsafe(enable_preemption, i915.enable_preemption, int, 0600);
-MODULE_PARM_DESC(enable_preemption, "Enable pre-emption within scheduler  (0 = disable, 1 = enable [default])");
+module_param_named_unsafe(preemption_level, i915.preemption_level, int, 0600);
+MODULE_PARM_DESC(preemption_level, "Pre-emption level control (-1 = platform default [default], 0 = disable, 1 = between batch only, 2 = co-operative mid-batch, 3 = more)");
+
 module_param_named(enable_dpcd_backlight, i915.enable_dpcd_backlight, bool, 0600);
 MODULE_PARM_DESC(enable_dpcd_backlight,
 	"Enable support for DPCD backlight control (default:false)");

@@ -1318,6 +1318,169 @@ gen8_emit_pipe_control_qw_store_index(struct drm_i915_gem_request *request,
 }
 
 /*
+ * Selects which preemption control bits to use.
+ * Unset: use 0x20e4 and 0x20ec (non-ctx)
+ * Set: use 0x2580 (per-ctx, whitelisted)
+ */
+#define GEN7_FF_SLICE_CS_CHICKEN1		_MMIO(0x20e0)
+#define   GEN9_FFSC_PERCTX_PREEMPT_CTRL		(1<<14)
+
+#define FF_SLICE_CS_CHICKEN2			_MMIO(0x20e4)
+/* FF_SLICE_CS_CHICKEN2 and GEN8_CS_CHICKEN1 */
+#define	  MID_THREAD_PREEMPTION			(0<<1)
+#define	  THREAD_GROUP_PREEMPTION		(1<<1)
+#define	  COMMAND_LEVEL_PREEMPTION		(2<<1)
+#define	  PREEMPTION_LEVEL_MASK			(3<<1)
+
+#define GEN9_CS_DEBUG_MODE			_MMIO(0x20ec)
+/* GEN9_CS_DEBUG_MODE and GEN8_CS_CHICKEN1 */
+#define	  GEN9_GFX_REPLAY_MODE			(1<<0)
+#define	  GEN10_DISABLE_GPGPU_WALKER_PREEMPTION	(1<<15)
+
+/* Whitelisted user-writable preemption control register */
+#define GEN8_CS_CHICKEN1			_MMIO(0x2580)
+
+static void
+emit_preemption_control(struct drm_i915_gem_request *req)
+{
+	struct intel_ringbuffer *ringbuf = req->ringbuf;
+	int preemption_level = i915.preemption_level;
+	u32 allow_user_control = false;
+	u32 allow_mid_object = false;
+	u32 allow_mid_walker = false;
+	u32 mid_thread_mode = 0;
+	u32 data;
+
+	/* Preemption is always disabled while preempting */
+	if (req->scheduler_flags & I915_REQ_SF_PREEMPT) {
+		data = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+		intel_logical_ring_emit(ringbuf, data);
+		intel_logical_ring_emit(ringbuf, MI_NOOP);
+		return;
+	}
+
+	/* At level 0, no preemption will be attempted */
+	if (preemption_level == 0)
+		return;
+
+	/* All other levels check for preemption before starting the batch */
+	intel_logical_ring_emit(ringbuf, MI_ARB_ON_OFF | MI_ARB_ENABLE);
+	intel_logical_ring_emit(ringbuf, MI_ARB_CHECK);
+
+	/* Non-render rings support between-batch only, for now */
+	if (req->engine->id != RCS)
+		preemption_level = 1;
+	else if (preemption_level < 0)
+		preemption_level = 3;	/* Current safe default	*/
+
+	switch (preemption_level) {
+	case 1:
+		/*
+		 * Between-batch preemption only - no mid-batch allowed.
+		 *
+		 * XXX: use preemption disable bit in debug register instead
+		 * to avoid collision with ARB_OFF/ARB_ON in workaround batch?
+		 */
+		data = MI_ARB_ON_OFF | MI_ARB_DISABLE;
+		intel_logical_ring_emit(ringbuf, data);
+		intel_logical_ring_emit(ringbuf, MI_NOOP);
+		return;
+
+	case 2:
+		/*
+		 * Co-operative mid-batch only. This register is not saved
+		 * with the context and so must be reprogrammed each time.
+		 *
+		 * XXX: need to fix up in workaround batch?
+		 */
+		data = _MASKED_BIT_ENABLE(PREEMPT_ON_ARB_CHK_ONLY);
+		intel_logical_ring_emit(ringbuf, MI_NOOP);
+		intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(1));
+		intel_logical_ring_emit_reg(ringbuf, PREEMPT_DEBUG(req->engine));
+		intel_logical_ring_emit(ringbuf, data);
+		return;
+
+	case 3:
+		/* Mid-batch preemption allowed, but not thread-level */
+		mid_thread_mode = _MASKED_FIELD(PREEMPTION_LEVEL_MASK, COMMAND_LEVEL_PREEMPTION);
+		break;
+	case 4:
+		/* Thread-group preemption allowed, but not mid-thread */
+		mid_thread_mode = _MASKED_FIELD(PREEMPTION_LEVEL_MASK, THREAD_GROUP_PREEMPTION);
+		break;
+	case 5:
+		/* Thread-group preemption allowed, also mid-object */
+		mid_thread_mode = _MASKED_FIELD(PREEMPTION_LEVEL_MASK, THREAD_GROUP_PREEMPTION);
+		allow_mid_object = true;
+		break;
+	case 6:
+		/* Thread-group and mid-object preemption allowed; user can override */
+		mid_thread_mode = _MASKED_FIELD(PREEMPTION_LEVEL_MASK, THREAD_GROUP_PREEMPTION);
+		allow_mid_object = true;
+		allow_user_control = true;
+		break;
+	case 7:
+		/* Mid-thread and mid-object preemption allowed; user can override */
+		mid_thread_mode = _MASKED_FIELD(PREEMPTION_LEVEL_MASK, MID_THREAD_PREEMPTION);
+		allow_mid_object = true;
+		allow_user_control = true;
+		break;
+	case 8:
+		/* Mid-thread and mid-walker and mid-object preemption allowed; user can override */
+		mid_thread_mode = _MASKED_FIELD(PREEMPTION_LEVEL_MASK, MID_THREAD_PREEMPTION);
+		allow_mid_walker = true;
+		allow_mid_object = true;
+		allow_user_control = true;
+		break;
+
+	case 9:
+		/* XXX: any further levels of preemption? */
+	default:
+		/* Default is the maximum level permitted by the hardware */
+		return;
+	}
+
+	/*
+	 * If GEN9_FFSC_PERCTX_PREEMPT_CTRL is disabled, the values in
+	 * GEN9_CS_DEBUG_MODE and FF_SLICE_CS_CHICKEN2 will be used in
+	 * preference to those in GEN8_CS_CHICKEN1, so the user batch
+	 * cannot override them. Enabling GEN9_FFSC_PERCTX_PREEMPT_CTRL
+	 * causes the values in GEN8_CS_CHICKEN1 to be used instead;
+	 * this register has been whitelisted, so the user batch can
+	 * override the levels we set here; in particular, it can ENABLE
+	 * mid-thread preemption. We don't offer that option here as it
+	 * must only be set for GPGPU workloads, not MEDIA
+	 */
+	if (allow_user_control)
+		allow_user_control = _MASKED_BIT_ENABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL);
+	else
+		allow_user_control = _MASKED_BIT_DISABLE(GEN9_FFSC_PERCTX_PREEMPT_CTRL);
+	if (allow_mid_object)
+		allow_mid_object = _MASKED_BIT_ENABLE(GEN9_GFX_REPLAY_MODE);
+	else
+		allow_mid_object = _MASKED_BIT_DISABLE(GEN9_GFX_REPLAY_MODE);
+	/*
+	 * This option to disable preemption between or within GPGPU_WALKER
+	 * commands applies to Gen10 only. For Gen9 it will be ignored.
+	 */
+	if (allow_mid_walker)
+		allow_mid_object |= _MASKED_BIT_DISABLE(GEN10_DISABLE_GPGPU_WALKER_PREEMPTION);
+	else
+		allow_mid_object |= _MASKED_BIT_ENABLE(GEN10_DISABLE_GPGPU_WALKER_PREEMPTION);
+
+	intel_logical_ring_emit(ringbuf, MI_LOAD_REGISTER_IMM(4));
+	intel_logical_ring_emit_reg(ringbuf, GEN7_FF_SLICE_CS_CHICKEN1);
+	intel_logical_ring_emit(ringbuf, allow_user_control);
+	intel_logical_ring_emit_reg(ringbuf, GEN9_CS_DEBUG_MODE);
+	intel_logical_ring_emit(ringbuf, allow_mid_object);
+	intel_logical_ring_emit_reg(ringbuf, FF_SLICE_CS_CHICKEN2);
+	intel_logical_ring_emit(ringbuf, mid_thread_mode);
+	intel_logical_ring_emit_reg(ringbuf, GEN8_CS_CHICKEN1);
+	intel_logical_ring_emit(ringbuf, mid_thread_mode | allow_mid_object);
+	intel_logical_ring_emit(ringbuf, MI_NOOP);
+}
+
+/*
  * Emit the commands to execute when preparing to start a batch
  *
  * The GPU will log the seqno of the batch before it starts
@@ -1444,8 +1607,9 @@ int intel_execlists_submission_final(struct i915_execbuffer_params *params)
 	req->head = intel_ring_get_tail(ringbuf);
 
 	/*
-	 * Log the seqno of the batch we're starting
+	 * Emit the preemption control and preamble for the batch
 	 */
+	emit_preemption_control(req);
 	emit_preamble(req);
 
 	/*
@@ -2488,6 +2652,10 @@ static int gen8_emit_request(struct drm_i915_gem_request *request)
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
 
+	/* Always check for preemption after finishing the request */
+	intel_logical_ring_emit(ringbuf, MI_ARB_ON_OFF | MI_ARB_ENABLE);
+	intel_logical_ring_emit(ringbuf, MI_ARB_CHECK);
+
 	return intel_logical_ring_advance_and_submit(request);
 }
 
@@ -2547,6 +2715,10 @@ static int gen8_emit_request_render(struct drm_i915_gem_request *request)
 
 	intel_logical_ring_emit(ringbuf, MI_USER_INTERRUPT);
 	intel_logical_ring_emit(ringbuf, MI_NOOP);
+
+	/* Always check for preemption after finishing the request */
+	intel_logical_ring_emit(ringbuf, MI_ARB_ON_OFF | MI_ARB_ENABLE);
+	intel_logical_ring_emit(ringbuf, MI_ARB_CHECK);
 
 	return intel_logical_ring_advance_and_submit(request);
 }
