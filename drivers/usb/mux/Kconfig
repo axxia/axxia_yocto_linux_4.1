@@ -1,0 +1,30 @@
+#
+# USB port mux driver configuration
+#
+
+menu "USB Port MUX drivers"
+config USB_PORTMUX
+	select EXTCON
+	def_bool n
+	help
+	  Generic USB dual role port mux support.
+
+config INTEL_MUX_GPIO
+	tristate "Intel dual role port mux controlled by GPIOs"
+	depends on GPIOLIB
+	depends on REGULATOR
+	depends on X86 && ACPI
+	select USB_PORTMUX
+	help
+	  Say Y here to enable support for Intel dual role port mux
+	  controlled by GPIOs.
+
+config INTEL_MUX_DRCFG
+	tristate "Intel dual role port mux controlled by register"
+	depends on X86
+	select USB_PORTMUX
+	help
+	  Say Y here to enable support for Intel dual role port mux
+	  controlled by the Dual Role Configuration Register.
+
+endmenu

@@ -24,6 +24,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
+#include <linux/acpi.h>
 
 #define USB_GPIO_DEBOUNCE_MS	20	/* ms */
 
@@ -89,7 +90,7 @@ static int usb_extcon_probe(struct platform_device *pdev)
 	struct usb_extcon_info *info;
 	int ret;
 
-	if (!np)
+	if (!np && !ACPI_HANDLE(dev))
 		return -EINVAL;
 
 	info = devm_kzalloc(&pdev->dev, sizeof(*info), GFP_KERNEL);
@@ -204,6 +205,12 @@ static const struct of_device_id usb_extcon_dt_match[] = {
 };
 MODULE_DEVICE_TABLE(of, usb_extcon_dt_match);
 
+static const struct platform_device_id usb_extcon_platform_ids[] = {
+	{ .name = "extcon-usb-gpio", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(platform, usb_extcon_platform_ids);
+
 static struct platform_driver usb_extcon_driver = {
 	.probe		= usb_extcon_probe,
 	.remove		= usb_extcon_remove,
@@ -212,6 +219,7 @@ static struct platform_driver usb_extcon_driver = {
 		.pm	= &usb_extcon_pm_ops,
 		.of_match_table = usb_extcon_dt_match,
 	},
+	.id_table = usb_extcon_platform_ids,
 };
 
 module_platform_driver(usb_extcon_driver);
