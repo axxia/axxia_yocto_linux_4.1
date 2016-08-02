@@ -557,6 +557,7 @@ static int cnl_load_library(struct sst_dsp *ctx)
 
 		ctx->dsp_ops.trigger(ctx->dev, false, stream_tag);
 		ctx->dsp_ops.cleanup(ctx->dev, &dmab, stream_tag);
+		release_firmware(fw);
 	}
 
 	return 0;
