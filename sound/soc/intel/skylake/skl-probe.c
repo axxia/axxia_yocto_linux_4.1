@@ -102,8 +102,10 @@ int skl_probe_compr_open(struct snd_compr_stream *substream,
 		pconfig->estream = hdac_ext_host_stream_compr_assign(ebus,
 								substream,
 							SND_COMPRESS_CAPTURE);
-		if (!pconfig->estream)
+		if (!pconfig->estream) {
+			dev_err(dai->dev, "Failed to assign extractor stream\n");
 			return -EINVAL;
+		}
 
 		pconfig->edma_id = hdac_stream(pconfig->estream)->stream_tag - 1;
 	}
@@ -111,17 +113,20 @@ int skl_probe_compr_open(struct snd_compr_stream *substream,
 	if (substream->direction == SND_COMPRESS_PLAYBACK) {
 		stream = hdac_ext_host_stream_compr_assign(ebus, substream,
 							SND_COMPRESS_PLAYBACK);
+		if (stream == NULL) {
+			if ((pconfig->i_refc + pconfig->e_refc) == 0)
+				snd_hdac_ext_stream_release(pconfig->estream,
+						HDAC_EXT_STREAM_TYPE_HOST);
+
+			dev_err(dai->dev, "Failed to assign injector stream\n");
+			return -EBUSY;
+		}
 		set_injector_stream(stream, dai);
 		runtime->private_data = stream;
 
 	} else if (substream->direction == SND_COMPRESS_CAPTURE) {
 		stream = pconfig->estream;
 		runtime->private_data = pconfig->estream;
-	}
-
-	if (stream == NULL) {
-		dev_err(dai->dev, "stream = NULL\n");
-		return -EBUSY;
 	}
 
 	hdac_stream(stream)->curr_pos = 0;
@@ -247,6 +252,16 @@ probe_uninit:
 		ret = skl_uninit_probe_module(skl->skl_sst, pconfig->w->priv);
 		if (ret < 0)
 			return ret;
+
+		/*
+		 * Extractor DMA is assigned in compr_open for the first probe stream
+		 * irrespective of whether it is injector or extractor.
+		 * So DMA release for extractor should be done in the case where
+		 * a injector probe alone was started and stopped without
+		 * starting any extractor.
+		 */
+		if (substream->direction == SND_COMPRESS_PLAYBACK)
+			snd_hdac_ext_stream_release(pconfig->estream, HDAC_EXT_STREAM_TYPE_HOST);
 	}
 
 	snd_hdac_stream_cleanup(hdac_stream(stream));
@@ -254,6 +269,7 @@ probe_uninit:
 
 	skl_substream_free_compr_pages(ebus_to_hbus(ebus), substream);
 
+	/* Release the particular injector/extractor stream getting closed */
 	snd_hdac_ext_stream_release(stream, HDAC_EXT_STREAM_TYPE_HOST);
 
 	return 0;
