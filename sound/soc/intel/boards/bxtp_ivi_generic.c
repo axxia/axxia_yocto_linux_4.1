@@ -39,9 +39,17 @@
 static const struct snd_soc_dapm_widget broxton_widgets[] = {
 	SND_SOC_DAPM_HP("Headphone Jack", NULL),
 	SND_SOC_DAPM_SPK("Speaker", NULL),
+	SND_SOC_DAPM_SPK("Speaker1", NULL),
 	SND_SOC_DAPM_SPK("Speaker2", NULL),
 	SND_SOC_DAPM_SPK("Speaker3", NULL),
+	SND_SOC_DAPM_SPK("Speaker4", NULL),
+	SND_SOC_DAPM_SPK("Speaker5", NULL),
 	SND_SOC_DAPM_MIC("DMIC2", NULL),
+	SND_SOC_DAPM_MIC("DMIC3", NULL),
+	SND_SOC_DAPM_MIC("DMIC4", NULL),
+	SND_SOC_DAPM_MIC("DMIC5", NULL),
+	SND_SOC_DAPM_MIC("DMIC6", NULL),
+	SND_SOC_DAPM_MIC("DMIC7", NULL),
 };
 
 static const struct snd_soc_dapm_route broxton_rt298_map[] = {
