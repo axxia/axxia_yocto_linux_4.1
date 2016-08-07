@@ -5162,6 +5162,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux.git
 S:	Supported
 F:	drivers/idle/intel_idle.c
 
+INTEL INTEGRATED SENSOR HUB DRIVER
+M:	Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
+M:	Jiri Kosina <jikos@kernel.org>
+L:	linux-input@vger.kernel.org
+S:	Maintained
+F:	drivers/hid/intel-ish-hid/
+
 INTEL PSTATE DRIVER
 M:	Kristen Carlson Accardi <kristen@linux.intel.com>
 L:	linux-pm@vger.kernel.org
