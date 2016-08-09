@@ -99,8 +99,18 @@ int skl_probe_compr_open(struct snd_compr_stream *substream,
 	if ((pconfig->i_refc + pconfig->e_refc) == 0) {
 		pconfig->edma_buffsize = SKL_EXTRACT_PROBE_DMA_BUFF_SIZE;
 		pconfig->edma_type = SKL_DMA_HDA_HOST_INPUT_CLASS;
+		/*
+		 * Extractor DMA is to be assigned when the first probe
+		 * stream(irrespective of whether it is injector or extractor)
+		 * is opened. But if the first probe stream is injector, we
+		 * get injector's substream pointer and we do not have the
+		 * right substream pointer for extractor. So, pass NULL for
+		 * substream while assigning the DMA for extractor and set the
+		 * correct substream pointer later when open is indeed for
+		 * extractor.
+		 */
 		pconfig->estream = hdac_ext_host_stream_compr_assign(ebus,
-								substream,
+								NULL,
 							SND_COMPRESS_CAPTURE);
 		if (!pconfig->estream) {
 			dev_err(dai->dev, "Failed to assign extractor stream\n");
@@ -108,6 +118,7 @@ int skl_probe_compr_open(struct snd_compr_stream *substream,
 		}
 
 		pconfig->edma_id = hdac_stream(pconfig->estream)->stream_tag - 1;
+		snd_hdac_stream_reset(hdac_stream(pconfig->estream));
 	}
 
 	if (substream->direction == SND_COMPRESS_PLAYBACK) {
@@ -123,10 +134,16 @@ int skl_probe_compr_open(struct snd_compr_stream *substream,
 		}
 		set_injector_stream(stream, dai);
 		runtime->private_data = stream;
+		snd_hdac_stream_reset(hdac_stream(stream));
 
 	} else if (substream->direction == SND_COMPRESS_CAPTURE) {
 		stream = pconfig->estream;
 		runtime->private_data = pconfig->estream;
+		/*
+		 * Open is indeed for extractor. So, set the correct substream
+		 * pointer now.
+		 */
+		stream->hstream.stream = substream;
 	}
 
 	hdac_stream(stream)->curr_pos = 0;
@@ -165,7 +182,6 @@ int skl_probe_compr_set_params(struct snd_compr_stream *substream,
 	dma_id = hdac_stream(stream)->stream_tag - 1;
 	dev_dbg(dai->dev, "dma_id=%d\n", dma_id);
 
-	snd_hdac_stream_reset(hdac_stream(stream));
 
 	err = snd_hdac_stream_set_params(hdac_stream(stream), format_val);
 	if (err < 0)
