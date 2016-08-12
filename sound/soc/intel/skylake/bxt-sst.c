@@ -119,6 +119,7 @@ int bxt_sst_dsp_init_hw(struct device *dev, struct skl_sst **dsp,
 	struct sst_dsp *sst;
 	u32 dsp_wp[] = {BXT_ADSP_WP_DSP0, BXT_ADSP_WP_DSP1};
 	int ret = 0;
+
 	dev_dbg(dev, "In %s\n", __func__);
 
 	skl = devm_kzalloc(dev, sizeof(*skl), GFP_KERNEL);
