@@ -237,6 +237,7 @@ static int broxton_audio_probe(struct platform_device *pdev)
 {
 	int ret_val;
 	struct bxtp_ivi_hu_prv *drv;
+
 	broxton_rt298.dev = &pdev->dev;
 
 	drv = devm_kzalloc(&pdev->dev, sizeof(*drv), GFP_KERNEL);
