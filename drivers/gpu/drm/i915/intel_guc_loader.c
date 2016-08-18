@@ -491,7 +491,7 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		direct_interrupts_to_guc(dev_priv);
 	}
 
-	dev_priv->profile.guc_load = sched_clock() - start;
+	dev_priv->profile.guc_huc_load = sched_clock() - start;
 	return 0;
 
 fail:

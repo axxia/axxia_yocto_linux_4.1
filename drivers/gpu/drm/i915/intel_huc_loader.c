@@ -150,6 +150,7 @@ void intel_huc_init(struct drm_device *dev)
 	struct intel_huc *huc = &dev_priv->huc;
 	struct intel_uc_fw *huc_fw = &huc->huc_fw;
 	const char *fw_path = NULL;
+	unsigned long long start = sched_clock();
 
 	huc_fw->uc_dev = dev;
 	huc_fw->uc_fw_path = NULL;
@@ -179,6 +180,7 @@ void intel_huc_init(struct drm_device *dev)
 	DRM_DEBUG_DRIVER("HuC firmware pending, path %s\n", fw_path);
 
 	intel_uc_fw_fetch(dev, huc_fw);
+	dev_priv->profile.huc_init = sched_clock() - start;
 }
 
 /**
