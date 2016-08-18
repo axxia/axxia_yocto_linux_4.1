@@ -98,6 +98,9 @@ enum intel_uc_fw_status {
 	UC_FIRMWARE_SUCCESS
 };
 
+#define UC_FW_TYPE_GUC		0
+#define UC_FW_TYPE_HUC		1
+
 /*
  * This structure encapsulates all the data needed during the process
  * of fetching, caching, and loading the firmware image.
@@ -115,6 +118,7 @@ struct intel_uc_fw {
 	uint16_t			major_ver_found;
 	uint16_t			minor_ver_found;
 
+	uint32_t fw_type;
 	uint32_t header_size;
 	uint32_t header_offset;
 	uint32_t rsa_size;

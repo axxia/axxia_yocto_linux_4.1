@@ -588,7 +588,7 @@ void intel_uc_fw_fetch(struct drm_device *dev, struct intel_uc_fw *uc_fw)
 	struct pci_dev *pdev = dev->pdev;
 	struct drm_i915_gem_object *obj;
 	const struct firmware *fw;
-	struct guc_css_header *css;
+	struct uc_css_header *css;
 	size_t size;
 	int err;
 
@@ -605,19 +605,19 @@ void intel_uc_fw_fetch(struct drm_device *dev, struct intel_uc_fw *uc_fw)
 		uc_fw->uc_fw_path, fw);
 
 	/* Check the size of the blob before examining buffer contents */
-	if (fw->size < sizeof(struct guc_css_header)) {
+	if (fw->size < sizeof(struct uc_css_header)) {
 		DRM_NOTE("Firmware header is missing\n");
 		goto fail;
 	}
 
-	css = (struct guc_css_header *)fw->data;
+	css = (struct uc_css_header *)fw->data;
 
 	/* Firmware bits always start from header */
 	uc_fw->header_offset = 0;
 	uc_fw->header_size = (css->header_size_dw - css->modulus_size_dw -
 		css->key_size_dw - css->exponent_size_dw) * sizeof(u32);
 
-	if (uc_fw->header_size != sizeof(struct guc_css_header)) {
+	if (uc_fw->header_size != sizeof(struct uc_css_header)) {
 		DRM_NOTE("CSS header definition mismatch\n");
 		goto fail;
 	}
@@ -641,21 +641,35 @@ void intel_uc_fw_fetch(struct drm_device *dev, struct intel_uc_fw *uc_fw)
 		goto fail;
 	}
 
-	/* Header and uCode will be loaded to WOPCM. Size of the two. */
-	size = uc_fw->header_size + uc_fw->ucode_size;
-	if (size > guc_wopcm_size(to_i915(dev))) {
-		DRM_NOTE("Firmware is too large to fit in WOPCM\n");
-		goto fail;
-	}
-
 	/*
-	 * The GuC firmware image has the version number embedded at a well-known
+	 * The firmware image has the version number embedded at a well-known
 	 * offset within the firmware blob; note that major / minor version are
 	 * TWO bytes each (i.e. u16), although all pointers and offsets are defined
 	 * in terms of bytes (u8).
 	 */
-	uc_fw->major_ver_found = css->guc_sw_version >> 16;
-	uc_fw->minor_ver_found = css->guc_sw_version & 0xFFFF;
+	switch (uc_fw->fw_type) {
+	case UC_FW_TYPE_GUC:
+		/* Header and uCode will be loaded to WOPCM. Size of the two. */
+		size = uc_fw->header_size + uc_fw->ucode_size;
+
+		/* Top 32k of WOPCM is reserved (8K stack + 24k RC6 context). */
+		if (size > GUC_WOPCM_TOP - 0x8000) {
+			DRM_NOTE("Firmware is too large to fit in WOPCM\n");
+			goto fail;
+		}
+
+		uc_fw->major_ver_found = css->guc_sw_version >> 16;
+		uc_fw->minor_ver_found = css->guc_sw_version & 0xFFFF;
+		break;
+	case UC_FW_TYPE_HUC:
+		uc_fw->major_ver_found = css->huc_sw_version >> 16;
+		uc_fw->minor_ver_found = css->huc_sw_version & 0xFFFF;
+		break;
+	default:
+		DRM_ERROR("Unknown firmware type %d\n", uc_fw->fw_type);
+		err = -ENOEXEC;
+		goto fail;
+	}
 
 	if (uc_fw->major_ver_found != uc_fw->major_ver_wanted ||
 	    uc_fw->minor_ver_found < uc_fw->minor_ver_wanted) {
