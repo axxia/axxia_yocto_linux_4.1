@@ -305,7 +305,8 @@ static int guc_ucode_xfer_dma(struct drm_i915_private *dev_priv,
 	I915_WRITE(DMA_ADDR_1_HIGH, DMA_ADDRESS_SPACE_WOPCM);
 
 	/* Finally start the DMA */
-	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA));
+	I915_WRITE(DMA_CTRL, _MASKED_BIT_ENABLE(UOS_MOVE | START_DMA) |
+			_MASKED_BIT_DISABLE(HUC_UKERNEL));
 
 	/*
 	 * Wait for the DMA to complete & the GuC to start up.
@@ -510,6 +511,7 @@ int intel_guc_setup(struct drm_device *dev)
 		if (err)
 			goto fail;
 
+		intel_huc_load(dev);
 		err = guc_ucode_xfer(dev_priv);
 		if (!err)
 			break;
