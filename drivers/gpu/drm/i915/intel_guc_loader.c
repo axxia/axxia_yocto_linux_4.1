@@ -479,6 +479,8 @@ int intel_guc_ucode_load(struct drm_device *dev)
 		intel_uc_fw_status_repr(guc_fw->fetch_status),
 		intel_uc_fw_status_repr(guc_fw->load_status));
 
+	intel_huc_auth(dev);
+
 	if (i915.enable_guc_submission) {
 		/* The execbuf_client will be recreated. Release it first. */
 		i915_guc_submission_disable(dev);
