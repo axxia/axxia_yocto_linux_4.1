@@ -91,29 +91,29 @@ struct i915_guc_client {
 	uint64_t submissions[I915_NUM_ENGINES];
 };
 
-enum intel_guc_fw_status {
-	GUC_FIRMWARE_FAIL = -1,
-	GUC_FIRMWARE_NONE = 0,
-	GUC_FIRMWARE_PENDING,
-	GUC_FIRMWARE_SUCCESS
+enum intel_uc_fw_status {
+	UC_FIRMWARE_FAIL = -1,
+	UC_FIRMWARE_NONE = 0,
+	UC_FIRMWARE_PENDING,
+	UC_FIRMWARE_SUCCESS
 };
 
 /*
  * This structure encapsulates all the data needed during the process
- * of fetching, caching, and loading the firmware image into the GuC.
+ * of fetching, caching, and loading the firmware image.
  */
-struct intel_guc_fw {
-	struct drm_device *		guc_dev;
-	const char *			guc_fw_path;
-	size_t				guc_fw_size;
-	struct drm_i915_gem_object *	guc_fw_obj;
-	enum intel_guc_fw_status	guc_fw_fetch_status;
-	enum intel_guc_fw_status	guc_fw_load_status;
+struct intel_uc_fw {
+	struct drm_device *		uc_dev;
+	const char *			uc_fw_path;
+	size_t				uc_fw_size;
+	struct drm_i915_gem_object *	uc_fw_obj;
+	enum intel_uc_fw_status		fetch_status;
+	enum intel_uc_fw_status		load_status;
 
-	uint16_t			guc_fw_major_wanted;
-	uint16_t			guc_fw_minor_wanted;
-	uint16_t			guc_fw_major_found;
-	uint16_t			guc_fw_minor_found;
+	uint16_t			major_ver_wanted;
+	uint16_t			minor_ver_wanted;
+	uint16_t			major_ver_found;
+	uint16_t			minor_ver_found;
 
 	uint32_t header_size;
 	uint32_t header_offset;
@@ -124,7 +124,7 @@ struct intel_guc_fw {
 };
 
 struct intel_guc {
-	struct intel_guc_fw guc_fw;
+	struct intel_uc_fw guc_fw;
 	uint32_t log_flags;
 	struct i915_vma *log_vma;
 
@@ -152,9 +152,10 @@ struct intel_guc {
 extern void intel_guc_init(struct drm_device *dev);
 extern int intel_guc_setup(struct drm_device *dev);
 extern void intel_guc_fini(struct drm_device *dev);
-extern const char *intel_guc_fw_status_repr(enum intel_guc_fw_status status);
+extern const char *intel_uc_fw_status_repr(enum intel_uc_fw_status status);
 extern int intel_guc_suspend(struct drm_device *dev);
 extern int intel_guc_resume(struct drm_device *dev);
+void intel_uc_fw_fetch(struct drm_device *dev, struct intel_uc_fw *uc_fw);
 
 /* i915_guc_submission.c */
 int i915_guc_submission_init(struct drm_i915_private *dev_priv);
