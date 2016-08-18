@@ -363,19 +363,19 @@ static void i915_ring_error_state(struct drm_i915_error_state_buf *m,
 
 static void i915_guc_firmware_info(struct drm_i915_error_state_buf *m,
 				   struct drm_i915_private *dev_priv,
-				   struct intel_guc_fw *guc_fw)
+				   struct intel_uc_fw *guc_fw)
 {
 	err_printf(m, "GuC firmware status:\n");
 	err_printf(m, "\tpath: %s\n",
-		guc_fw->guc_fw_path);
+		guc_fw->uc_fw_path);
 	err_printf(m, "\tfetch: %s\n",
-		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status));
+		intel_uc_fw_status_repr(guc_fw->fetch_status));
 	err_printf(m, "\tload: %s\n",
-		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
+		intel_uc_fw_status_repr(guc_fw->load_status));
 	err_printf(m, "\tversion wanted: %d.%d\n",
-		guc_fw->guc_fw_major_wanted, guc_fw->guc_fw_minor_wanted);
+		guc_fw->major_ver_wanted, guc_fw->minor_ver_wanted);
 	err_printf(m, "\tversion found: %d.%d\n",
-		guc_fw->guc_fw_major_found, guc_fw->guc_fw_minor_found);
+		guc_fw->major_ver_found, guc_fw->minor_ver_found);
 }
 
 static void i915_guc_action_info(struct drm_i915_error_state_buf *m,
