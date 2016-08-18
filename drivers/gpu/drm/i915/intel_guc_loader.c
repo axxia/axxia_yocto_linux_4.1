@@ -529,6 +529,8 @@ int intel_guc_setup(struct drm_device *dev)
 		intel_uc_fw_status_repr(guc_fw->fetch_status),
 		intel_uc_fw_status_repr(guc_fw->load_status));
 
+	intel_huc_auth(dev);
+
 	if (i915.enable_guc_submission) {
 		err = i915_guc_submission_enable(dev_priv);
 		if (err)

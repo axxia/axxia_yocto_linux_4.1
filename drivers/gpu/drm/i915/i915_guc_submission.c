@@ -25,6 +25,7 @@
 #include <linux/circ_buf.h>
 #include "i915_drv.h"
 #include "intel_guc.h"
+#include "intel_huc.h"
 
 /**
  * DOC: GuC-based command submission
@@ -1121,4 +1122,67 @@ int intel_guc_resume(struct drm_device *dev)
 	data[2] = i915_ggtt_offset(ctx->engine[RCS].state);
 
 	return host2guc_action(guc, data, ARRAY_SIZE(data));
+}
+
+/**
+ * intel_huc_auth() - authenticate ucode
+ * @dev: the drm device
+ *
+ * Triggers a HuC fw authentication request to the GuC via host-2-guc
+ * interface.
+ */
+void intel_huc_auth(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_guc *guc = &dev_priv->guc;
+	struct intel_huc *huc = &dev_priv->huc;
+	struct i915_vma *vma;
+	int ret;
+	u32 data[2];
+
+	/* Bypass the case where there is no HuC firmware */
+	if (huc->huc_fw.fetch_status == UC_FIRMWARE_NONE ||
+	    huc->huc_fw.load_status == UC_FIRMWARE_NONE)
+		return;
+
+	if (guc->guc_fw.load_status != UC_FIRMWARE_SUCCESS) {
+		DRM_ERROR("HuC: GuC fw wasn't loaded. Can't authenticate");
+		return;
+	}
+
+	if (huc->huc_fw.load_status != UC_FIRMWARE_SUCCESS) {
+		DRM_ERROR("HuC: fw wasn't loaded. Nothing to authenticate");
+		return;
+	}
+
+	vma = i915_gem_object_ggtt_pin(huc->huc_fw.uc_fw_obj, NULL, 0, 0, 0);
+	if (IS_ERR(vma)) {
+		DRM_ERROR("HuC: Pin failed");
+		return;
+	}
+
+	/* Invalidate GuC TLB to let GuC take the latest updates to GTT. */
+	I915_WRITE(GEN8_GTCR, GEN8_GTCR_INVALIDATE);
+
+	/* Specify auth action and where public signature is. It's stored
+	 * at the beginning of the gem object, before the fw bits
+	 */
+	data[0] = HOST2GUC_ACTION_AUTHENTICATE_HUC;
+	data[1] = i915_ggtt_offset(vma) + huc->huc_fw.rsa_offset;
+
+	ret = host2guc_action(guc, data, ARRAY_SIZE(data));
+	if (ret) {
+		DRM_ERROR("HuC: GuC did not ack Auth request\n");
+		goto out;
+	}
+
+	/* Check authentication status, it should be done by now */
+	ret = wait_for((I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED) > 0, 50);
+	if (ret) {
+		DRM_ERROR("HuC: Authentication failed\n");
+		goto out;
+	}
+
+out:
+	i915_vma_unpin(vma);
 }
