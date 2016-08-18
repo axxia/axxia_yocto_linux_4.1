@@ -61,9 +61,12 @@
 #define   DMA_ADDRESS_SPACE_GTT		  (8 << 16)
 #define DMA_COPY_SIZE			_MMIO(0xc310)
 #define DMA_CTRL			_MMIO(0xc314)
+#define   HUC_UKERNEL			  (1<<9)
 #define   UOS_MOVE			  (1<<4)
 #define   START_DMA			  (1<<0)
 #define DMA_GUC_WOPCM_OFFSET		_MMIO(0xc340)
+#define   HUC_LOADING_AGENT_VCR		  (0<<1)
+#define   HUC_LOADING_AGENT_GUC		  (1<<1)
 #define   GUC_WOPCM_OFFSET_VALUE	  0x80000	/* 512KB */
 #define GUC_MAX_IDLE_COUNT		_MMIO(0xC3E4)
 
