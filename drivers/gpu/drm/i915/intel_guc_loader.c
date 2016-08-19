@@ -802,3 +802,21 @@ void intel_guc_fini(struct drm_device *dev)
 
 	guc_fw->fetch_status = UC_FIRMWARE_NONE;
 }
+
+/**
+ * intel_is_guc_valid() - Check to see if the GuC is fully loaded.
+ * @dev:	drm dedvice to check.
+ *
+ * This function will return true if the guc has been loaded and
+ * has valid firmware.
+ */
+int intel_is_guc_valid(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_uc_fw *guc_fw = &dev_priv->guc.guc_fw;
+
+	if (guc_fw->load_status == UC_FIRMWARE_SUCCESS)
+		return 1;
+	else
+		return 0;
+}
