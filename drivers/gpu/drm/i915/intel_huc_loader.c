@@ -277,3 +277,18 @@ void intel_huc_fini(struct drm_device *dev)
 
 	huc_fw->fetch_status = UC_FIRMWARE_NONE;
 }
+
+/**
+ * intel_is_huc_valid() - Check to see if the HuC is fully loaded.
+ * @dev: the drm device to check.
+ *
+ * This function will return true if the guc has been loaded and
+ * has valid firmware. The simplest way of doing this is to check
+ * if the HuC has been validated, if so it must have been loaded.
+ */
+int intel_is_huc_valid(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	return ((I915_READ(HUC_STATUS2) & HUC_FW_VERIFIED) != 0);
+}
