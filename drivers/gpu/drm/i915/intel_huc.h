@@ -40,5 +40,5 @@ extern void intel_huc_init(struct drm_device *dev);
 extern int intel_huc_load(struct drm_device *dev);
 extern void intel_huc_auth(struct drm_device *dev);
 extern void intel_huc_fini(struct drm_device *dev);
-
+extern int intel_is_huc_valid(struct drm_device *dev);
 #endif
