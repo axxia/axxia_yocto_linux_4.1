@@ -396,6 +396,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_POOLED_EU         0x800
 #define I915_PARAM_MIN_EU_IN_POOL        0x801
 #define I915_PARAM_HAS_GET_APERTURE2     0x802
+#define I915_PARAM_HAS_GUC               0x803
 
 typedef struct drm_i915_getparam {
 	s32 param;

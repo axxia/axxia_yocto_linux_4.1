@@ -51,6 +51,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/oom.h>
 #include "i915_ext_ioctl.h"
+#include "intel_guc.h"
 #include "iotg_build.h"
 
 static unsigned int i915_load_fail_count;
@@ -243,6 +244,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 		break;
 	case I915_PARAM_MIN_EU_IN_POOL:
 		value = INTEL_INFO(dev)->min_eu_in_pool;
+		break;
+	case I915_PARAM_HAS_GUC:
+		value = intel_is_guc_valid(dev);
 		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
