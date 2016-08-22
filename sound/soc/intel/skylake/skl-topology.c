@@ -1782,7 +1782,8 @@ static int skl_probe_set_tlv_ext(struct snd_kcontrol *kcontrol)
 		pconfig->eprobe[index].state = SKL_PROBE_STATE_EXT_NONE;
 		dev_dbg(dapm->dev, "eprobe[%d].state %d\n", index, pconfig->eprobe[index].state);
 	} else
-		ret = -EINVAL;
+		/* Redundant control set, so nothing to be done in driver */
+		dev_warn(dapm->dev, "Extractor control discarded by driver\n");
 
 	return ret;
 }
@@ -1832,7 +1833,8 @@ static int skl_probe_set_tlv_inj(struct snd_kcontrol *kcontrol)
 		pconfig->iprobe[index].state = SKL_PROBE_STATE_INJ_DISCONNECTED;
 		dev_dbg(dapm->dev, "iprobe[%d].state %d\n", index, pconfig->iprobe[index].state);
 	} else
-		ret = -EINVAL;
+		/* Redundant control set, so nothing to be done in driver */
+		dev_warn(dapm->dev, "Injector control discarded by driver\n");
 
 	return ret;
 }
