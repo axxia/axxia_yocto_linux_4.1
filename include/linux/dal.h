@@ -76,7 +76,7 @@ struct dal_version_info {
 	u32 reserved[4];
 };
 
-#define DAL_KDI_SUCCESS							0x0
+#define DAL_KDI_SUCCESS                         0x000
 #define DAL_KDI_STATUS_INTERNAL_ERROR           0xA00
 #define DAL_KDI_STATUS_INVALID_PARAMS           0xA01
 #define DAL_KDI_STATUS_INVALID_HANDLE           0xA02
@@ -87,6 +87,7 @@ struct dal_version_info {
 #define DAL_KDI_STATUS_BUFFER_TOO_SMALL         0xA07
 #define DAL_KDI_STATUS_OUT_OF_RESOURCE          0xA08
 #define DAL_KDI_STATUS_NOT_READY                0xA09
+#define DAL_KDI_STATUS_MAX_SESSIONS_REACHED     0xA0A
 
 #define DAL_KDI_INVALID_HANDLE    0
 
