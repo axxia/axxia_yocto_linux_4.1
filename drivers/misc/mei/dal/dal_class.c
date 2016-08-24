@@ -204,6 +204,11 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	dev_dbg(dev, "before write_queue_lock - client type %d", intf);
 	mutex_lock(&ddev->write_queue_lock);
 
+	/* update client on latest msg seq number*/
+	dc->seq = seq;
+	dev_dbg(dev, "current_write_client seq = %llu",
+			dc->seq);
+
 	ddev->is_write_pending = true;
 
 	/* put dc in write queue*/
@@ -301,11 +306,6 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 		/* this is the last fragment */
 		ddev->is_write_pending = false;
 	}
-
-	/* update client on latest msg seq number*/
-	ddev->current_write_client->seq = seq;
-	dev_dbg(dev, "current_write_client seq = %llu",
-		ddev->current_write_client->seq);
 
 	ret = wr;
 
