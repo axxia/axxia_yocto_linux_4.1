@@ -65,18 +65,10 @@
 
 #include "bh_shared_errcode.h"
 
-typedef int (*bhp_transport_send)(unsigned int handle,
-				  unsigned char *buffer,
-				  unsigned int length,
-				  u64 seq);
-
-typedef int (*bhp_transport_recv)(unsigned int handle,
-				  unsigned char *buffer,
-				  unsigned int *length);
-
 struct bhp_transport {
-	bhp_transport_send send;
-	bhp_transport_recv recv;
+	int (*send)(unsigned int handle,
+		    unsigned char *buf, unsigned int len, u64 seq);
+	int (*recv)(unsigned int handle, unsigned char *buf, unsigned int *len);
 };
 
 /**

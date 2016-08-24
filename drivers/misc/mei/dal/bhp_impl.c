@@ -64,28 +64,13 @@
 #include "bhp_exp.h"
 #include "dal_dev.h"
 
-static int bh_send_message(int conn_idx, void *cmd, unsigned int clen,
-			   const void *data, unsigned int dlen, u64 seq);
-static int bh_recv_message(int conn_idx, u64 *seq);
-
-static int kdi_send_wrapper(unsigned int handle,
-		unsigned char *buffer, unsigned int length, u64 seq);
-
-static int kdi_recv_wrapper(unsigned int handle,
-		unsigned char *buffer, unsigned int *length);
-
 static unsigned int init_state = DEINITED;
 static u64 sequence_number = MSG_SEQ_START_NUMBER;
 static struct bh_connection_item connections[MAX_CONNECTIONS];
 
-/* transport func list, set during init */
-static struct bhp_transport bhp_transport = {
-	kdi_send_wrapper,
-	kdi_recv_wrapper
-};
-
 /* the isd-id in the firmware, got during init */
 static struct bh_sd_id isd_uuid;
+static struct bhp_transport bhp_transport;
 
 /*
  * increment_seq_number():
@@ -110,113 +95,6 @@ static u64 increment_sequence_number(void)
 	return ret;
 }
 
-static int kdi_send_wrapper(unsigned int handle,
-		unsigned char *buffer, unsigned int length, u64 seq)
-{
-	enum dal_dev_type mei_device;
-	struct dal_device *ddev;
-	struct dal_client *dc;
-	struct device *dev;
-	ssize_t ret;
-
-	mei_device = (enum dal_dev_type) handle;
-
-	if (!buffer || mei_device < DAL_MEI_DEVICE_IVM ||
-			mei_device >= DAL_MEI_DEVICE_MAX)
-		return BPE_INVALID_PARAMS;
-
-	if (!length)
-		return BH_SUCCESS;
-
-	dev = dal_find_dev(mei_device);
-	if (!dev) {
-		dev_err(dev, "can't find device\n");
-		return BPE_INTERNAL_ERROR;
-	}
-
-	ddev = to_dal_device(dev);
-	dc = ddev->clients[DAL_INTF_KDI];
-	if (!dc) {
-		dev_err(dev, "client is NULL\n");
-		ret = BPE_INTERNAL_ERROR;
-		goto out;
-	}
-
-	/* copy data to client object */
-	memcpy(dc->write_buffer, buffer, length);
-
-	ret = dal_write(dc, length, seq);
-
-	if (ret <= 0)
-		ret = BPE_COMMS_ERROR;
-	else
-		ret = BH_SUCCESS;
-
-out:
-	put_device(dev);
-	return ret;
-}
-
-/* This is only for tmp read data to client */
-static struct dal_bh_msg bh_msg[DAL_MEI_DEVICE_MAX];
-static int kdi_recv_wrapper(unsigned int handle,
-		unsigned char *buffer, unsigned int *length)
-{
-	enum dal_dev_type mei_device;
-	struct dal_device *ddev;
-	struct dal_client *dc;
-	struct device *dev;
-	ssize_t ret;
-
-	mei_device = (enum dal_dev_type) handle;
-
-	if (!buffer || !length || mei_device < DAL_MEI_DEVICE_IVM ||
-			mei_device >= DAL_MEI_DEVICE_MAX)
-		return BPE_INVALID_PARAMS;
-
-	dev = dal_find_dev(mei_device);
-	if (!dev)
-		return BPE_INTERNAL_ERROR;
-
-	ddev = to_dal_device(dev);
-	dc = ddev->clients[DAL_INTF_KDI];
-	if (!dc) {
-		dev_err(dev, "client is NULL\n");
-		ret = BPE_INTERNAL_ERROR;
-		goto out;
-	}
-
-	ret = dal_read(dc);
-
-	if (ret != 0)
-		goto out;
-
-	if (kfifo_is_empty(&dc->read_queue)) {
-		ret = 0;
-		goto out;
-	}
-
-	ret = kfifo_out(&dc->read_queue,
-			&bh_msg[ddev->device_id], sizeof(struct dal_bh_msg));
-	dev_dbg(&ddev->dev, "kfifo_out() ret = %zd\n", ret);
-
-	if (bh_msg[ddev->device_id].len > *length) {
-		dev_dbg(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %u\n",
-			bh_msg[ddev->device_id].len, *length);
-		ret = BPE_COMMS_ERROR;
-		goto out;
-	}
-
-	memcpy(buffer, bh_msg[ddev->device_id].msg,
-			bh_msg[ddev->device_id].len);
-
-	*length = bh_msg[ddev->device_id].len;
-	ret = BH_SUCCESS;
-
-out:
-	put_device(dev);
-	return ret;
-}
 
 struct RR_MAP_INFO {
 	struct list_head link;
@@ -780,7 +658,8 @@ int bhp_init_internal(const struct bhp_transport *transport)
 	if (bhp_is_initialized())
 		return BPE_INITIALIZED_ALREADY;
 
-	transport = &bhp_transport;
+	if (!transport)
+		return BPE_INVALID_PARAMS;
 
 	/* step 1: init connections to each process */
 	ret = bh_transport_init(transport);

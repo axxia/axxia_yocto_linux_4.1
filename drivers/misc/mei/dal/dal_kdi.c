@@ -137,6 +137,120 @@ static struct class_interface kdi_interface __refdata = {
 	.remove_dev     = kdi_rm_dev,
 };
 
+static int kdi_send(unsigned int handle,
+		    unsigned char *buf, unsigned int len, u64 seq)
+{
+	enum dal_dev_type mei_device;
+	struct dal_device *ddev;
+	struct dal_client *dc;
+	struct device *dev;
+	ssize_t ret;
+
+	mei_device = (enum dal_dev_type)handle;
+
+	if (!buf)
+		return BPE_INVALID_PARAMS;
+
+	if (mei_device < DAL_MEI_DEVICE_IVM || mei_device >= DAL_MEI_DEVICE_MAX)
+		return BPE_INVALID_PARAMS;
+
+	if (!len)
+		return BH_SUCCESS;
+
+	dev = dal_find_dev(mei_device);
+	if (!dev) {
+		dev_err(dev, "can't find device\n");
+		return BPE_INTERNAL_ERROR;
+	}
+
+	ddev = to_dal_device(dev);
+	dc = ddev->clients[DAL_INTF_KDI];
+	if (!dc) {
+		dev_err(dev, "client is NULL\n");
+		ret = BPE_INTERNAL_ERROR;
+		goto out;
+	}
+
+	/* copy data to client object */
+	memcpy(dc->write_buffer, buf, len);
+	ret = dal_write(dc, len, seq);
+
+	if (ret <= 0)
+		ret = BPE_COMMS_ERROR;
+	else
+		ret = BH_SUCCESS;
+
+out:
+	put_device(dev);
+	return ret;
+}
+
+/* This is only for tmp read data to client */
+static struct dal_bh_msg bh_msg[DAL_MEI_DEVICE_MAX];
+static int kdi_recv(unsigned int handle,
+		    unsigned char *buf, unsigned int *len)
+{
+	enum dal_dev_type mei_device;
+	struct dal_device *ddev;
+	struct dal_client *dc;
+	struct device *dev;
+	ssize_t ret;
+
+	mei_device = (enum dal_dev_type)handle;
+
+	if (!buf || !len)
+		return BPE_INVALID_PARAMS;
+
+	if (mei_device < DAL_MEI_DEVICE_IVM || mei_device >= DAL_MEI_DEVICE_MAX)
+		return BPE_INVALID_PARAMS;
+
+	dev = dal_find_dev(mei_device);
+	if (!dev)
+		return BPE_INTERNAL_ERROR;
+
+	ddev = to_dal_device(dev);
+	dc = ddev->clients[DAL_INTF_KDI];
+	if (!dc) {
+		dev_err(dev, "client is NULL\n");
+		ret = BPE_INTERNAL_ERROR;
+		goto out;
+	}
+
+	ret = dal_read(dc);
+
+	if (ret != 0)
+		goto out;
+
+	if (kfifo_is_empty(&dc->read_queue)) {
+		ret = 0;
+		goto out;
+	}
+
+	ret = kfifo_out(&dc->read_queue,
+			&bh_msg[ddev->device_id], sizeof(struct dal_bh_msg));
+
+	if (bh_msg[ddev->device_id].len > *len) {
+		dev_dbg(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %u\n",
+			bh_msg[ddev->device_id].len, *len);
+		ret = BPE_COMMS_ERROR;
+		goto out;
+	}
+
+	memcpy(buf, bh_msg[ddev->device_id].msg, bh_msg[ddev->device_id].len);
+
+	*len = bh_msg[ddev->device_id].len;
+	ret = BH_SUCCESS;
+
+out:
+	put_device(dev);
+	return ret;
+}
+
+static struct bhp_transport kdi_transport = {
+	.send = kdi_send,
+	.recv = kdi_recv,
+};
+
 static int kdi_create_session(u64 *handle, const char *jta_id,
 			      const u8 *buffer, size_t buffer_length,
 			      const u8 *init_param, size_t init_param_length)
@@ -202,7 +316,7 @@ int kdi_init(u32 flags, u64 *handle)
 	if (ret)
 		return DAL_KDI_STATUS_INTERNAL_ERROR;
 
-	bh_err = bhp_init_internal(NULL);
+	bh_err = bhp_init_internal(&kdi_transport);
 	ret = bh_err_to_kdi_err(bh_err);
 	if (bh_err) {
 		class_interface_unregister(&kdi_interface);
