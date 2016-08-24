@@ -215,7 +215,6 @@ static void kdi_destroy_kernel_clients(void)
 {
 	struct device *dev;
 	struct dal_device *ddev;
-	struct dal_client *dc;
 	int i;
 
 	/* use iterator */
@@ -225,11 +224,7 @@ static void kdi_destroy_kernel_clients(void)
 			continue;
 		/* TODO: just call destroy kdic ...  */
 		ddev = to_dal_device(dev);
-		dev_dbg(&ddev->dev, "kdi_destroy_kernel_clients(): free kernel space client");
-		dc = ddev->clients[DAL_INTF_KDI];
-		kfifo_free(&dc->read_queue);
-		kfree(dc);
-		ddev->clients[DAL_INTF_KDI] = NULL;
+		dal_dc_destroy(ddev, DAL_INTF_KDI);
 		put_device(dev);
 	}
 }

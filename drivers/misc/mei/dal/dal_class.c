@@ -506,6 +506,19 @@ out:
 	dev_dbg(&cldev->dev, "recv_cb(): unlock\n");
 }
 
+void dal_dc_destroy(struct dal_device *ddev, enum dal_intf intf)
+{
+	struct dal_client *dc;
+
+	dc = ddev->clients[intf];
+	if (!dc)
+		return;
+
+	kfifo_free(&dc->read_queue);
+	kfree(dc);
+	ddev->clients[intf] = NULL;
+}
+
 int dal_dc_setup(struct dal_device *ddev, enum dal_intf intf)
 {
 	int ret;

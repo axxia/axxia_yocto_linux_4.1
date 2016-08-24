@@ -118,11 +118,7 @@ static int dal_dev_release(struct inode *inode, struct file *fp)
 		return -ERESTARTSYS;
 	}
 
-	dev_dbg(&ddev->dev, "free user space client");
-	ddev->clients[dc->intf] = NULL;
-
-	kfifo_free(&dc->read_queue);
-	kfree(dc);
+	dal_dc_destroy(ddev, dc->intf);
 
 	mutex_unlock(&ddev->context_lock);
 

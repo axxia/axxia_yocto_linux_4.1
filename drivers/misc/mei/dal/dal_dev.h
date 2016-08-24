@@ -220,10 +220,11 @@ struct dal_client {
 ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq);
 ssize_t dal_read(struct  dal_client *dc);
 
-void dal_dc_print(struct device *dev, struct dal_client *dc);
 
 struct device *dal_find_dev(enum dal_dev_type device_id);
 
+void dal_dc_print(struct device *dev, struct dal_client *dc);
 int dal_dc_setup(struct dal_device *ddev, enum dal_intf intf);
+void dal_dc_destroy(struct dal_device *ddev, enum dal_intf intf);
 
 #endif  /* _DAL_KDI_H_ */
