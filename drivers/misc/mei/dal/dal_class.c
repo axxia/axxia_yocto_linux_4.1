@@ -364,24 +364,25 @@ ssize_t dal_read(struct dal_client *dc)
 	return 0;
 }
 
-/*
- * update all relevant client state variables according to the
- * msg received header or payload - this function called from only
- * 'dal_recv_cb' which is under lock.
+/**
+ * dal_dc_update_read_state - update relevant client state variables
+ *      according to the msg received header or payload
+ * @dc : dal client
+ * @len: received message length
+ *
+ * Lock: called from 'dal_recv_cb' which is under lock.
  */
-static void update_client_read_state(struct dal_client *dc,
-				     struct mei_cl_device *cldev,
-				     int bytes_read)
+static void dal_dc_update_read_state(struct dal_client *dc, ssize_t len)
 {
+	struct dal_device *ddev = dc->ddev;
 	struct transport_msg_header *header =
 			(struct transport_msg_header *)dc->ddev->bh_fw_msg.msg;
 
 	/* check BH msg magic, if it exists this is the header */
-	if (dal_msg_is_response(dc->ddev->bh_fw_msg.msg)) {
+	if (dal_msg_is_response(ddev->bh_fw_msg.msg)) {
 		dc->expected_msg_size_from_fw = header->length;
-		dev_dbg(&cldev->dev, "update_client_read_state():");
-		dev_dbg(&cldev->dev, "expected_msg_size_from_fw = %d bytes read = %d",
-			dc->expected_msg_size_from_fw, bytes_read);
+		dev_dbg(&ddev->dev, "expected_msg_size_from_fw = %d bytes read = %zd",
+			dc->expected_msg_size_from_fw, len);
 
 		/* clear data from the past. */
 		dc->bytes_sent_to_host = 0;
@@ -389,8 +390,8 @@ static void update_client_read_state(struct dal_client *dc,
 	}
 
 	/* update number of bytes rcvd */
-	dc->bytes_rcvd_from_fw += bytes_read;
-	dc->read_buffer_size += bytes_read;
+	dc->bytes_rcvd_from_fw += len;
+	dc->read_buffer_size += len;
 }
 
 /*
@@ -487,7 +488,7 @@ static void dal_recv_cb(struct mei_cl_device *cldev, u32 events, void *context)
 	if (ret < sizeof(struct dal_bh_msg))
 		dev_dbg(&ddev->dev, "queue is full - MSG THROWN");
 
-	update_client_read_state(dc, cldev, len);
+	dal_dc_update_read_state(dc, len);
 
 	/*
 	 * To clear current client we check if the whole msg received
