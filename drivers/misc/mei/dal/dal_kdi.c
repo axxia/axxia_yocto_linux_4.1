@@ -185,20 +185,19 @@ out:
 	return ret;
 }
 
-/* This is only for tmp read data to client */
-static struct dal_bh_msg bh_msg[DAL_MEI_DEVICE_MAX];
 static int kdi_recv(unsigned int handle,
-		    unsigned char *buf, unsigned int *len)
+		    unsigned char *buf, unsigned int *count)
 {
 	enum dal_dev_type mei_device;
 	struct dal_device *ddev;
 	struct dal_client *dc;
 	struct device *dev;
 	ssize_t ret;
+	size_t len;
 
 	mei_device = (enum dal_dev_type)handle;
 
-	if (!buf || !len)
+	if (!buf || !count)
 		return BPE_INVALID_PARAMS;
 
 	if (mei_device < DAL_MEI_DEVICE_IVM || mei_device >= DAL_MEI_DEVICE_MAX)
@@ -226,21 +225,29 @@ static int kdi_recv(unsigned int handle,
 		goto out;
 	}
 
-	ret = kfifo_out(&dc->read_queue,
-			&bh_msg[ddev->device_id], sizeof(struct dal_bh_msg));
-
-	if (bh_msg[ddev->device_id].len > *len) {
-		dev_dbg(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %u\n",
-			bh_msg[ddev->device_id].len, *len);
+	ret = kfifo_out(&dc->read_queue, &len, sizeof(len));
+	if (ret != sizeof(len)) {
+		dev_err(&ddev->dev, "could not copy buffer: cannot fetch size");
 		ret = BPE_COMMS_ERROR;
 		goto out;
 	}
 
-	memcpy(buf, bh_msg[ddev->device_id].msg, bh_msg[ddev->device_id].len);
+	if (len > *count) {
+		dev_err(&ddev->dev, "could not copy buffer: src size = %zd > dest size = %u\n",
+			len, *count);
+		ret = BPE_COMMS_ERROR;
+		goto out;
+	}
 
-	*len = bh_msg[ddev->device_id].len;
+	ret = kfifo_out(&dc->read_queue, buf, len);
+	if (ret != len) {
+		dev_err(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %zd\n",
+			len, ret);
+		ret = BPE_COMMS_ERROR;
+	}
+
+	*count = len;
 	ret = BH_SUCCESS;
-
 out:
 	put_device(dev);
 	return ret;

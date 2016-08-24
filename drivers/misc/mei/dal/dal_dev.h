@@ -126,12 +126,12 @@ struct dal_client;
 /**
  * struct dal_bh_msg: represent msg sent from the FW.
  *
- * @msg: message buffer
  * @len: message length
+ * @msg: message buffer
  */
 struct dal_bh_msg {
+	size_t  len;
 	char msg[DAL_MAX_BUFFER_SIZE];
-	ssize_t  len;
 };
 
 /**

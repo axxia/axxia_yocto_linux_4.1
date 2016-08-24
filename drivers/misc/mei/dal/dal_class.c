@@ -483,10 +483,9 @@ static void dal_recv_cb(struct mei_cl_device *cldev, u32 events, void *context)
 	 * save new msg in queue,
 	 * if the queue is full all new messages will be thrown
 	 */
-	ret = kfifo_in(&dc->read_queue, &ddev->bh_fw_msg,
-		       sizeof(struct dal_bh_msg));
-	if (ret < sizeof(struct dal_bh_msg))
-		dev_dbg(&ddev->dev, "queue is full - MSG THROWN");
+	ret = kfifo_in(&dc->read_queue, &ddev->bh_fw_msg, len + sizeof(len));
+	if (ret < len + sizeof(len))
+		dev_err(&ddev->dev, "queue is full - MSG THROWN");
 
 	dal_dc_update_read_state(dc, len);
 

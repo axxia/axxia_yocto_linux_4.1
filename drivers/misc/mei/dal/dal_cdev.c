@@ -127,15 +127,14 @@ static int dal_dev_release(struct inode *inode, struct file *fp)
 	return 0;
 }
 
-/* This is only for tmp read data to client */
-static struct dal_bh_msg bh_msg[DAL_MEI_DEVICE_MAX];
-#define BH_MSG_HEADER_LENGTH           32
-static ssize_t dal_dev_read(struct file *fp, char __user *buff,
+static ssize_t dal_dev_read(struct file *fp, char __user *buf,
 			    size_t count, loff_t *offp)
 {
 	struct dal_client *dc = fp->private_data;
 	struct dal_device *ddev = dc->ddev;
 	ssize_t ret;
+	size_t len;
+	unsigned int copied;
 
 	ret = dal_read(dc);
 
@@ -145,23 +144,22 @@ static ssize_t dal_dev_read(struct file *fp, char __user *buff,
 	if (kfifo_is_empty(&dc->read_queue))
 		return 0;
 
-	ret = kfifo_out(&dc->read_queue, &bh_msg[ddev->device_id],
-			sizeof(struct dal_bh_msg));
-	dev_dbg(&ddev->dev, "kfifo_out() ret = %zd\n", ret);
-
-	if (bh_msg[ddev->device_id].len > count) {
+	ret = kfifo_out(&dc->read_queue, &len, sizeof(len));
+	if (len > count) {
 		dev_dbg(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %zu\n",
-			bh_msg[ddev->device_id].len, count);
+			len, count);
 		return -EFAULT;
 	}
 
-	if (copy_to_user(buff, bh_msg[ddev->device_id].msg,
-			 bh_msg[ddev->device_id].len)) {
+	ret = kfifo_to_user(&dc->read_queue, buf, count, &copied);
+	if (ret) {
 		dev_dbg(&ddev->dev, "copy_to_user() failed\n");
 		return -EFAULT;
 	}
 
-	return bh_msg[ddev->device_id].len;
+	/*FIXME: need to drop rest of the data */
+
+	return copied;
 }
 
 static ssize_t dal_dev_write(struct file *fp, const char __user *buff,
