@@ -154,9 +154,8 @@ static ssize_t dal_dev_read(struct file *fp, char __user *buff,
 	dev_dbg(&ddev->dev, "kfifo_out() ret = %zd\n", ret);
 
 	if (bh_msg[ddev->device_id].len > count) {
-		dev_dbg(&ddev->dev, "could not copy buffer. ");
-		dev_dbg(&ddev->dev, "src buffer size = %zd, dest buffer size = %zu\n",
-				bh_msg[ddev->device_id].len, count);
+		dev_dbg(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %zu\n",
+			bh_msg[ddev->device_id].len, count);
 		return -EFAULT;
 	}
 

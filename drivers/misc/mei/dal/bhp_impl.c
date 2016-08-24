@@ -198,12 +198,11 @@ static int kdi_recv_wrapper(unsigned int handle,
 
 	ret = kfifo_out(&dc->read_queue,
 			&bh_msg[ddev->device_id], sizeof(struct dal_bh_msg));
-	dev_dbg(&ddev->cldev->dev, "kfifo_out() ret = %zd\n", ret);
+	dev_dbg(&ddev->dev, "kfifo_out() ret = %zd\n", ret);
 
 	if (bh_msg[ddev->device_id].len > *length) {
-		dev_dbg(&ddev->cldev->dev, "could not copy buffer. ");
-		dev_dbg(&ddev->cldev->dev, "src buffer size = %zd, dest buffer size = %u\n",
-				bh_msg[ddev->device_id].len, *length);
+		dev_dbg(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %u\n",
+			bh_msg[ddev->device_id].len, *length);
 		ret = BPE_COMMS_ERROR;
 		goto out;
 	}

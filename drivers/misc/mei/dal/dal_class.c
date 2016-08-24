@@ -357,7 +357,7 @@ ssize_t dal_read(struct dal_client *dc)
 
 	/* FIXME: use reference counter */
 	if (ddev->is_device_removed) {
-		dev_dbg(&ddev->cldev->dev, "woke up, device was removed\n");
+		dev_dbg(dev, "woke up, device was removed\n");
 		return -ENODEV;
 	}
 
