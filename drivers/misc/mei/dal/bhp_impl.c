@@ -135,7 +135,7 @@ static int kdi_send_wrapper(unsigned int handle,
 	}
 
 	ddev = to_dal_device(dev);
-	dc = ddev->clients[DAL_INTF_KERNEL_SPACE];
+	dc = ddev->clients[DAL_INTF_KDI];
 	if (!dc) {
 		dev_err(dev, "client is NULL\n");
 		ret = BPE_INTERNAL_ERROR;
@@ -179,7 +179,7 @@ static int kdi_recv_wrapper(unsigned int handle,
 		return BPE_INTERNAL_ERROR;
 
 	ddev = to_dal_device(dev);
-	dc = ddev->clients[DAL_INTF_KERNEL_SPACE];
+	dc = ddev->clients[DAL_INTF_KDI];
 	if (!dc) {
 		dev_err(dev, "client is NULL\n");
 		ret = BPE_INTERNAL_ERROR;

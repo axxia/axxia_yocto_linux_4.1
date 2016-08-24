@@ -95,11 +95,11 @@ static int dal_dev_open(struct inode *inode, struct file *fp)
 	if (test_and_set_bit(DAL_DEV_OPENED, &ddev->status))
 		return -EBUSY;
 
-	ret = dal_dc_setup(ddev, DAL_INTF_USER_SPACE);
+	ret = dal_dc_setup(ddev, DAL_INTF_CDEV);
 	if (ret)
 		goto err;
 
-	fp->private_data = ddev->clients[DAL_INTF_USER_SPACE];
+	fp->private_data = ddev->clients[DAL_INTF_CDEV];
 
 	return nonseekable_open(inode, fp);
 

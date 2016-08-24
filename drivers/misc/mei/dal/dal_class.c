@@ -400,17 +400,17 @@ static enum dal_intf get_client_by_squence_number(struct dal_device *ddev)
 {
 	struct bhp_response_header *head;
 
-	if (!ddev->clients[DAL_INTF_KERNEL_SPACE])
-		return DAL_INTF_USER_SPACE;
+	if (!ddev->clients[DAL_INTF_KDI])
+		return DAL_INTF_CDEV;
 
 	head = (struct bhp_response_header *)ddev->bh_fw_msg.msg;
 
 	dev_dbg(&ddev->dev, "msg seq = %llu", head->seq);
 
-	if (head->seq == ddev->clients[DAL_INTF_KERNEL_SPACE]->seq)
-		return DAL_INTF_KERNEL_SPACE;
+	if (head->seq == ddev->clients[DAL_INTF_KDI]->seq)
+		return DAL_INTF_KDI;
 
-	return DAL_INTF_USER_SPACE;
+	return DAL_INTF_CDEV;
 }
 
 static void dal_recv_cb(struct mei_cl_device *cldev, u32 events, void *context)
@@ -455,11 +455,11 @@ static void dal_recv_cb(struct mei_cl_device *cldev, u32 events, void *context)
 		dev_dbg(&ddev->dev, "recv_cb(): Client set by sequence number");
 		dc = ddev->clients[intf];
 	} else if (dal_msg_is_spooler(ddev->bh_fw_msg.msg)) {
-		intf = DAL_INTF_USER_SPACE;
+		intf = DAL_INTF_CDEV;
 		dev_dbg(&ddev->dev, "recv_cb(): EVENT msg received");
 		dc = ddev->clients[intf];
 	} else if (!ddev->current_read_client) {
-		intf = DAL_INTF_USER_SPACE;
+		intf = DAL_INTF_CDEV;
 		dev_dbg(&ddev->dev, "recv_cb(): EXTRA msg received - curr == NULL");
 		dc = ddev->clients[intf];
 		is_unexpected_msg = true;

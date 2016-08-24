@@ -160,7 +160,7 @@ static int kdi_create_kernel_clients(void)
 			return -EFAULT;
 		}
 		ddev = to_dal_device(dev);
-		ret = dal_dc_setup(ddev, DAL_INTF_KERNEL_SPACE);
+		ret = dal_dc_setup(ddev, DAL_INTF_KDI);
 		put_device(dev);
 		if (ret)
 			return ret;
@@ -193,10 +193,10 @@ static void kdi_destroy_kernel_clients(void)
 		/* TODO: just call destroy kdic ...  */
 		ddev = to_dal_device(dev);
 		dev_dbg(&ddev->dev, "kdi_destroy_kernel_clients(): free kernel space client");
-		dc = ddev->clients[DAL_INTF_KERNEL_SPACE];
+		dc = ddev->clients[DAL_INTF_KDI];
 		kfifo_free(&dc->read_queue);
 		kfree(dc);
-		ddev->clients[DAL_INTF_KERNEL_SPACE] = NULL;
+		ddev->clients[DAL_INTF_KDI] = NULL;
 		put_device(dev);
 	}
 }

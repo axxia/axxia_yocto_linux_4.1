@@ -82,12 +82,12 @@ extern struct class *dal_class;
 /**
  * enum intf_intf - represents dal interface type
  *
- * @DAL_INTF_KERNEL_SPACE:  kernel space interface
- * @DAL_INTF_USER_SPACE:  user space /dev/interface
+ * @DAL_INTF_KDI:  (kdi) kernel space interface
+ * @DAL_INTF_CDEV: char device interface
  */
 enum dal_intf {
-	DAL_INTF_KERNEL_SPACE,
-	DAL_INTF_USER_SPACE,
+	DAL_INTF_KDI,
+	DAL_INTF_CDEV,
 };
 
 /** enum dal_notify_action_type:
