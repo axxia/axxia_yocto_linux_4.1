@@ -2288,6 +2288,12 @@ struct drm_i915_gem_object {
 	 * Advice: are the backing pages purgeable?
 	 */
 	unsigned int madv:2;
+	/**
+	 * Whereas madv is for userspace, there are certain situations
+	 * where we want I915_MADV_DONTNEED behaviour on internal objects
+	 * without conflating the userspace setting.
+	 */
+	unsigned int internal_volatile:1;
 
 	/**
 	 * Current tiling mode for the object.
@@ -3270,6 +3276,9 @@ int i915_gem_l3_remap(struct drm_i915_gem_request *req, int slice);
 void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_cleanup_engines(struct drm_device *dev);
 int __must_check i915_gpu_idle(struct drm_device *dev);
+int __must_check i915_gem_freeze(struct drm_device *dev);
+int __must_check
+i915_gem_object_migrate_stolen_to_shmemfs(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_suspend(struct drm_device *dev);
 void __i915_add_request(struct drm_i915_gem_request *req,
 			struct drm_i915_gem_object *batch_obj,
@@ -3497,6 +3506,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 					       u32 stolen_offset,
 					       u32 gtt_offset,
 					       u32 size);
+int __must_check i915_gem_stolen_freeze(struct drm_i915_private *i915);
 
 /* i915_gem_shrinker.c */
 unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,

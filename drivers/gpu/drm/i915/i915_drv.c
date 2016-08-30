@@ -1063,6 +1063,22 @@ static int i915_pm_suspend(struct device *dev)
 	return i915_drm_suspend(drm_dev);
 }
 
+/* freeze: before creating the hibernation_image */
+static int i915_pm_freeze(struct device *dev)
+{
+	int ret;
+
+	ret = i915_gem_freeze(pci_get_drvdata(to_pci_dev(dev)));
+	if (ret)
+		return ret;
+
+	ret = i915_pm_suspend(dev);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int i915_pm_suspend_late(struct device *dev)
 {
 	struct drm_device *drm_dev = dev_to_i915(dev)->dev;
@@ -1666,7 +1682,7 @@ static const struct dev_pm_ops i915_pm_ops = {
 	 * @restore, @restore_early : called after rebooting and restoring the
 	 *                            hibernation image [PMSG_RESTORE]
 	 */
-	.freeze = i915_pm_suspend,
+	.freeze = i915_pm_freeze,
 	.freeze_late = i915_pm_suspend_late,
 	.thaw_early = i915_pm_resume_early,
 	.thaw = i915_pm_resume,

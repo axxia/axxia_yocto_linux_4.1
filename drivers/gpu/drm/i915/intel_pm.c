@@ -5750,6 +5750,8 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	I915_WRITE(VLV_PCBR, pctx_paddr);
 
 out:
+	/* The power context need not be preserved across hibernation */
+	pctx->internal_volatile = true;
 	DRM_DEBUG_DRIVER("PCBR: 0x%08x\n", I915_READ(VLV_PCBR));
 	dev_priv->vlv_pctx = pctx;
 	mutex_unlock(&dev->struct_mutex);
