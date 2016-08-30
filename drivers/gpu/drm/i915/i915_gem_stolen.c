@@ -495,6 +495,7 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct sg_table *st;
 	struct scatterlist *sg;
+	int ret;
 
 	DRM_DEBUG_DRIVER("offset=0x%x, size=%d\n", offset, size);
 	BUG_ON(offset > dev_priv->ggtt.stolen_size - size);
@@ -506,11 +507,12 @@ i915_pages_create_for_stolen(struct drm_device *dev,
 
 	st = kmalloc(sizeof(*st), GFP_KERNEL);
 	if (st == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	if (sg_alloc_table(st, 1, GFP_KERNEL)) {
+	ret = sg_alloc_table(st, 1, GFP_KERNEL);
+	if (ret) {
 		kfree(st);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	sg = st->sgl;
@@ -559,18 +561,23 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 			       struct drm_mm_node *stolen)
 {
 	struct drm_i915_gem_object *obj;
+	struct sg_table *pages;
 
 	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	drm_gem_private_object_init(dev, &obj->base, stolen->size);
 	i915_gem_object_init(obj, &i915_gem_object_stolen_ops);
 
-	obj->pages = i915_pages_create_for_stolen(dev,
-						  stolen->start, stolen->size);
-	if (obj->pages == NULL)
-		goto cleanup;
+	pages = i915_pages_create_for_stolen(dev,
+					     stolen->start, stolen->size);
+	if (IS_ERR(pages)) {
+		i915_gem_object_free(obj);
+		return ERR_CAST(pages);
+	}
+
+	obj->pages = pages;
 
 	obj->get_page.sg = obj->pages->sgl;
 	obj->get_page.last = 0;
@@ -582,10 +589,6 @@ _i915_gem_object_create_stolen(struct drm_device *dev,
 	obj->cache_level = HAS_LLC(dev) ? I915_CACHE_LLC : I915_CACHE_NONE;
 
 	return obj;
-
-cleanup:
-	i915_gem_object_free(obj);
-	return NULL;
 }
 
 struct drm_i915_gem_object *
@@ -597,29 +600,29 @@ i915_gem_object_create_stolen(struct drm_device *dev, u64 size)
 	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	DRM_DEBUG_KMS("creating stolen object: size=%llx\n", size);
 	if (size == 0)
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
 	if (!stolen)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	ret = i915_gem_stolen_insert_node(dev_priv, stolen, size, 4096);
 	if (ret) {
 		kfree(stolen);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	obj = _i915_gem_object_create_stolen(dev, stolen);
-	if (obj)
+	if (!IS_ERR(obj))
 		return obj;
 
 	i915_gem_stolen_remove_node(dev_priv, stolen);
 	kfree(stolen);
-	return NULL;
+	return obj;
 }
 
 struct drm_i915_gem_object *
@@ -636,7 +639,7 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	int ret;
 
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
-		return NULL;
+		return ERR_PTR(-ENODEV);
 
 	lockdep_assert_held(&dev->struct_mutex);
 
@@ -646,11 +649,11 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	/* KISS and expect everything to be page-aligned */
 	if (WARN_ON(size == 0) || WARN_ON(size & 4095) ||
 	    WARN_ON(stolen_offset & 4095))
-		return NULL;
+		return ERR_PTR(-EINVAL);
 
 	stolen = kzalloc(sizeof(*stolen), GFP_KERNEL);
 	if (!stolen)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	stolen->start = stolen_offset;
 	stolen->size = size;
@@ -660,15 +663,15 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	if (ret) {
 		DRM_DEBUG_KMS("failed to allocate stolen space\n");
 		kfree(stolen);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	obj = _i915_gem_object_create_stolen(dev, stolen);
-	if (obj == NULL) {
+	if (IS_ERR(obj)) {
 		DRM_DEBUG_KMS("failed to allocate stolen object\n");
 		i915_gem_stolen_remove_node(dev_priv, stolen);
 		kfree(stolen);
-		return NULL;
+		return obj;
 	}
 
 	/* Some objects just need physical mem from stolen space */
@@ -707,5 +710,5 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 
 err:
 	drm_gem_object_unreference(&obj->base);
-	return NULL;
+	return ERR_PTR(ret);
 }

@@ -5724,10 +5724,13 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 								      pcbr_offset,
 								      I915_GTT_OFFSET_NONE,
 								      pctx_size);
+		if (IS_ERR(pctx))
+			pctx = NULL;
+
 		goto out;
 	}
 
-	DRM_DEBUG_DRIVER("BIOS didn't set up PCBR, fixing up\n");
+	DRM_DEBUG_DRIVER("BIOS didn't set up PCBR or prealloc failed, fixing up\n");
 
 	/*
 	 * From the Gunit register HAS:
@@ -5738,7 +5741,7 @@ static void valleyview_setup_pctx(struct drm_device *dev)
 	 * memory, or any other relevant ranges.
 	 */
 	pctx = i915_gem_object_create_stolen(dev, pctx_size);
-	if (!pctx) {
+	if (IS_ERR(pctx)) {
 		DRM_DEBUG("not enough stolen space for PCTX, disabling\n");
 		goto out;
 	}

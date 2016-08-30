@@ -58,8 +58,11 @@ static int render_state_init(struct render_state *so, struct drm_device *dev)
 		return -EINVAL;
 
 	so->obj = i915_gem_alloc_object(dev, 4096);
-	if (so->obj == NULL)
-		return -ENOMEM;
+	if (IS_ERR(so->obj)) {
+		ret = PTR_ERR(so->obj);
+		so->obj = NULL;
+		return ret;
+	}
 
 	ret = i915_gem_obj_ggtt_pin(so->obj, 4096, 0);
 	if (ret)

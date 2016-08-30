@@ -2201,7 +2201,7 @@ static int intel_alloc_ringbuffer_obj(struct drm_device *dev,
 	obj = NULL;
 	if (!HAS_LLC(dev))
 		obj = i915_gem_object_create_stolen(dev, ringbuf->size);
-	if (obj == NULL)
+	if (IS_ERR_OR_NULL(obj))
 		obj = i915_gem_alloc_object(dev, ringbuf->size);
 	if (obj == NULL)
 		return -ENOMEM;
