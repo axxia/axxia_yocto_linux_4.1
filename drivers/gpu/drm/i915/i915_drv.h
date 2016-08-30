@@ -3129,6 +3129,7 @@ int i915_gem_obj_prepare_shmem_read(struct drm_i915_gem_object *obj,
 				    int *needs_clflush);
 
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
+int i915_gem_object_clear(struct drm_i915_gem_object *obj);
 
 static inline int __sg_page_count(struct scatterlist *sg)
 {
