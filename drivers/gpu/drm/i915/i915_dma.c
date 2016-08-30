@@ -252,6 +252,9 @@ static int i915_getparam(struct drm_device *dev, void *data,
 	case I915_PARAM_HAS_HUC:
 		value = intel_is_huc_valid(dev);
 		break;
+	case I915_PARAM_CREATE_VERSION:
+		value = 2;
+		break;
 	default:
 		DRM_DEBUG("Unknown parameter %d\n", param->param);
 		return -EINVAL;
