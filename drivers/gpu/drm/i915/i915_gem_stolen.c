@@ -611,7 +611,7 @@ cleanup:
 }
 
 struct drm_i915_gem_object *
-i915_gem_object_create_stolen(struct drm_device *dev, u32 size)
+i915_gem_object_create_stolen(struct drm_device *dev, u64 size)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_object *obj;
@@ -621,7 +621,7 @@ i915_gem_object_create_stolen(struct drm_device *dev, u32 size)
 	if (!drm_mm_initialized(&dev_priv->mm.stolen))
 		return NULL;
 
-	DRM_DEBUG_KMS("creating stolen object: size=%x\n", size);
+	DRM_DEBUG_KMS("creating stolen object: size=%llx\n", size);
 	if (size == 0)
 		return NULL;
 
