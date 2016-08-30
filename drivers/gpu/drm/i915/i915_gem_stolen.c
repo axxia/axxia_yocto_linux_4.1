@@ -485,6 +485,18 @@ int i915_gem_init_stolen(struct drm_device *dev)
 	 */
 	drm_mm_init(&dev_priv->mm.stolen, 0, dev_priv->ggtt.stolen_usable_size);
 
+	/* If the stolen region can be modified behind our backs upon suspend,
+	 * then we cannot use it to store nonvolatile contents (i.e user data)
+	 * as it will be corrupted upon resume.
+	 */
+	dev_priv->mm.volatile_stolen = false;
+	if (IS_ENABLED(CONFIG_SUSPEND)) {
+		/* BIOSes using RapidStart Technology have been reported
+		 * to overwrite stolen across S3, not just S4.
+		 */
+		dev_priv->mm.volatile_stolen = intel_detect_acpi_rst();
+	}
+
 	return 0;
 }
 

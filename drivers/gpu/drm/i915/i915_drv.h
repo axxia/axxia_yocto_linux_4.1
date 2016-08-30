@@ -1414,6 +1414,16 @@ struct i915_gem_mm {
 	 */
 	bool busy;
 
+	/**
+	 * Stolen will be lost upon hibernate (as the memory is unpowered).
+	 * Across resume, we expect stolen to be intact - however, it may
+	 * also be utililised by third parties (e.g. Intel RapidStart
+	 * Technology) and if so we have to assume that any data stored in
+	 * stolen across resume is lost and we set this flag to indicate that
+	 * the stolen memory is volatile.
+	 */
+	bool volatile_stolen;
+
 	/* the indicator for dispatch video commands on two BSD rings */
 	unsigned int bsd_ring_dispatch_index;
 
@@ -3644,6 +3654,7 @@ intel_opregion_notify_adapter(struct drm_device *dev, pci_power_t state)
 #endif
 
 /* intel_acpi.c */
+bool intel_detect_acpi_rst(void);
 #ifdef CONFIG_ACPI
 extern void intel_register_dsm_handler(void);
 extern void intel_unregister_dsm_handler(void);
