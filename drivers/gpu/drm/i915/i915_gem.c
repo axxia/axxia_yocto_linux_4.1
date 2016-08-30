@@ -4829,3 +4829,48 @@ fail:
 	i915_gem_object_put(obj);
 	return ERR_PTR(ret);
 }
+
+/**
+ * i915_gem_object_clear() - Clear buffer object via CPU/GTT
+ * @obj: Buffer object to be cleared
+ *
+ * Return: 0 - success, non-zero - failure
+ */
+int i915_gem_object_clear(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct drm_mm_node node;
+	char __iomem *base;
+	uint64_t size = obj->base.size;
+	int ret, i;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	ret = insert_mappable_node(i915, &node, PAGE_SIZE);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		goto err_remove_node;
+
+	i915_gem_object_pin_pages(obj);
+	base = io_mapping_map_wc(ggtt->mappable, node.start);
+
+	for (i = 0; i < size/PAGE_SIZE; i++) {
+		ggtt->base.insert_page(&ggtt->base,
+				       i915_gem_object_get_dma_address(obj, i),
+				       node.start, I915_CACHE_NONE, 0);
+		wmb(); /* flush modifications to the GGTT (insert_page) */
+		memset_io(base, 0, PAGE_SIZE);
+		wmb(); /* flush the write before we modify the GGTT */
+	}
+
+	io_mapping_unmap(base);
+	ggtt->base.clear_range(&ggtt->base, node.start, node.size, true);
+	i915_gem_object_unpin_pages(obj);
+
+err_remove_node:
+	remove_mappable_node(&node);
+	return ret;
+}

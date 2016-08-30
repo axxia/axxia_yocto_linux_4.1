@@ -3112,6 +3112,7 @@ void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
+int i915_gem_object_clear(struct drm_i915_gem_object *obj);
 
 static inline int __sg_page_count(struct scatterlist *sg)
 {
