@@ -503,19 +503,18 @@ i915_gem_alloc_object_stolen(struct drm_device *dev, size_t size)
 
 	mutex_lock(&dev->struct_mutex);
 	obj = i915_gem_object_create_stolen(dev, size);
-	if (!obj) {
-		mutex_unlock(&dev->struct_mutex);
-		return ERR_PTR(-ENOMEM);
-	}
+	if (IS_ERR(obj))
+		goto out;
 
 	/* Always clear fresh buffers before handing to userspace */
 	ret = i915_gem_object_clear(obj);
 	if (ret) {
 		i915_gem_object_put(obj);
-		mutex_unlock(&dev->struct_mutex);
-		return ERR_PTR(-ENOMEM);
+		obj = ERR_PTR(ret);
+		goto out;
 	}
 
+out:
 	mutex_unlock(&dev->struct_mutex);
 	return obj;
 }
