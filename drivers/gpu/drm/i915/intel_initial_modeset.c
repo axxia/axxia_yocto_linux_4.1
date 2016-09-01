@@ -124,7 +124,7 @@ static struct drm_encoder *get_encoder(struct drm_device *dev,
 	connector_funcs = connector->helper_private;
 	encoder = connector_funcs->best_encoder(connector);
 
-	WARN_ON(encoder != NULL);
+	WARN_ON(encoder == NULL);
 
 	return encoder;
 }
