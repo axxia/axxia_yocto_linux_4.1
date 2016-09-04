@@ -70,7 +70,7 @@ static int acp_load_pack(const char *raw_pack, unsigned int size,
 	struct ac_ins_jta_pack_ext *pack_ext;
 	struct ac_ins_jta_prop_ext *prop_ext;
 
-	if (pr_init(raw_pack, size, &pr) != BH_SUCCESS)
+	if (pr_init(&pr, raw_pack, size) != BH_SUCCESS)
 		return BHE_INVALID_BPK_FILE;
 
 	if (cmd_id != AC_INSTALL_JTA_PROP) {
@@ -104,7 +104,8 @@ static int acp_load_pack(const char *raw_pack, unsigned int size,
 	default:
 		return BHE_BAD_PARAMETER;
 	}
-	if (pr_is_end(&pr) != BH_SUCCESS)
+
+	if (!pr_is_end(&pr))
 		return BHE_INVALID_BPK_FILE;
 
 	return ret;
@@ -119,8 +120,8 @@ int acp_pload_ins_jta(const void *raw_data, unsigned int size,
 		return BHE_BAD_PARAMETER;
 
 	ret = acp_load_pack((const char *)raw_data + BH_ACP_CSS_HEADER_LENGTH,
-			size - BH_ACP_CSS_HEADER_LENGTH,
-			AC_INSTALL_JTA, (struct ac_pack *)pack);
+			    size - BH_ACP_CSS_HEADER_LENGTH,
+			    AC_INSTALL_JTA, (struct ac_pack *)pack);
 
 	return ret;
 }
@@ -146,9 +147,8 @@ int acp_get_cmd_id(const void *raw_data, unsigned int size, int *cmd_id)
 
 	*cmd_id = AC_CMD_INVALID;
 
-	ret = pr_init((const char *)raw_data + BH_ACP_CSS_HEADER_LENGTH,
-			size - BH_ACP_CSS_HEADER_LENGTH,
-			&pr);
+	ret = pr_init(&pr, raw_data + BH_ACP_CSS_HEADER_LENGTH,
+		      size - BH_ACP_CSS_HEADER_LENGTH);
 	if (ret != BH_SUCCESS)
 		return BHE_INVALID_BPK_FILE;
 

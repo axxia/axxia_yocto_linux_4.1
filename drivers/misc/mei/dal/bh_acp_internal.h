@@ -68,9 +68,12 @@
 /* Intel CSS Header + CSS Cypto Block which prefixes each signed ACP pkg */
 #define BH_ACP_CSS_HEADER_LENGTH    (128 + 520)
 
-/*
- * PackReader hold a reference of raw pack and read
- * items with alignment support
+/**
+ * struct pack_reader - hold a reference of raw pack and read
+ *     items with alignment support
+ * @cur   : current reader position
+ * @head  : buffer  head
+ * @total : bytes in the buffer
  */
 struct pack_reader {
 	const char *cur;
@@ -78,10 +81,9 @@ struct pack_reader {
 	unsigned int total;
 };
 
-int pr_init(const char *data, unsigned int n, struct pack_reader *out);
+int pr_init(struct pack_reader *pr, const char *data, unsigned int n);
 
-/*whether pack reader reaches the end of buffer, alignment considered*/
-int pr_is_end(struct pack_reader *pr);
+bool pr_is_end(struct pack_reader *pr);
 
 int acp_load_pack_head(struct pack_reader *pr, struct ac_pack_header **head);
 
