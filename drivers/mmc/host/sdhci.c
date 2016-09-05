@@ -1388,6 +1388,10 @@ static void sdhci_request(struct mmc_host *mmc, struct mmc_request *mrq)
 		}
 	}
 
+	if ((host->quirks2 & SDHCI_QUIRK2_STOP_WITH_TC) && mrq->data &&
+	    mrq->data->stop)
+		mrq->data->stop->flags |= MMC_RSP_BUSY;
+
 	host->mrq = mrq;
 
 	if (!present || host->flags & SDHCI_DEVICE_DEAD) {
@@ -2355,9 +2359,6 @@ static void sdhci_cmd_irq(struct sdhci_host *host, u32 intmask, u32 *mask)
 
 		/* The controller does not support the end-of-busy IRQ,
 		 * fall through and take the SDHCI_INT_RESPONSE */
-	} else if ((host->quirks2 & SDHCI_QUIRK2_STOP_WITH_TC) &&
-		   host->cmd->opcode == MMC_STOP_TRANSMISSION && !host->data) {
-		*mask &= ~SDHCI_INT_DATA_END;
 	}
 
 	if (intmask & SDHCI_INT_RESPONSE)
