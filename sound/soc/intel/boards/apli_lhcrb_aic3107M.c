@@ -134,29 +134,6 @@ static const struct snd_soc_dapm_route apli_lhcrb_aic3107_map[] = {
 	{"ssp3 Rx", NULL, "SSP4 Mic"},
 };
 
-static int tlv320aic3107_init(struct snd_soc_pcm_runtime *rtd)
-{
-	struct snd_soc_card *card = rtd->card;
-	struct device_node *np = card->dev->of_node;
-	int ret;
-
-	/* Add specific widgets */
-	snd_soc_dapm_new_controls(&card->dapm, apli_widgets,
-				  ARRAY_SIZE(apli_widgets));
-
-	if (np) {
-		ret = snd_soc_of_parse_audio_routing(card, "ti,audio-routing");
-		if (ret)
-			return ret;
-	} else {
-		/* Set up specific audio path apli_lhcrb_aic3107_map */
-		snd_soc_dapm_add_routes(&card->dapm, apli_lhcrb_aic3107_map,
-					ARRAY_SIZE(apli_lhcrb_aic3107_map));
-	}
-
-	return 0;
-}
-
 static int apli_aic3107_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
