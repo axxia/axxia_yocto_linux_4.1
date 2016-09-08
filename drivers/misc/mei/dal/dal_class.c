@@ -209,8 +209,6 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	dev_dbg(dev, "current_write_client seq = %llu",
 			dc->seq);
 
-	ddev->is_write_pending = true;
-
 	/* put dc in write queue*/
 	if (ddev->current_write_client != dc) {
 		if (kfifo_is_empty(&ddev->write_queue))
@@ -225,7 +223,7 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 			dev_dbg(dev, "queue is full probably a bug");
 
 			mutex_unlock(&ddev->write_queue_lock);
-			goto cleanup;
+			return -EBUSY;
 		}
 	}
 
@@ -237,8 +235,8 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	mutex_unlock(&ddev->write_queue_lock);
 	ret = dal_wait_for_write(ddev, dc);
 	if (ret < 0) {
-		ddev->is_write_pending = false;
-		goto cleanup;
+		mutex_lock(&ddev->context_lock);
+		goto out;
 	}
 
 	dev_dbg(dev, "before mei_cldev_send - client type %d", intf);
@@ -252,8 +250,8 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 		dev_err(dev, "mei_cl_send() failed, write_bytes != count (%zd != %zu)\n",
 			wr, count);
 		ret = -EFAULT;
-		ddev->is_write_pending = false;
-		goto cleanup;
+		mutex_lock(&ddev->context_lock);
+		goto out;
 	}
 
 	dev_dbg(dev, "wrote %zu bytes to fw - client type %d", wr, intf);
@@ -275,12 +273,11 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	/* TODO: we can remove this check and look only on the size */
 	if (dal_msg_is_spooler(dc->write_buffer)) {
 		ret = wr;
-		ddev->is_write_pending = false;
-		dev_dbg(dev, "SPOOLER msg command id = %d",
-				header->id);
-		goto cleanup;
+		dev_dbg(dev, "SPOOLER msg command id = %d", header->id);
+		goto out;
 	}
 
+	ret = wr;
 	/* header msg is being sent,
 	 * this is the first fragment of the message
 	 */
@@ -290,45 +287,36 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 				intf);
 		dev_dbg(dev, "command id = %d", header->id);
 
-		/* if there's extra data, mark it */
-		if (dc->expected_msg_size_to_fw <= count)
-			ddev->is_write_pending = false;
-
 		dc->bytes_sent_to_fw = count;
-	}
+		/* if there's extra data, mark it */
+		if (dc->expected_msg_size_to_fw > count)
+			goto write_more;
 
-	/* another fragment which is not the last */
-	else if (dc->bytes_sent_to_fw != dc->expected_msg_size_to_fw) {
-		ddev->is_write_pending = true;
+	} else if (dc->bytes_sent_to_fw != dc->expected_msg_size_to_fw) {
 		dev_dbg(dev, "expecting to write more data to FW - client type %d",
 				intf);
-	} else {
-		/* this is the last fragment */
-		ddev->is_write_pending = false;
+		goto write_more;
 	}
 
-	ret = wr;
+out:
+	dev_dbg(&ddev->dev, "removing CURRENT_WRITER\n");
+	/* init current to NULL */
+	ddev->current_write_client = NULL;
+	/* remove current dc from the queue */
+	status = kfifo_out(&ddev->write_queue, &curr_wc, sizeof(dc));
+	dev_dbg(&ddev->dev, "kfifo_out returned %d\n", status);
 
-cleanup:
-	if (!ddev->is_write_pending) {
-		dev_dbg(&ddev->dev, "removing CURRENT_WRITER\n");
-		/* init current to NULL */
-		ddev->current_write_client = NULL;
-		/* remove current dc from the queue */
-		status = kfifo_out(&ddev->write_queue, &curr_wc, sizeof(dc));
-		dev_dbg(&ddev->dev, "kfifo_out returned %d\n", status);
+	/* set new dal client as current,
+	 * if fifo empty current writer wont change
+	 */
+	status = kfifo_out_peek(&ddev->write_queue,
+				&ddev->current_write_client,
+				sizeof(dc));
+	dev_dbg(&ddev->dev, "kfifo_out_peek returned %d\n", status);
 
-		/* set new dal client as current,
-		 * if fifo empty current writer wont change
-		 */
-		status = kfifo_out_peek(&ddev->write_queue,
-					&ddev->current_write_client,
-					sizeof(dc));
-		dev_dbg(&ddev->dev, "kfifo_out_peek returned %d\n", status);
+	wake_up_interruptible(&ddev->wq);
 
-		wake_up_interruptible(&ddev->wq);
-	}
-
+write_more:
 	mutex_unlock(&ddev->context_lock);
 
 	return ret;

@@ -145,7 +145,7 @@ struct dal_bh_msg {
  * structures - for current client in write function
  * @rd_wq: a wait queue, for synchronizing requests in a FIFO manner
  * @clients: the clients on this device ( userspace or kernel ).
- * @num_user_space_clients: ttrack the number of times the device file has
+ * @num_user_space_clients: track the number of times the device file has
  * been opened
  * @bh_fw_msg: a struct represent msg kdi receive from the FW.
  * @current_write_client: stores the current client being served,
@@ -171,7 +171,6 @@ struct dal_device {
 	struct dal_client *current_read_client;
 
 	struct mei_cl_device *cldev;
-	bool is_write_pending;
 
 	bool is_device_removed;
 
