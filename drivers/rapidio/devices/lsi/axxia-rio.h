@@ -23,7 +23,7 @@
 #include <linux/rio_drv.h>
 #include <linux/interrupt.h>
 #include <linux/kfifo.h>
-
+#include <linux/io.h>
 #include "axxia-rio-irq.h"
 /* Constants, Macros, etc. */
 
@@ -31,6 +31,19 @@
 	/* Memory Barrier */	\
 	smp_mb()
 
+#define IN_SRIO8(a, v, ec)      do {            \
+	v = ioread8(a); ec = 0;  \
+	} while (0)
+#define IN_SRIO16(a, v, ec)     do {            \
+	v = ioread16be(a); ec = 0;  \
+	} while (0)
+#define IN_SRIO32(a, v, ec)     do {            \
+	v = ioread32be(a); ec = 0;  \
+	} while (0)
+
+#define OUT_SRIO8(a, v)         iowrite8(v, a)
+#define OUT_SRIO16(a, v)        iowrite16be(v, a)
+#define OUT_SRIO32(a, v)        iowrite32be(v, a)
 
 /*****************************************/
 /* *********** Byte Swapping *********** */
@@ -602,4 +615,7 @@ extern int axxia_rio_hotswap(struct rio_mport *mport, u8 flags);
 
 #endif /* CONFIG_RAPIDIO_HOTPLUG */
 
+int axxia_rio_is_x9(void);
+int axxia_rapidio_board_init(struct platform_device *dev, int devnum,
+							int *portndx);
 #endif  /* _AXXIA_RIO_H_ */
