@@ -29,6 +29,7 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 #include <linux/freezer.h>
+#include <linux/pm_runtime.h>
 
 #include "tpm.h"
 #include "tpm_eventlog.h"
@@ -352,6 +353,8 @@ ssize_t tpm_transmit(struct tpm_chip *chip, const char *buf,
 
 	mutex_lock(&chip->tpm_mutex);
 
+	pm_runtime_get_sync(chip->dev.parent);
+
 	rc = chip->ops->send(chip, (u8 *) buf, count);
 	if (rc < 0) {
 		dev_err(&chip->dev,
@@ -393,7 +396,9 @@ out_recv:
 		dev_err(&chip->dev,
 			"tpm_transmit: tpm_recv: error %zd\n", rc);
 out:
+	pm_runtime_put_sync(chip->dev.parent);
 	mutex_unlock(&chip->tpm_mutex);
+
 	return rc;
 }
 
