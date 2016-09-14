@@ -43,8 +43,7 @@ struct tpm_class_ops {
 	u8 (*status) (struct tpm_chip *chip);
 	bool (*update_timeouts)(struct tpm_chip *chip,
 				unsigned long *timeout_cap);
-	int (*pause)(struct tpm_chip *chip);
-	int (*resume)(struct tpm_chip *chip);
+
 };
 
 #if defined(CONFIG_TCG_TPM) || defined(CONFIG_TCG_TPM_MODULE)
