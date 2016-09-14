@@ -68,8 +68,6 @@ struct crb_control_area {
 
 enum crb_status {
 	CRB_DRV_STS_COMPLETE	= BIT(0),
-	CRB_DRV_STS_READY	= BIT(1),
-	CRB_DRV_STS_IDLE	= BIT(2),
 };
 
 enum crb_flags {
@@ -95,9 +93,9 @@ static int __maybe_unused crb_pause(struct tpm_chip *chip)
 
 	req = ioread32(&priv->cca->req);
 	iowrite32(cpu_to_le32(req | CRB_CTRL_REQ_GO_IDLE), &priv->cca->req);
+	msleep(chip->timeout_c);
 
-	if (wait_for_tpm_stat(chip, CRB_DRV_STS_IDLE, TPM2_TIMEOUT_C, NULL,
-			      false)) {
+	if (ioread32(&priv->cca->req) & CRB_CTRL_REQ_GO_IDLE) {
 		dev_warn(&chip->dev, "goIdle timed out\n");
 		return -ETIME;
 	}
@@ -115,9 +113,9 @@ static int __maybe_unused crb_resume(struct tpm_chip *chip)
 
 	req = ioread32(&priv->cca->req);
 	iowrite32(cpu_to_le32(req | CRB_CTRL_REQ_CMD_READY), &priv->cca->req);
+	msleep(chip->timeout_c);
 
-	if (wait_for_tpm_stat(chip, CRB_DRV_STS_READY, TPM2_TIMEOUT_C, NULL,
-			      false)) {
+	if (ioread32(&priv->cca->req) & CRB_CTRL_REQ_CMD_READY) {
 		dev_warn(&chip->dev, "cmdReady timed out\n");
 		return -ETIME;
 	}
@@ -135,14 +133,6 @@ static u8 crb_status(struct tpm_chip *chip)
 	if ((ioread32(&priv->cca->start) & CRB_START_INVOKE) !=
 	    CRB_START_INVOKE)
 		sts |= CRB_DRV_STS_COMPLETE;
-
-	if ((ioread32(&priv->cca->req) & CRB_CTRL_REQ_CMD_READY) !=
-	    CRB_CTRL_REQ_CMD_READY)
-		sts |= CRB_DRV_STS_READY;
-
-	if ((ioread32(&priv->cca->req) & CRB_CTRL_REQ_GO_IDLE) !=
-	    CRB_CTRL_REQ_GO_IDLE)
-		sts |= CRB_DRV_STS_IDLE;
 
 	return sts;
 }
