@@ -109,6 +109,15 @@ static void desc_set_ctrl(struct dma_desc *desc, u32 ctrl)
 
 static void desc_set_xferlen(struct dma_desc *desc, u32 len)
 {
+	/*
+	  'len' is increased to the nearest multiple of 64 bytes.  The
+	  current understaning of the hardware is that this will not
+	  result in the hardware reading memory beyond 'pdulen'.
+	*/
+
+	if (0 != (len % 64))
+		len += 64 - (len % 64);
+
 	desc->ctrl = ((desc->ctrl & ~D_XFER_MASK) |
 		      ((u64)len << D_XFER_SHIFT));
 }
@@ -610,6 +619,7 @@ static netdev_tx_t nemac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	desc_set_pdulen(desc, skb->len);
 	desc_set_bufptr(desc, addr);
 	pr_desc("TX", desc);
+	mb();		   /* Make sure the descriptor is in memory */
 	writel(queue_inc_head(&priv->txq), priv->reg + NEM_DMA_TXHEAD_PTR);
 	spin_unlock_irqrestore(&priv->txlock, flags);
 	ndev->trans_start = jiffies;
