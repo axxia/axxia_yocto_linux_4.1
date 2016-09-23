@@ -49,7 +49,7 @@
 #define I915_SKL_HUC_UCODE "i915/skl_huc_ver01_07_1398.bin"
 MODULE_FIRMWARE(I915_SKL_HUC_UCODE);
 
-#define I915_BXT_HUC_UCODE "i915/bxt_huc_ver01_07_1398.bin"
+#define I915_BXT_HUC_UCODE "i915/bxt_huc_ver01_07_2013.bin"
 MODULE_FIRMWARE(I915_BXT_HUC_UCODE);
 
 /**
