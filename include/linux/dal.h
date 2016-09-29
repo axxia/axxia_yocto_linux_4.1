@@ -88,6 +88,9 @@ struct dal_version_info {
 #define DAL_KDI_STATUS_OUT_OF_RESOURCE          0xA08
 #define DAL_KDI_STATUS_NOT_READY                0xA09
 #define DAL_KDI_STATUS_MAX_SESSIONS_REACHED     0xA0A
+#define DAL_KDI_STATUS_UNCAUGHT_EXCEPTION       0xA0B
+#define DAL_KDI_STATUS_WD_TIMEOUT               0xA0C
+#define DAL_KDI_STATUS_APPLET_CRASHED           0xA0D
 
 #define DAL_KDI_INVALID_HANDLE    0
 
