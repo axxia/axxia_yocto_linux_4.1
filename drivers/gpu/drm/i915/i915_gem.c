@@ -5452,14 +5452,16 @@ struct drm_i915_gem_object *i915_gem_alloc_object(struct drm_device *dev,
 						  size_t size)
 {
 	struct drm_i915_gem_object *obj;
+	int ret;
 
 	obj = i915_gem_object_alloc(dev);
 	if (obj == NULL)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
-	if (drm_gem_object_init(dev, &obj->base, size) != 0) {
+	ret = drm_gem_object_init(dev, &obj->base, size);
+	if (ret) {
 		i915_gem_object_free(obj);
-		return NULL;
+		return ERR_PTR(ret);
 	}
 
 	i915_gem_set_inode_gfp(dev, obj->base.filp);
