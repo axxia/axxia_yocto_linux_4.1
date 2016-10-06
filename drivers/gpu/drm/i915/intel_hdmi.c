@@ -1517,12 +1517,9 @@ intel_hdmi_force(struct drm_connector *connector)
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
 
-	intel_hdmi_unset_edid(connector);
-
 	if (connector->status != connector_status_connected)
 		return;
 
-	intel_hdmi_set_edid(connector);
 	hdmi_to_dig_port(intel_hdmi)->base.type = INTEL_OUTPUT_HDMI;
 }
 
@@ -1531,9 +1528,14 @@ static int intel_hdmi_get_modes(struct drm_connector *connector)
 	struct edid *edid;
 
 	edid = to_intel_connector(connector)->detect_edid;
-	if (edid == NULL)
-		return 0;
-
+	if ((edid == NULL) &&
+	    (connector->status == connector_status_connected)) {
+		intel_hdmi_unset_edid(connector);
+		intel_hdmi_set_edid(connector);
+		edid = to_intel_connector(connector)->detect_edid;
+		if (edid == NULL)
+			return 0;
+	}
 	return intel_connector_update_modes(connector, edid);
 }
 

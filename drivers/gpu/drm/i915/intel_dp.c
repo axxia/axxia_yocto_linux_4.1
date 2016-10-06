@@ -4487,17 +4487,9 @@ intel_dp_force(struct drm_connector *connector)
 
 	DRM_DEBUG_KMS("[CONNECTOR:%d:%s]\n",
 		      connector->base.id, connector->name);
-	intel_dp_unset_edid(intel_dp);
 
 	if (connector->status != connector_status_connected)
 		return;
-
-	power_domain = intel_display_port_aux_power_domain(intel_encoder);
-	intel_display_power_get(dev_priv, power_domain);
-
-	intel_dp_set_edid(intel_dp);
-
-	intel_display_power_put(dev_priv, power_domain);
 
 	if (intel_encoder->type != INTEL_OUTPUT_EDP)
 		intel_encoder->type = INTEL_OUTPUT_DP;
@@ -4507,8 +4499,29 @@ static int intel_dp_get_modes(struct drm_connector *connector)
 {
 	struct intel_connector *intel_connector = to_intel_connector(connector);
 	struct edid *edid;
+	struct intel_dp *intel_dp = intel_attached_dp(connector);
+	struct intel_encoder *intel_encoder = &dp_to_dig_port(intel_dp)->base;
+	struct drm_i915_private *dev_priv = to_i915(intel_encoder->base.dev);
+	enum intel_display_power_domain power_domain;
 
 	edid = intel_connector->detect_edid;
+	if ((edid == NULL) &&
+	    (connector->status == connector_status_connected)) {
+
+		intel_dp_unset_edid(intel_dp);
+
+		power_domain =
+			intel_display_port_aux_power_domain(intel_encoder);
+		intel_display_power_get(dev_priv, power_domain);
+
+		intel_dp_detect_dpcd(intel_dp);
+
+		intel_dp_set_edid(intel_dp);
+
+		intel_display_power_put(dev_priv, power_domain);
+
+		edid = intel_connector->detect_edid;
+	}
 	if (edid) {
 		int ret = intel_connector_update_modes(connector, edid);
 		if (ret)
