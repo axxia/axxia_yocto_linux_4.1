@@ -288,6 +288,15 @@ source "drivers/pci/Kconfig"
 source "drivers/pci/pcie/Kconfig"
 source "drivers/pci/hotplug/Kconfig"
 
+config RAPIDIO
+       bool "RapidIO support"
+       depends on PCI
+       help
+        If you say Y here, the kernel will include drivers and
+        infrastructure code to support RapidIO interconnect devices.
+
+source "drivers/rapidio/Kconfig"
+
 endmenu
 
 menu "Kernel Features"
