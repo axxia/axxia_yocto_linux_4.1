@@ -13585,7 +13585,9 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 				       bool async)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_plane_state *plane_state;
 	struct drm_crtc_state *crtc_state;
+	struct drm_plane *plane;
 	struct drm_crtc *crtc;
 	int i, ret;
 
@@ -13606,6 +13608,38 @@ static int intel_atomic_prepare_commit(struct drm_device *dev,
 		return ret;
 
 	ret = drm_atomic_helper_prepare_planes(dev, state);
+	if (!ret && !async && !i915_reset_in_progress(&dev_priv->gpu_error)) {
+		u32 reset_counter;
+
+		reset_counter = atomic_read(&dev_priv->gpu_error.reset_counter);
+		mutex_unlock(&dev->struct_mutex);
+
+		for_each_plane_in_state(state, plane, plane_state, i) {
+			struct intel_plane_state *intel_plane_state =
+				to_intel_plane_state(plane_state);
+
+			if (!intel_plane_state->wait_req)
+				continue;
+
+			ret = __i915_wait_request(intel_plane_state->wait_req,
+					  reset_counter,
+					  I915_WAIT_REQUEST_INTERRUPTIBLE,
+					  NULL, NULL);
+
+			/* Swallow -EIO errors to allow updates during hw lockup. */
+			if (ret == -EIO)
+				ret = 0;
+
+			if (ret)
+				break;
+		}
+
+		if (!ret)
+			return 0;
+
+		mutex_lock(&dev->struct_mutex);
+		drm_atomic_helper_cleanup_planes(dev, state);
+	}
 
 	mutex_unlock(&dev->struct_mutex);
 	return ret;
