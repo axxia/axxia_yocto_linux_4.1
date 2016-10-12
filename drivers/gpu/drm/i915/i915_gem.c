@@ -5081,6 +5081,7 @@ int i915_gem_object_clear(struct drm_i915_gem_object *obj)
 	i915_gem_object_pin_pages(obj);
 	base = io_mapping_map_wc(&i915->ggtt.mappable, node.start, PAGE_SIZE);
 
+	intel_runtime_pm_get(i915);
 	for (i = 0; i < size/PAGE_SIZE; i++) {
 		ggtt->base.insert_page(&ggtt->base,
 				       i915_gem_object_get_dma_address(obj, i),
@@ -5092,6 +5093,7 @@ int i915_gem_object_clear(struct drm_i915_gem_object *obj)
 
 	io_mapping_unmap(base);
 	ggtt->base.clear_range(&ggtt->base, node.start, node.size, true);
+	intel_runtime_pm_put(i915);
 	i915_gem_object_unpin_pages(obj);
 
 err_remove_node:
