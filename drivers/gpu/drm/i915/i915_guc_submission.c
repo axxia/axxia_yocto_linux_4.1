@@ -261,6 +261,7 @@ static void guc_init_doorbell(struct intel_guc *guc,
 
 static int guc_ring_doorbell(struct i915_guc_client *gc)
 {
+	struct drm_i915_private *dev_priv = guc_to_i915(gc->guc);
 	struct guc_process_desc *desc;
 	union guc_doorbell_qw db_cmp, db_exc, db_ret;
 	union guc_doorbell_qw *db;
@@ -286,6 +287,8 @@ static int guc_ring_doorbell(struct i915_guc_client *gc)
 	/* pointer of current doorbell cacheline */
 	db = base + gc->doorbell_offset;
 
+	/* WA to flush out the pending GMADR writes to ring buffer */
+	POSTING_READ(GUC_STATUS);
 	while (attempt--) {
 		/* lets ring the doorbell */
 		db_ret.value_qw = atomic64_cmpxchg((atomic64_t *)db,
