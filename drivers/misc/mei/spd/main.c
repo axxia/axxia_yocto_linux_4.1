@@ -16,8 +16,7 @@
 
 #include "spd.h"
 
-static void mei_spd_event_cb(struct mei_cl_device *cldev,
-			     u32 events, void *context)
+static void mei_spd_event_cb(struct mei_cl_device *cldev, u32 events)
 {
 	struct mei_spd *spd = mei_cldev_get_drvdata(cldev);
 
@@ -59,7 +58,7 @@ static int mei_spd_probe(struct mei_cl_device *cldev,
 	}
 
 	ret = mei_cldev_register_event_cb(cldev, BIT(MEI_CL_EVENT_RX),
-					  mei_spd_event_cb, NULL);
+					  mei_spd_event_cb);
 	if (ret) {
 		dev_err(&cldev->dev, "Error register event %d\n", ret);
 		goto disable;

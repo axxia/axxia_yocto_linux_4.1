@@ -402,7 +402,7 @@ static enum dal_intf get_client_by_squence_number(struct dal_device *ddev)
 	return DAL_INTF_CDEV;
 }
 
-static void dal_recv_cb(struct mei_cl_device *cldev, u32 events, void *context)
+static void dal_recv_cb(struct mei_cl_device *cldev, u32 events)
 {
 	struct dal_device *ddev;
 	struct dal_client *dc;
@@ -603,7 +603,7 @@ static int dal_probe(struct mei_cl_device *cldev,
 
 	/* register to mei bus callbacks */
 	ret = mei_cldev_register_event_cb(cldev, BIT(MEI_CL_EVENT_RX),
-					  dal_recv_cb, NULL);
+					  dal_recv_cb);
 	if (ret) {
 		dev_err(&cldev->dev, "mei_cl_register_event_cb() failed ret = %d\n",
 			ret);
