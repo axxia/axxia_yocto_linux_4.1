@@ -16,15 +16,13 @@
 
 #include "spd.h"
 
-static void mei_spd_event_cb(struct mei_cl_device *cldev, u32 events)
+static void mei_spd_rx_cb(struct mei_cl_device *cldev)
 {
 	struct mei_spd *spd = mei_cldev_get_drvdata(cldev);
 
-	if (events & BIT(MEI_CL_EVENT_RX)) {
-		mutex_lock(&spd->lock);
-		mei_spd_cmd(spd);
-		mutex_unlock(&spd->lock);
-	}
+	mutex_lock(&spd->lock);
+	mei_spd_cmd(spd);
+	mutex_unlock(&spd->lock);
 }
 
 static int mei_spd_probe(struct mei_cl_device *cldev,
@@ -57,8 +55,7 @@ static int mei_spd_probe(struct mei_cl_device *cldev,
 		goto free;
 	}
 
-	ret = mei_cldev_register_event_cb(cldev, BIT(MEI_CL_EVENT_RX),
-					  mei_spd_event_cb);
+	ret = mei_cldev_register_rx_cb(cldev, mei_spd_rx_cb);
 	if (ret) {
 		dev_err(&cldev->dev, "Error register event %d\n", ret);
 		goto disable;

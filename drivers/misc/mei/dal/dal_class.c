@@ -402,7 +402,7 @@ static enum dal_intf get_client_by_squence_number(struct dal_device *ddev)
 	return DAL_INTF_CDEV;
 }
 
-static void dal_recv_cb(struct mei_cl_device *cldev, u32 events)
+static void dal_recv_cb(struct mei_cl_device *cldev)
 {
 	struct dal_device *ddev;
 	struct dal_client *dc;
@@ -410,9 +410,6 @@ static void dal_recv_cb(struct mei_cl_device *cldev, u32 events)
 	ssize_t len;
 	ssize_t ret;
 	bool is_unexpected_msg = false;
-
-	if (!(events & BIT(MEI_CL_EVENT_RX)))
-		return;
 
 	ddev = mei_cldev_get_drvdata(cldev);
 
@@ -602,8 +599,7 @@ static int dal_probe(struct mei_cl_device *cldev,
 	mei_cldev_set_drvdata(cldev, ddev);
 
 	/* register to mei bus callbacks */
-	ret = mei_cldev_register_event_cb(cldev, BIT(MEI_CL_EVENT_RX),
-					  dal_recv_cb);
+	ret = mei_cldev_register_rx_cb(cldev, dal_recv_cb);
 	if (ret) {
 		dev_err(&cldev->dev, "mei_cl_register_event_cb() failed ret = %d\n",
 			ret);
