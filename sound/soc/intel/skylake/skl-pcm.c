@@ -271,7 +271,17 @@ static int skl_pcm_prepare(struct snd_pcm_substream *substream,
 	if (err < 0)
 		return err;
 
+	/*
+	 * Hardware WA valid for upto C Steppings of BXT-P -
+	 * Before writing to Format Register, put the controller in
+	 * coupled mode. Once done, put it back to de-coupled mode.
+	 * This WA is needed to avoid the DMA roll-over even before
+	 * the DSP consumes the data from the buffer
+	 */
+	snd_hdac_ext_stream_decouple(ebus, stream, false);
 	err = snd_hdac_stream_setup(hdac_stream(stream));
+	snd_hdac_ext_stream_decouple(ebus, stream, true);
+
 	if (err < 0)
 		return err;
 
