@@ -144,18 +144,6 @@ static s32 string_to_uuid(const s8 *str, s8 *uuid)
 	return 1;
 }
 
-static void byte_order_swapi(int *i)
-{
-	int i_tmp = *i;
-	char *c = (char *) i;
-	char *c_tmp = (char *) &i_tmp;
-
-	c[0] = c_tmp[3];
-	c[1] = c_tmp[2];
-	c[2] = c_tmp[1];
-	c[3] = c_tmp[0];
-}
-
 /* try to session_enter for IVM, then SVM */
 static struct bh_response_record *
 session_enter_vm(u64 seq, int *conn_idx, int lock_session)
@@ -557,10 +545,8 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 		if (rr->buffer &&
 		    rr->length >= sizeof(struct bhp_snr_response)) {
 			resp = (struct bhp_snr_response *)rr->buffer;
-			if (response_code) {
-				*response_code = resp->response;
-				byte_order_swapi(response_code);
-			}
+			if (response_code)
+				*response_code = be32_to_cpu(resp->response);
 
 			len = rr->length - sizeof(struct bhp_snr_response);
 
@@ -588,13 +574,10 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 		struct bhp_snr_bof_response *resp =
 				(struct bhp_snr_bof_response *)rr->buffer;
 
-		if (response_code) {
-			*response_code = resp->response;
-			byte_order_swapi(response_code);
-		}
+		if (response_code)
+			*response_code = be32_to_cpu(resp->response);
 
-		*output_length = resp->request_length;
-		byte_order_swapi((int *) output_length);
+		*output_length = be32_to_cpu(resp->request_length);
 	}
 
 	kfree(rr->buffer);

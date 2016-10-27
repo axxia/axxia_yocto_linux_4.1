@@ -1,4 +1,5 @@
-ccflags-y += -DDEBUG
+ccflags-y += -D__CHECK_ENDIAN__ -DDEBUG
+
 obj-$(CONFIG_INTEL_MEI_DAL) += mei_dal.o
 mei_dal-objs := dal_class.o
 mei_dal-objs += dal_cdev.o

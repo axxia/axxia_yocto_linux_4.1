@@ -184,14 +184,14 @@ struct bhp_get_isd_response {
 
 struct bhp_snr_response {
 	/* field response comes from java BIG endian */
-	s32 response;
+	__be32 response;
 	s8 buffer[0];
 };
 
 struct bhp_snr_bof_response {
 	/* field response comes from java BIG endian */
-	s32 response;
-	u32 request_length;
+	__be32 response;
+	__be32 request_length;
 };
 
 struct bhp_list_ta_packages_response {
