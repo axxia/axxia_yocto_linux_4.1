@@ -60,12 +60,14 @@
 #ifndef _BHP_IMPL_H_
 #define _BHP_IMPL_H_
 
+#include <linux/list.h>
+#include <linux/slab.h>
+#include <linux/bitops.h>
+
 #include "bh_types.h"
 #include "bhp_exp.h"
 #include "bh_acp_exp.h"
 #include "bhp_heci.h"
-#include <linux/list.h>
-#include <linux/slab.h>
 
 /** struct bh_response_record
  *   represents a beihai response record
@@ -112,7 +114,7 @@ struct bh_connection_item {
 #define CMDBUF_SIZE 100
 
 /* TODO: review to avoid seq conflicts */
-# define MSG_SEQ_START_NUMBER (1UL << 32)
+# define MSG_SEQ_START_NUMBER BIT_ULL(32)
 
 /**
  * enum bhp_connection_index -
