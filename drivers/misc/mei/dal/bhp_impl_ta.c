@@ -57,7 +57,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-
 /*
  *
  * @file  bhp_impl_ta.cpp
@@ -68,6 +67,9 @@
  */
 
 #include <linux/string.h>
+#include <linux/uuid.h>
+#include <linux/ctype.h>
+
 #include "bh_errcode.h"
 #include "bhp_impl.h"
 
@@ -76,72 +78,41 @@ enum bhp_vm_mode {
 	BHP_OPEN_VM_NORMAL_MODE = 1
 };
 
-static int char2hex(char c)
+static bool uuid_is_valid_hyphenless(const char *uuid_str)
 {
-	if (c >= '0' && c <= '9')
-		return (c - '0');
-	else if (c >= 'a' && c <= 'f')
-		return (c - 'a' + 0xA);
-	else
-		return (c - 'A' + 0xA);
+	unsigned int i;
+
+	/* exclude (i == 8 || i == 13 || i == 18 || i == 23) */
+	for (i = 0; i < UUID_STRING_LEN - 4; i++)
+		if (!isxdigit(uuid_str[i]))
+			return false;
+
+	return true;
 }
 
-static int string_check1_uuid(const char *str)
+static void uuid_normalize_hyphenless(const char *uuid_hl, char *uuid_str)
 {
-	int i;
+	unsigned int i;
 
-	for (i = 0; i < BH_GUID_LENGTH * 2; i++, str++)
-		if (!((*str >= '0' && *str <= '9') ||
-				(*str >= 'a' && *str <= 'f') ||
-				(*str >= 'A' && *str <= 'F')))
-			return 0;
-
-	/* incorrect string length */
-	if (*str != 0)
-		return 0;
-
-	return 1;
+	for (i = 0; i < UUID_STRING_LEN; i++) {
+		if (i == 8 || i == 13 || i == 18 || i == 23)
+			uuid_str[i] = '-';
+		else
+			uuid_str[i] = *uuid_hl++;
+	}
+	uuid_str[i] = '\0';
 }
 
-static int string_check2_uuid(const char *str)
+static int __uuid_be_to_bin(const char *uuid_str, uuid_be *uuid)
 {
-	int i;
+	char __uuid_str[UUID_STRING_LEN + 1];
 
-	for (i = 0; i < BH_GUID_LENGTH * 2; i++, str++) {
-
-		if (*str == '-' && (i == 8 || i == 12 || i == 16 || i == 20))
-			str++;
-
-		if (!((*str >= '0' && *str <= '9') ||
-				(*str >= 'a' && *str <= 'f') ||
-				(*str >= 'A' && *str <= 'F')))
-			return 0;
+	if (uuid_is_valid_hyphenless(uuid_str)) {
+		uuid_normalize_hyphenless(uuid_str, __uuid_str);
+		uuid_str = __uuid_str;
 	}
 
-	/* incorrect string length */
-	if (*str != 0)
-		return 0;
-
-	return 1;
-}
-
-static s32 string_to_uuid(const s8 *str, s8 *uuid)
-{
-	int i;
-
-	if (!string_check1_uuid(str) && !string_check2_uuid(str))
-		return 0;
-
-	for (i = 0; i < BH_GUID_LENGTH; i++, uuid++) {
-
-		if (*str == '-')
-			str++;
-
-		*uuid = (s8) char2hex(*str++);
-		*uuid <<= 4;
-		*uuid += (s8) char2hex(*str++);
-	}
-	return 1;
+	return uuid_be_to_bin(uuid_str, uuid);
 }
 
 /* try to session_enter for IVM, then SVM */
@@ -418,6 +389,7 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 {
 	int ret;
 	struct bh_ta_id ta_id;
+	uuid_be ta_uuid;
 	int conn_idx = 0;
 	int vm_conn_closed = 0;
 	struct bh_sd_id sdid;
@@ -435,8 +407,10 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 	if (!init_buffer && init_len != 0)
 		return BPE_INVALID_PARAMS;
 
-	if (!string_to_uuid(app_id, (char *) &ta_id))
+	if (__uuid_be_to_bin(app_id, &ta_uuid))
 		return BPE_INVALID_PARAMS;
+
+	memcpy(ta_id.data, ta_uuid.b, sizeof(ta_id.data));
 
 	*session = 0;
 
