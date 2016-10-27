@@ -63,7 +63,7 @@
 
 #include <linux/kernel.h>
 
-#include "bh_shared_errcode.h"
+#include "bh_errcode.h"
 
 struct bhp_transport {
 	int (*send)(unsigned int handle,

@@ -68,7 +68,7 @@
  */
 
 #include <linux/string.h>
-#include "bh_shared_errcode.h"
+#include "bh_errcode.h"
 #include "bhp_impl.h"
 
 enum bhp_vm_mode {

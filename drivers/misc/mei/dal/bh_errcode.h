@@ -135,6 +135,7 @@
 #define BHE_SESSION_NUM_EXCEED                  0x317
 #define BHE_TA_PACKAGE_HASH_VERIFY_FAIL         0x318
 #define BHE_SWITCH_ISD                          0x319
+#define BHE_OPERATION_NOT_PERMITTED             0x31A
 
 /* VM Applet instance error code section:        0x400 */
 #define BHE_APPLET_GENERIC                      0x400

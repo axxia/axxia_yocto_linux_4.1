@@ -70,8 +70,8 @@
 #ifndef __BHP_HECI_H
 #define __BHP_HECI_H
 
-#include "bh_shared_types.h"
-#include "bh_shared_errcode.h"
+#include "bh_types.h"
+#include "bh_errcode.h"
 
 #define BHP_MSG_MAGIC_LENGTH (4)
 #define BHP_MSG_CMD_MAGIC "\xff\xa3\xaa\x55"

@@ -60,7 +60,7 @@
 #ifndef _BHP_IMPL_H_
 #define _BHP_IMPL_H_
 
-#include "bh_shared_types.h"
+#include "bh_types.h"
 #include "bhp_exp.h"
 #include "bh_acp_exp.h"
 #include "bhp_heci.h"

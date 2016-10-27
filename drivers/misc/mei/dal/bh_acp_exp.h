@@ -61,7 +61,7 @@
 #ifndef __BH_ACP_EXP_H
 #define __BH_ACP_EXP_H
 
-#include "bh_shared_errcode.h"
+#include "bh_errcode.h"
 #include "bh_acp_format.h"
 
 struct ac_ins_jta_pack_ext {

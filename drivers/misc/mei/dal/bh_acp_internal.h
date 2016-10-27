@@ -61,8 +61,8 @@
 #ifndef _BH_ACP_INTERNAL_H
 #define _BH_ACP_INTERNAL_H
 
-#include "bh_shared_types.h"
-#include "bh_shared_errcode.h"
+#include "bh_types.h"
+#include "bh_errcode.h"
 #include "bh_acp_format.h"
 
 /* Intel CSS Header + CSS Cypto Block which prefixes each signed ACP pkg */

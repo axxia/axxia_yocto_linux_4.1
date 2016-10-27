@@ -61,7 +61,7 @@
 #ifndef BH_ACP_FORMAT_H
 #define BH_ACP_FORMAT_H
 
-#include "bh_shared_types.h"
+#include "bh_types.h"
 
 /* make sure those limitation values are adjusted to real world */
 #define BH_MAX_ACP_INS_REASONS_LENGTH 1024

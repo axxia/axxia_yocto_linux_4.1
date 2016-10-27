@@ -68,7 +68,7 @@
 #include <linux/kernel.h>
 #include <linux/printk.h>
 
-#include "bh_shared_errcode.h"
+#include "bh_errcode.h"
 #include "bh_acp_format.h"
 #include "bh_acp_internal.h"
 #include "bh_acp_exp.h"
