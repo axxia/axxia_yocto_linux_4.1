@@ -62,24 +62,10 @@
 
 #include <linux/types.h>
 
-#define BH_GUID_LENGTH 16
 #define BH_MAX_PACK_HASH_LEN 32
-
 struct bh_pack_hash {
 	u8 data[BH_MAX_PACK_HASH_LEN];
 };
-
-struct bh_ta_id {
-	u8 data[BH_GUID_LENGTH];
-};
-
-#define BH_TAID_LEN sizeof(struct bh_ta_id)
-
-struct bh_sd_id {
-	u8 data[BH_GUID_LENGTH];
-};
-
-#define BH_SDID_LEN sizeof(struct bh_sd_id)
 
 /**
  * struct _bh_ta_install_condition_list_t:

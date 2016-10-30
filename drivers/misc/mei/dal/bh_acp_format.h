@@ -61,6 +61,7 @@
 #ifndef BH_ACP_FORMAT_H
 #define BH_ACP_FORMAT_H
 
+#include <linux/uuid.h>
 #include "bh_types.h"
 
 /* make sure those limitation values are adjusted to real world */
@@ -111,7 +112,7 @@ struct ac_name {
 
 struct bh_ta_id_list {
 	u32 num;
-	struct bh_ta_id list[0];
+	uuid_be list[0];
 } __packed;
 
 /*
@@ -145,7 +146,7 @@ struct ac_pack {
 } __packed;
 
 struct ac_ins_ta_header {
-	struct bh_ta_id ta_id;
+	uuid_be ta_id;
 	u32 ta_svn;
 	u8 hash_alg_type;
 	u8 ta_reserved[3];

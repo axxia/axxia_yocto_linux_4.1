@@ -131,7 +131,7 @@ session_enter_vm(u64 seq, int *conn_idx, int lock_session)
 	return rr;
 }
 
-static int bh_proxy_get_sd_by_ta(struct bh_ta_id taid, struct bh_sd_id *sdid)
+static int bh_proxy_get_sd_by_ta(uuid_be taid, uuid_be *sdid)
 {
 	int ret;
 	char cmdbuf[CMDBUF_SIZE];
@@ -173,7 +173,7 @@ cleanup:
 	return ret;
 }
 
-static int bh_proxy_check_svl_ta_blocked_state(struct bh_ta_id taid)
+static int bh_proxy_check_svl_ta_blocked_state(uuid_be taid)
 {
 	int ret;
 	char cmdbuf[CMDBUF_SIZE];
@@ -202,14 +202,14 @@ static int bh_proxy_check_svl_ta_blocked_state(struct bh_ta_id taid)
 }
 
 static int bh_proxy_listJTAPackages(int conn_idx, int *count,
-				    struct bh_ta_id **app_ids)
+				    uuid_be **app_ids)
 {
 	int ret;
 	char cmdbuf[CMDBUF_SIZE];
 	struct bhp_command_header *h = (struct bhp_command_header *) cmdbuf;
 	struct bh_response_record rr;
 	struct bhp_list_ta_packages_response *resp;
-	struct bh_ta_id *outbuf;
+	uuid_be *outbuf;
 	unsigned int i;
 
 	memset(cmdbuf, 0x00, sizeof(cmdbuf));
@@ -244,14 +244,14 @@ static int bh_proxy_listJTAPackages(int conn_idx, int *count,
 	if (!resp->count)
 		goto out;
 
-	if (rr.length != sizeof(struct bh_ta_id) *
+	if (rr.length != sizeof(uuid_be) *
 			 resp->count +
 			sizeof(struct bhp_list_ta_packages_response)) {
 		ret = BPE_MESSAGE_ILLEGAL;
 		goto out;
 	}
 
-	outbuf = kcalloc(resp->count, sizeof(struct bh_ta_id), GFP_KERNEL);
+	outbuf = kcalloc(resp->count, sizeof(uuid_be), GFP_KERNEL);
 
 	if (!outbuf) {
 		ret = BPE_OUT_OF_MEMORY;
@@ -270,7 +270,7 @@ out:
 
 static int bh_proxy_download_javata(
 		int conn_idx,
-		struct bh_ta_id ta_id,
+		uuid_be ta_id,
 		const char *ta_pkg,
 		unsigned int pkg_len)
 {
@@ -303,7 +303,7 @@ static int bh_proxy_download_javata(
 
 static int bh_proxy_openjtasession(
 		int conn_idx,
-		struct bh_ta_id ta_id,
+		uuid_be ta_id,
 		const char *init_buffer,
 		unsigned int init_len,
 		u64 *handle,
@@ -388,14 +388,13 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 			const u8 *init_buffer, size_t init_len)
 {
 	int ret;
-	struct bh_ta_id ta_id;
-	uuid_be ta_uuid;
+	uuid_be ta_id;
 	int conn_idx = 0;
 	int vm_conn_closed = 0;
-	struct bh_sd_id sdid;
+	uuid_be sdid;
 	int ta_existed = 0;
 	int count = 0;
-	struct bh_ta_id *app_ids = NULL;
+	uuid_be *app_ids = NULL;
 	int i;
 
 	if (!app_id || !session)
@@ -407,10 +406,8 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 	if (!init_buffer && init_len != 0)
 		return BPE_INVALID_PARAMS;
 
-	if (__uuid_be_to_bin(app_id, &ta_uuid))
+	if (__uuid_be_to_bin(app_id, &ta_id))
 		return BPE_INVALID_PARAMS;
-
-	memcpy(ta_id.data, ta_uuid.b, sizeof(ta_id.data));
 
 	*session = 0;
 
@@ -432,7 +429,7 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 	ret = bh_proxy_listJTAPackages(conn_idx, &count, &app_ids);
 	if (ret == BH_SUCCESS) {
 		for (i = 0; i < count; i++) {
-			if (!memcmp(&ta_id, &app_ids[i], sizeof(struct bh_ta_id))) {
+			if (!uuid_be_cmp(ta_id, app_ids[i])) {
 				ta_existed = 1;
 				break;
 			}

@@ -63,6 +63,7 @@
 #include <linux/list.h>
 #include <linux/slab.h>
 #include <linux/bitops.h>
+#include <linux/uuid.h>
 
 #include "bh_types.h"
 #include "bhp_exp.h"
@@ -104,7 +105,7 @@ struct bh_connection_item {
 	unsigned int handle;
 	struct list_head rr_map_list_header;
 	unsigned int conn_count;
-	struct bh_sd_id sdid;
+	uuid_be sdid;
 };
 
 /* maximum concurrent activities on one session */
@@ -168,7 +169,7 @@ int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
 		    const void *data, unsigned int dlen, u64 seq);
 
 /* open vm connection for sdid and increase vm connection counter by 1 */
-int bh_do_open_vm(struct bh_sd_id sdid, int *conn_idx, int mode);
+int bh_do_open_vm(uuid_be sdid, int *conn_idx, int mode);
 
 /* decrease vm connection counter by 1 */
 int bh_do_close_vm(int conn_idx);

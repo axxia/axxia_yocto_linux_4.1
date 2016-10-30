@@ -69,7 +69,7 @@ static u64 sequence_number = MSG_SEQ_START_NUMBER;
 static struct bh_connection_item connections[MAX_CONNECTIONS];
 
 /* the isd-id in the firmware, got during init */
-static struct bh_sd_id isd_uuid;
+static uuid_be isd_uuid;
 static struct bhp_transport bhp_transport;
 
 /*
@@ -401,7 +401,7 @@ static int bh_transport_send(unsigned int handle, const void *buffer,
 	return BH_SUCCESS;
 }
 
-int bh_do_open_vm(struct bh_sd_id sdid, int *conn_idx, int mode)
+int bh_do_open_vm(uuid_be sdid, int *conn_idx, int mode)
 {
 	if (!conn_idx)
 		return BPE_INVALID_PARAMS;
@@ -532,7 +532,7 @@ static void bh_do_connect(int conn_idx)
 	conn->handle = 0;
 	conn->conn_count = 0;
 	INIT_LIST_HEAD(&conn->rr_map_list_header);
-	memset(&conn->sdid, 0x00, sizeof(struct bh_sd_id));
+	memset(&conn->sdid, 0x00, sizeof(uuid_be));
 }
 
 static int bh_do_disconnect(int conn_idx)
@@ -555,7 +555,7 @@ static int bh_do_disconnect(int conn_idx)
 	}
 
 	INIT_LIST_HEAD(&conn->rr_map_list_header);
-	memset(&conn->sdid, 0x00, sizeof(struct bh_sd_id));
+	memset(&conn->sdid, 0x00, sizeof(uuid_be));
 
 	return BH_SUCCESS;
 }

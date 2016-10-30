@@ -70,6 +70,9 @@
 #ifndef __BHP_HECI_H
 #define __BHP_HECI_H
 
+#include <linux/types.h>
+#include <linux/uuid.h>
+
 #include "bh_types.h"
 #include "bh_errcode.h"
 
@@ -140,12 +143,12 @@ struct bhp_response_header {
 };
 
 struct bhp_download_javata_cmd {
-	struct bh_ta_id appid;
+	uuid_be appid;
 	s8 appblob[0];
 };
 
 struct bhp_open_jtasession_cmd {
-	struct bh_ta_id appid;
+	uuid_be appid;
 	s8 buffer[0];
 };
 
@@ -161,7 +164,7 @@ struct bhp_snr_cmd {
 };
 
 struct bhp_check_svl_ta_blocked_state_cmd {
-	struct bh_ta_id taid;
+	uuid_be taid;
 };
 
 struct bhp_reset_launcher_response {
@@ -170,15 +173,15 @@ struct bhp_reset_launcher_response {
 };
 
 struct bhp_get_sd_by_ta_cmd {
-	struct bh_ta_id taid;
+	uuid_be taid;
 };
 
 struct bhp_get_sd_by_ta_response {
-	struct bh_sd_id sdid;
+	uuid_be sdid;
 };
 
 struct bhp_get_isd_response {
-	struct bh_sd_id sdid;
+	uuid_be sdid;
 };
 
 struct bhp_snr_response {
@@ -195,7 +198,7 @@ struct bhp_snr_bof_response {
 
 struct bhp_list_ta_packages_response {
 	u32 count;
-	struct bh_ta_id app_ids[0];
+	uuid_be app_ids[0];
 };
 
 #endif /* __BHP_HECI_H */
