@@ -88,8 +88,6 @@ enum ac_ta_type {
 	AC_TA_TYPE_NATIVE,
 };
 
-#pragma pack(1)
-
 struct ac_pack_header {
 	/*ACP Header*/
 	u8 magic[4];
@@ -105,17 +103,17 @@ struct ac_pack_header {
 	u32 idx_condition;
 	/*TBD: BH_U32 idx_encrypt;*/
 	u32 idx_data;
-};
+} __packed;
 
 struct ac_name {
 	u8 len;/*the size of data in byte*/
 	s8 data[0];
-};
+} __packed;
 
 struct bh_ta_id_list {
 	u32 num;
 	struct bh_ta_id list[0];
-};
+} __packed;
 
 /*
  * Firmware properties are formatted as "type\0key\0value\0"
@@ -125,7 +123,7 @@ struct bh_prop_list {
 	u32 num; /*number of properties*/
 	u32 len; /*the size of data in byte*/
 	s8 data[0];
-};
+} __packed;
 
 struct ac_ins_reasons {
 	/* NOTE: len means the amount of items in data,
@@ -134,11 +132,7 @@ struct ac_ins_reasons {
 	 */
 	u32 len;
 	u32 data[0];
-};
-
-#pragma pack()
-
-#pragma pack(1)
+} __packed;
 
 /*
  * below structures are the parsing result that application layer should use
@@ -149,7 +143,7 @@ struct ac_pack {
 	/*the type of data depends on head->cmd_id*/
 	char data[0];
 /*--ACSignature is appendeded after command package*/
-};
+} __packed;
 
 struct ac_ins_ta_header {
 	struct bh_ta_id ta_id;
@@ -157,13 +151,13 @@ struct ac_ins_ta_header {
 	u8 hash_alg_type;
 	u8 ta_reserved[3];
 	struct bh_pack_hash hash;
-};
-/*header struct shared between JTA and NTA*/
+} __packed;
 
+/*header struct shared between JTA and NTA*/
 struct ac_ins_jta_pack {
 	struct bh_prop_list *ins_cond;
 	struct ac_ins_ta_header *head;
-};
+} __packed;
 
 struct ac_ins_jta_prop_header {
 	u32 mem_quota;
@@ -172,7 +166,7 @@ struct ac_ins_jta_prop_header {
 	u16 allowed_inter_session_num;
 	u64 ac_groups;
 	u32 timeout;
-};
+} __packed;
 
 struct ac_ins_jta_prop {
 	struct ac_ins_jta_prop_header *head;
@@ -180,8 +174,6 @@ struct ac_ins_jta_prop {
 	struct ac_ins_reasons *reg_reasons;
 	struct bh_prop_list *prop;
 	struct bh_ta_id_list *used_service_list;
-};
+} __packed;
 
-#pragma pack()
-
-#endif
+#endif /* BH_ACP_FORMAT_H */
