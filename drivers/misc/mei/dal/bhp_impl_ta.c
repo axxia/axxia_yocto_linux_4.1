@@ -561,7 +561,6 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 
 				} else
 					ret = BHE_APPLET_SMALL_BUFFER;
-
 			}
 
 			*output_length = len;

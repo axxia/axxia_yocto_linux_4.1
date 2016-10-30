@@ -78,7 +78,6 @@
 #define BHP_MSG_RESPONSE_MAGIC "\xff\xa5\xaa\x55"
 
 enum bhp_command_id {
-
 	BHP_CMD_INIT = 0,
 	BHP_CMD_DEINIT,
 	BHP_CMD_VERIFY_JAVATA,

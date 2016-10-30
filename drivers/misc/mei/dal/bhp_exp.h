@@ -86,7 +86,6 @@ struct bhp_transport {
  */
 int bhp_init_internal(const struct bhp_transport *transport);
 
-
 /**
  * Invoke this function before exiting.
  * If BHP_Init is not called, this function will do nothing.

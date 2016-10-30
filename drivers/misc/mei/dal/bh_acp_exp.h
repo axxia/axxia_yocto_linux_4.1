@@ -75,7 +75,6 @@ struct ac_ins_jta_prop_ext {
 	char *jeff_pack;
 } __packed;
 
-
 int acp_pload_ins_jta(const void *raw_data, unsigned int size,
 		      struct ac_ins_jta_pack_ext *pack);
 

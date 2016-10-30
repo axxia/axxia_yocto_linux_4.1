@@ -95,7 +95,6 @@ static u64 increment_sequence_number(void)
 	return ret;
 }
 
-
 struct RR_MAP_INFO {
 	struct list_head link;
 	u64 seq;
@@ -319,7 +318,6 @@ static void session_kill(int conn_idx, struct bh_response_record *session,
 	mutex_enter(connections[conn_idx].bhm_rrmap);
 	session->killed = true;
 	if (session->count == 0) {
-
 		rrmap_remove(conn_idx, seq, true);
 		destroy_session(session);
 		if (conn_idx >= CONN_IDX_SVM)
@@ -331,11 +329,9 @@ static void session_kill(int conn_idx, struct bh_response_record *session,
 	 * only for connected SVM
 	 */
 	if (close_vm_conn) {
-
-		if (!is_caller_svm_recv_thread)
+		if (!is_caller_svm_recv_thread) {
 			bh_do_close_vm(conn_idx);
-
-		else {
+		} else {
 			mutex_enter(connections[conn_idx].lock);
 			if (connections[conn_idx].conn_count != 1)
 				connections[conn_idx].conn_count--;
@@ -393,7 +389,6 @@ static int bh_transport_send(unsigned int handle, const void *buffer,
 		return BPE_COMMS_ERROR;
 
 	while (size - count > 0) {
-
 		written = min_t(u32, size - count, DAL_MAX_BUFFER_SIZE);
 		status = bhp_transport.send(handle,
 				(unsigned char *)buffer + count, written, seq);

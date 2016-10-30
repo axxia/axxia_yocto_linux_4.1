@@ -57,8 +57,6 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
-
-
 #ifndef __BH_SHARED_TYPES_H
 #define __BH_SHARED_TYPES_H
 
@@ -100,4 +98,3 @@ struct _bh_ta_install_condition_list_t {
 };
 
 #endif /* __BH_SHARED_TYPES_H */
-

@@ -69,7 +69,6 @@
 #define BH_MAX_ACP_PROPS_LENGTH 2048
 
 enum ac_cmd_id {
-
 	AC_CMD_INVALID,
 	AC_INSTALL_SD,
 	AC_UNINSTALL_SD,
