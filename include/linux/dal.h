@@ -91,6 +91,10 @@ struct dal_version_info {
 #define DAL_KDI_STATUS_UNCAUGHT_EXCEPTION       0xA0B
 #define DAL_KDI_STATUS_WD_TIMEOUT               0xA0C
 #define DAL_KDI_STATUS_APPLET_CRASHED           0xA0D
+#define DAL_KDI_STATUS_TA_NOT_FOUND             0xA0E
+#define DAL_KDI_STATUS_NON_EXCLUSIVENESS_TA     0xA0F
+#define DAL_KDI_STATUS_TA_EXIST                 0xA10
+#define DAL_KDI_STATUS_OPERATION_NOT_PERMITTED  0xA11
 
 #define DAL_KDI_INVALID_HANDLE    0
 
