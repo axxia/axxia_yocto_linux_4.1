@@ -73,11 +73,6 @@
 #include "bh_errcode.h"
 #include "bhp_impl.h"
 
-enum bhp_vm_mode {
-	BHP_OPEN_VM_QUERY_MODE = 0,
-	BHP_OPEN_VM_NORMAL_MODE = 1
-};
-
 static bool uuid_is_valid_hyphenless(const char *uuid_str)
 {
 	unsigned int i;
@@ -114,6 +109,84 @@ static int __uuid_be_to_bin(const char *uuid_str, uuid_be *uuid)
 
 	return uuid_be_to_bin(uuid_str, uuid);
 }
+
+/*
+ * 4 bytes array to identify BH headers
+ */
+static const u8 BH_MSG_SPLR_MAGIC[]  = {0x53, 0x50, 0x4c, 0x52};
+static const u8 BH_MSG_RESP_MAGIC[]  = {0xff, 0xa5, 0xaa, 0x55};
+static const u8 BH_MSG_CMD_MAGIC[]   = {0xff, 0xa3, 0xaa, 0x55};
+
+/* Check for response msg */
+bool bh_msg_is_response(const char *hdr)
+{
+	return !memcmp(hdr, BH_MSG_RESP_MAGIC, sizeof(BH_MSG_RESP_MAGIC));
+}
+
+/* Check for spoolar msg */
+bool bh_msg_is_spooler(const char *hdr)
+{
+	return !memcmp(hdr, BH_MSG_SPLR_MAGIC, sizeof(BH_MSG_SPLR_MAGIC));
+}
+
+/* Check for command msg */
+bool bh_msg_is_cmd(const char *hdr)
+{
+	return !memcmp(hdr, BH_MSG_CMD_MAGIC, sizeof(BH_MSG_CMD_MAGIC));
+}
+
+static bool bh_cmd_is_valid(struct bhp_command_header *hdr, size_t len)
+{
+	return (len >= sizeof(struct bhp_command_header));
+}
+
+static const
+struct bhp_command_header *bh_msg_cmd_hdr(const char *msg, size_t len)
+{
+	struct bhp_command_header *hdr;
+
+	if (!bh_msg_is_cmd(msg))
+		return NULL;
+
+	hdr = (struct bhp_command_header *)msg;
+
+	if (!bh_cmd_is_valid(hdr, len))
+		return NULL;
+
+	return hdr;
+}
+
+bool bh_msg_is_cmd_open_session(const char *msg)
+{
+	struct bhp_command_header *hdr;
+
+	if (!bh_msg_is_cmd(msg))
+		return 0;
+
+	hdr = (struct bhp_command_header *)msg;
+	return hdr->id == BHP_CMD_OPEN_JTASESSION;
+}
+
+const uuid_be *bh_open_session_ta_id(const char *hdr, size_t count)
+{
+	struct bhp_command_header *cmd_hdr;
+	struct bhp_open_jtasession_cmd *open_cmd;
+
+	if (count < sizeof(struct bhp_command_header) +
+		sizeof(struct bhp_open_jtasession_cmd))
+		return NULL;
+
+	cmd_hdr = (struct bhp_command_header *)hdr;
+	open_cmd = (struct bhp_open_jtasession_cmd *)cmd_hdr->cmd;
+
+	return &open_cmd->appid;
+}
+
+
+enum bhp_vm_mode {
+	BHP_OPEN_VM_QUERY_MODE = 0,
+	BHP_OPEN_VM_NORMAL_MODE = 1
+};
 
 /* try to session_enter for IVM, then SVM */
 static struct bh_response_record *
@@ -598,3 +671,40 @@ int bhp_close_ta_session(const u64 handle)
 
 	return ret;
 }
+
+int bh_filter_msg(const char *msg, size_t count, void *ctx,
+		  const bh_filter_func tbl[])
+{
+	int i;
+	int ret;
+	const struct bhp_command_header *hdr;
+
+	if (count < BHP_MSG_MAGIC_LENGTH)
+		return -EINVAL;
+
+	if (!bh_msg_is_cmd(msg))
+		return 0;
+
+	hdr = bh_msg_cmd_hdr(msg, count);
+	if (!hdr)
+		return -EINVAL;
+
+	for (i = 0; tbl[i]; i++) {
+		ret = tbl[i](msg, count, ctx);
+		if (ret < 0)
+			return ret;
+	}
+	return 0;
+}
+
+void bh_prep_access_denied_response(const char *cmd,
+				    struct bhp_response_header *res)
+{
+	struct bhp_command_header *cmd_hdr = (struct bhp_command_header *)cmd;
+
+	memcpy(res->h.magic, BHP_MSG_RESPONSE_MAGIC, BHP_MSG_MAGIC_LENGTH);
+	res->h.length = sizeof(struct bhp_response_header);
+	res->code = BHE_OPERATION_NOT_PERMITTED;
+	res->seq = cmd_hdr->seq;
+}
+

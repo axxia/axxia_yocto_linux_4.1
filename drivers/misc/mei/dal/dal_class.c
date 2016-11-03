@@ -89,31 +89,6 @@
  */
 struct class *dal_class;
 
-/*
- * 4 bytes array to identify BH headers
- */
-static const u8 BH_MSG_SPLR_MAGIC[]  = {0x53, 0x50, 0x4c, 0x52};
-static const u8 BH_MSG_RESP_MAGIC[]  = {0xff, 0xa5, 0xaa, 0x55};
-static const u8 BH_MSG_CMD_MAGIC[]   = {0xff, 0xa3, 0xaa, 0x55};
-
-/* Check for response msg */
-static inline bool dal_msg_is_response(const char *hdr)
-{
-	return !memcmp(hdr, BH_MSG_RESP_MAGIC, sizeof(BH_MSG_RESP_MAGIC));
-}
-
-/* Check for spoolar msg */
-static inline bool dal_msg_is_spooler(const char *hdr)
-{
-	return !memcmp(hdr, BH_MSG_SPLR_MAGIC, sizeof(BH_MSG_SPLR_MAGIC));
-}
-
-/* Check for command msg */
-static inline bool dal_msg_is_cmd(const char *hdr)
-{
-	return !memcmp(hdr, BH_MSG_CMD_MAGIC, sizeof(BH_MSG_CMD_MAGIC));
-}
-
 /* comperator for cl devices */
 static int dal_dev_match(struct device *dev, const void *data)
 {
@@ -183,6 +158,56 @@ static int dal_wait_for_write(struct dal_device *ddev, struct dal_client *dc)
 	return 0;
 }
 
+/* put response msg with error code 'access denied' in client's queue */
+static int dal_send_error_access_denied(struct dal_client *dc)
+{
+	struct dal_device *ddev = dc->ddev;
+	struct bhp_response_header res;
+	size_t len;
+	int ret;
+
+	mutex_lock(&ddev->context_lock);
+
+	bh_prep_access_denied_response(dc->write_buffer, &res);
+	len = sizeof(res);
+
+	ret = kfifo_in(&dc->read_queue, &len, sizeof(len));
+	ret += kfifo_in(&dc->read_queue, &res, len);
+	if (ret < len + sizeof(len)) {
+		dev_err(&ddev->dev, "queue is full - access denied MSG THROWN");
+		mutex_unlock(&ddev->context_lock);
+		return -ENOMEM;
+	}
+
+	dev_dbg(&ddev->dev, "calls wake_up_interruptible\n");
+	wake_up_interruptible(&ddev->wq);
+
+	mutex_unlock(&ddev->context_lock);
+
+	return 0;
+}
+
+static int dal_validate_access(const char *msg, size_t count, void *ctx)
+{
+	struct dal_client *dc = ctx;
+	struct dal_device *ddev = dc->ddev;
+	const uuid_be *ta_id;
+
+	if (!bh_msg_is_cmd_open_session(msg))
+		return 0;
+
+	ta_id = bh_open_session_ta_id(msg, count);
+	if (!ta_id)
+		return -EINVAL;
+
+	return dal_access_policy_allowed(ddev, *ta_id, dc);
+}
+
+static const bh_filter_func dal_write_filter_tbl[] = {
+	dal_validate_access,
+	NULL,
+};
+
 /* Write BH msg via MEI*/
 ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 {
@@ -191,7 +216,7 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	struct device *dev;
 	ssize_t wr;
 	ssize_t ret;
-	int status; /* debug */
+	int status;
 	enum dal_intf intf = dc->intf;
 	struct dal_client *curr_wc; /* debug */
 
@@ -206,11 +231,21 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 
 	/* update client on latest msg seq number*/
 	dc->seq = seq;
-	dev_dbg(dev, "current_write_client seq = %llu",
-			dc->seq);
+	dev_dbg(dev, "current_write_client seq = %llu", dc->seq);
 
 	/* put dc in write queue*/
 	if (ddev->current_write_client != dc) {
+		/* adding client to write queue - this is the first fragment */
+		ret = bh_filter_msg(dc->write_buffer, count, dc, dal_write_filter_tbl);
+		if (ret == -EPERM) {
+			ret = dal_send_error_access_denied(dc);
+			ret = ret ?: count;
+		}
+		if (ret) {
+			mutex_unlock(&ddev->write_queue_lock);
+			return ret;
+		}
+
 		if (kfifo_is_empty(&ddev->write_queue))
 			ddev->current_write_client = dc;
 
@@ -271,7 +306,7 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	 * as the response from the FW is async and may never occur
 	 */
 	/* TODO: we can remove this check and look only on the size */
-	if (dal_msg_is_spooler(dc->write_buffer)) {
+	if (bh_msg_is_spooler(dc->write_buffer)) {
 		ret = wr;
 		dev_dbg(dev, "SPOOLER msg command id = %d", header->id);
 		goto out;
@@ -281,7 +316,7 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	/* header msg is being sent,
 	 * this is the first fragment of the message
 	 */
-	if (dal_msg_is_cmd(dc->write_buffer)) {
+	if (bh_msg_is_cmd(dc->write_buffer)) {
 		dc->expected_msg_size_to_fw = header->h.length;
 		dev_dbg(dev, "This is first fragment - client type %d",
 				intf);
@@ -367,7 +402,7 @@ static void dal_dc_update_read_state(struct dal_client *dc, ssize_t len)
 			(struct transport_msg_header *)dc->ddev->bh_fw_msg.msg;
 
 	/* check BH msg magic, if it exists this is the header */
-	if (dal_msg_is_response(ddev->bh_fw_msg.msg)) {
+	if (bh_msg_is_response(ddev->bh_fw_msg.msg)) {
 		dc->expected_msg_size_from_fw = header->length;
 		dev_dbg(&ddev->dev, "expected_msg_size_from_fw = %d bytes read = %zd",
 			dc->expected_msg_size_from_fw, len);
@@ -436,11 +471,11 @@ static void dal_recv_cb(struct mei_cl_device *cldev)
 	 *
 	 * Do not change the order of this ifs
 	 */
-	if (dal_msg_is_response(ddev->bh_fw_msg.msg)) {
+	if (bh_msg_is_response(ddev->bh_fw_msg.msg)) {
 		intf = get_client_by_squence_number(ddev);
 		dev_dbg(&ddev->dev, "recv_cb(): Client set by sequence number");
 		dc = ddev->clients[intf];
-	} else if (dal_msg_is_spooler(ddev->bh_fw_msg.msg)) {
+	} else if (bh_msg_is_spooler(ddev->bh_fw_msg.msg)) {
 		intf = DAL_INTF_CDEV;
 		dev_dbg(&ddev->dev, "recv_cb(): EVENT msg received");
 		dc = ddev->clients[intf];

@@ -174,6 +174,24 @@ int bh_do_open_vm(uuid_be sdid, int *conn_idx, int mode);
 /* decrease vm connection counter by 1 */
 int bh_do_close_vm(int conn_idx);
 
+/* return error when invalid msg */
+typedef int (*bh_filter_func)(const char *msg, size_t count, void *ctx);
+int bh_filter_msg(const char *msg, size_t count, void *ctx,
+		  const bh_filter_func tbl[]);
+/* true when msg it is open sessio cmd */
+bool bh_msg_is_cmd_open_session(const char *msg);
+
+/* retrives ta_id from the open session */
+const uuid_be *bh_open_session_ta_id(const char *hdr, size_t count);
+
+/* prepare and return response of access denied error */
+void bh_prep_access_denied_response(const char *cmd,
+				    struct bhp_response_header *res);
+
+bool bh_msg_is_response(const char *hdr);
+bool bh_msg_is_spooler(const char *hdr);
+bool bh_msg_is_cmd(const char *hdr);
+
 #define mutex_enter(s) {}
 #define mutex_exit(s)  {}
 
