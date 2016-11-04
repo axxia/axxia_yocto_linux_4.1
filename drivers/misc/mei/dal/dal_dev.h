@@ -225,4 +225,12 @@ void dal_dc_print(struct device *dev, struct dal_client *dc);
 int dal_dc_setup(struct dal_device *ddev, enum dal_intf intf);
 void dal_dc_destroy(struct dal_device *ddev, enum dal_intf intf);
 
+int dal_access_policy_add(struct dal_device *ddev, uuid_be app_id, void *owner);
+int dal_access_policy_remove(struct dal_device *ddev,
+			     uuid_be app_id, void *owner);
+int dal_access_policy_allowed(struct dal_device *ddev,
+			      uuid_be app_id, void *owner);
+void dal_access_list_free(struct dal_device *ddev);
+int dal_access_list_init(struct dal_device *ddev);
+
 #endif  /* _DAL_KDI_H_ */
