@@ -64,6 +64,12 @@
 #include <linux/mei_cl_bus.h>
 #include "dal_dev.h"
 
+/* Spooler UUID */
+#define SPOOLER_UUID UUID_BE(0xba8d1643, 0x50b6, 0x49cc, \
+			     0x86, 0x1d, 0x2c, 0x01, 0xbe, 0xd1, 0x4b, 0xe8)
+
+static const uuid_be spooler_ta_id = SPOOLER_UUID;
+
 struct dal_access_policy {
 	struct list_head list;
 	uuid_be app_id;
@@ -185,6 +191,9 @@ int dal_access_list_init(struct dal_device *ddev)
 
 	INIT_LIST_HEAD(access_list);
 	dev_set_drvdata(&ddev->dev, access_list);
+
+	/* Nobody can own SPOOLER TA */
+	dal_access_policy_add(ddev, spooler_ta_id, NULL);
 
 	return 0;
 }
