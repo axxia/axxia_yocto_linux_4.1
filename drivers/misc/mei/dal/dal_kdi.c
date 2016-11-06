@@ -452,6 +452,99 @@ int dal_close_session(u64 handle, u64 session_handle)
 }
 EXPORT_SYMBOL(dal_close_session);
 
+/**
+ * dal_set_exclusive_access - set given uuid exclusive
+ *
+ * @handle: kdi handle
+ * @ta_id: trusted applet id
+ *
+ * Return:
+ *    DAL_KDI_SUCCESS
+ *    DAL_KDI_STATUS_INTERNAL_ERROR
+ *    DAL_KDI_STATUS_TA_EXIST
+ *    DAL_KDI_STATUS_NON_EXCLUSIVENESS_TA;
+ */
+int dal_set_ta_exclusive_access(u64 handle, uuid_be ta_id)
+{
+	struct dal_device *ddev;
+	struct device *dev;
+	struct dal_client *dc;
+	int ret;
+
+	if (!kdi_check_handle(handle))
+		return DAL_KDI_STATUS_INVALID_HANDLE;
+
+	mutex_lock(&kdi_lock);
+
+	dev = dal_find_dev(DAL_MEI_DEVICE_IVM);
+	if (!dev) {
+		dev_err(dev, "can't find device\n");
+		ret = DAL_KDI_STATUS_INTERNAL_ERROR;
+		goto unlock;
+	}
+
+	ddev = to_dal_device(dev);
+	dc = ddev->clients[DAL_INTF_KDI];
+
+	ret = dal_access_policy_add(ddev, ta_id, dc);
+	if (ret == -EEXIST)
+		ret = DAL_KDI_STATUS_TA_EXIST;
+	else if (ret == -EPERM)
+		ret = DAL_KDI_STATUS_NON_EXCLUSIVENESS_TA;
+	else if (ret)
+		ret = DAL_KDI_STATUS_INTERNAL_ERROR;
+
+	put_device(dev);
+unlock:
+	mutex_unlock(&kdi_lock);
+	return ret;
+}
+EXPORT_SYMBOL(dal_set_ta_exclusive_access);
+
+/**
+ * dal_unset_ta_exclusive_access - remove exclusiveness from uuid
+ *
+ * @handle: kdi handle
+ * @ta_id: trusted applet id
+ *
+ * Return:
+ */
+int dal_unset_ta_exclusive_access(u64 handle, uuid_be ta_id)
+{
+	struct dal_device *ddev;
+	struct device *dev;
+	struct dal_client *dc;
+	int ret;
+
+	if (!kdi_check_handle(handle))
+		return DAL_KDI_STATUS_INVALID_HANDLE;
+
+	mutex_lock(&kdi_lock);
+
+	dev = dal_find_dev(DAL_MEI_DEVICE_IVM);
+	if (!dev) {
+		mutex_unlock(&kdi_lock);
+		dev_err(dev, "can't find device\n");
+		return DAL_KDI_STATUS_INTERNAL_ERROR;
+	}
+
+	ddev = to_dal_device(dev);
+	dc = ddev->clients[DAL_INTF_KDI];
+
+	ret = dal_access_policy_remove(ddev, ta_id, dc);
+	if (ret == -ENOENT)
+		ret = DAL_KDI_STATUS_TA_NOT_FOUND;
+	else if (ret == -EPERM)
+		ret = DAL_KDI_STATUS_OPERATION_NOT_PERMITTED;
+
+	put_device(dev);
+
+	mutex_unlock(&kdi_lock);
+
+	return ret;
+}
+EXPORT_SYMBOL(dal_unset_ta_exclusive_access);
+
 #define KDI_MAJOR_VER         "1"
 #define KDI_MINOR_VER         "0"
 #define KDI_HOTFIX_VER        "0"

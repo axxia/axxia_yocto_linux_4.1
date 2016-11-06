@@ -62,6 +62,7 @@
 #define _DAL_H_
 
 #include <linux/types.h>
+#include <linux/uuid.h>
 
 #define DAL_VERSION_LEN             32
 
@@ -177,5 +178,9 @@ int dal_send_and_receive(u64 handle, u64 session_handle,
  * Return: 0 for success fail otherwise
  */
 int dal_close_session(u64 handle, u64 session_handle);
+
+int dal_set_ta_exclusive_access(u64 handle, uuid_be ta_id);
+
+int dal_unset_ta_exclusive_access(u64 handle, uuid_be ta_id);
 
 #endif /* _DAL_H_ */
