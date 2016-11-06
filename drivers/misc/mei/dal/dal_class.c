@@ -562,6 +562,8 @@ static void dal_class_release(struct device *dev)
 {
 	struct dal_device *ddev = to_dal_device(dev);
 
+	dal_access_list_free(ddev);
+
 	kfree(ddev);
 }
 
@@ -612,6 +614,14 @@ static int dal_probe(struct mei_cl_device *cldev,
 	dev_set_name(&ddev->dev, "dal%d", ddev->device_id);
 
 	dal_dev_setup(ddev);
+
+	if (ddev->device_id == DAL_MEI_DEVICE_IVM) {
+		ret = dal_access_list_init(ddev);
+		if (ret) {
+			dev_err(&cldev->dev, "failed to init access list\n");
+			goto err_dev_create;
+		}
+	}
 
 	ret = device_register(&ddev->dev);
 	if (ret) {
