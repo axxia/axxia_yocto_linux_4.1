@@ -188,6 +188,9 @@ const uuid_be *bh_open_session_ta_id(const char *hdr, size_t count);
 void bh_prep_access_denied_response(const char *cmd,
 				    struct bhp_response_header *res);
 
+/* true when sequence is in kernel space seq range */
+bool bh_is_kdi_hdr(const char *msg);
+
 bool bh_msg_is_response(const char *hdr);
 bool bh_msg_is_spooler(const char *hdr);
 bool bh_msg_is_cmd(const char *hdr);

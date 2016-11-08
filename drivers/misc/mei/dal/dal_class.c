@@ -203,8 +203,19 @@ static int dal_validate_access(const char *msg, size_t count, void *ctx)
 	return dal_access_policy_allowed(ddev, *ta_id, dc);
 }
 
+static int dal_validate_seq(const char *msg, size_t count, void *ctx)
+{
+	struct dal_client *dc = ctx;
+
+	if (dc->intf != DAL_INTF_KDI && bh_is_kdi_hdr(msg))
+		return -EPERM;
+
+	return 0;
+}
+
 static const bh_filter_func dal_write_filter_tbl[] = {
 	dal_validate_access,
+	dal_validate_seq,
 	NULL,
 };
 

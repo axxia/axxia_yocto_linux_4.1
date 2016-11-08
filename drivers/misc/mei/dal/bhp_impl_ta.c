@@ -708,3 +708,14 @@ void bh_prep_access_denied_response(const char *cmd,
 	res->seq = cmd_hdr->seq;
 }
 
+bool bh_is_kdi_hdr(const char *msg)
+{
+	const struct bhp_command_header *cmd_hdr;
+
+	if (!bh_msg_is_cmd(msg))
+		return 0;
+
+	cmd_hdr = (const struct bhp_command_header *)msg;
+
+	return cmd_hdr->seq >= MSG_SEQ_START_NUMBER;
+}
