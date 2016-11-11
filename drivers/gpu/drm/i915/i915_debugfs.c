@@ -2404,10 +2404,12 @@ static int i915_timing_info(struct seq_file *m, void *data)
 		   (dev_priv->profile.gmbus_init / 1000000));
 	seq_printf(m, "        Modeset init time:                  %4lldms\n",
 		   (dev_priv->profile.modeset_init_2 / 1000000));
+	seq_printf(m, "        HUC firmware init time:             %4lldms\n",
+		   (dev_priv->profile.huc_init / 1000000));
 	seq_printf(m, "        GUC firmware init time:             %4lldms\n",
 		   (dev_priv->profile.guc_init / 1000000));
-	seq_printf(m, "        GUC firmware load time:             %4lldms\n",
-		   (dev_priv->profile.guc_load / 1000000));
+	seq_printf(m, "        GUC/HUC firmware load time:         %4lldms\n",
+		   (dev_priv->profile.guc_huc_load / 1000000));
 	seq_printf(m, "        Global GTT init time:               %4lldms\n",
 		   (dev_priv->profile.gtt_init / 1000000));
 	seq_printf(m, "        Modeset GEM init time:              %4lldms\n",

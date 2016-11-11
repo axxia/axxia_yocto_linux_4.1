@@ -1708,8 +1708,9 @@ struct intel_load_profiles {
 	unsigned long long modeset_gem_init;
 	unsigned long long driver_register;
 	unsigned long long fbdev_load;
+	unsigned long long huc_init;
 	unsigned long long guc_init;
-	unsigned long long guc_load;
+	unsigned long long guc_huc_load;
 	unsigned long long csr_load;
 };
 
