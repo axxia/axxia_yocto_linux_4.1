@@ -4256,14 +4256,26 @@ static void igb_watchdog_task(struct work_struct *work)
 	u32 link;
 	int i;
 	u32 connsw;
+	struct pci_dev *pdev = adapter->pdev;
 
+	/* While suspend in progress prevent rescheduling of watchdog */
+	if ((pdev->dev.power.runtime_status == RPM_SUSPENDING) ||
+	    (pdev->dev.power.runtime_status == RPM_SUSPENDED)) {
+		return;
+	}
 	link = igb_has_link(adapter);
 
-	if (adapter->flags & IGB_FLAG_NEED_LINK_UPDATE) {
-		if (time_after(jiffies, (adapter->link_check_timeout + HZ)))
-			adapter->flags &= ~IGB_FLAG_NEED_LINK_UPDATE;
-		else
-			link = false;
+	if (pdev->dev.power.disable_depth) {
+		/* The igb firmware does not perform link down
+		 * under runtime PM.
+		 */
+		if (adapter->flags & IGB_FLAG_NEED_LINK_UPDATE) {
+			if (time_after(jiffies,
+				       (adapter->link_check_timeout + HZ)))
+				adapter->flags &= ~IGB_FLAG_NEED_LINK_UPDATE;
+			else
+				link = false;
+		}
 	}
 
 	/* Force link down if we have fiber to swap to */
@@ -4281,8 +4293,12 @@ static void igb_watchdog_task(struct work_struct *work)
 			adapter->flags |= IGB_FLAG_MEDIA_RESET;
 			igb_reset(adapter);
 		}
-		/* Cancel scheduled suspend requests. */
-		pm_runtime_resume(netdev->dev.parent);
+		/* Do not cancel suspend for supporting runtime PM
+		 * when cable is connected.
+		 * disable_depth is 1 meaning runtime pm disabled.
+		 */
+		if (pdev->dev.power.disable_depth)
+			pm_runtime_resume(netdev->dev.parent);
 
 		if (!netif_carrier_ok(netdev)) {
 			u32 ctrl;
@@ -4376,8 +4392,6 @@ static void igb_watchdog_task(struct work_struct *work)
 					return;
 				}
 			}
-			pm_schedule_suspend(netdev->dev.parent,
-					    MSEC_PER_SEC * 5);
 
 		/* also check for alternate media here */
 		} else if (!netif_carrier_ok(netdev) &&
@@ -4389,6 +4403,11 @@ static void igb_watchdog_task(struct work_struct *work)
 				return;
 			}
 		}
+		/* For runtime PM, schedule suspend when link is not connected
+		 * irrespective of netif_carrier_ok, otherwise scenerio where
+		 * driver is loaded w/o n/w cable is not entering to suspend
+		 */
+		pm_request_autosuspend(netdev->dev.parent);
 	}
 
 	spin_lock(&adapter->stats64_lock);
