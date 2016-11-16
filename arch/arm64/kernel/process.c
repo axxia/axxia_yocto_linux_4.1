@@ -58,6 +58,7 @@ unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
 
+#if 0
 void soft_restart(unsigned long addr)
 {
 	setup_mm_for_reboot();
@@ -65,6 +66,7 @@ void soft_restart(unsigned long addr)
 	/* Should never get here */
 	BUG();
 }
+#endif
 
 /*
  * Function pointers to optional machine specific functions
