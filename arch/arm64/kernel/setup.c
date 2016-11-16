@@ -366,6 +366,12 @@ static void __init request_standard_resources(void)
 		    kernel_data.end <= res->end)
 			request_resource(res, &kernel_data);
 	}
+
+	#ifdef CONFIG_KEXEC
+		/* User space tools will find "Crash kernel" region in /proc/iomem. */
+		if (crashk_res.end)
+			insert_resource(&iomem_resource, &crashk_res);
+	#endif
 }
 
 u64 __cpu_logical_map[NR_CPUS] = { [0 ... NR_CPUS-1] = INVALID_HWID };
