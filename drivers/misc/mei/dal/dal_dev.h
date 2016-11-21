@@ -141,7 +141,7 @@ struct dal_bh_msg {
  * @cdev: the character device structure.
  * @context_lock:  a lock for synchronizing access to sensitive
  * variables/data structures
- * @write_queue_lock: synchronizing access to write queue
+ * @write_lock: synchronizing access to write
  * structures - for current client in write function
  * @rd_wq: a wait queue, for synchronizing requests in a FIFO manner
  * @clients: the clients on this device ( userspace or kernel ).
@@ -162,12 +162,11 @@ struct dal_device {
 	unsigned long status;
 
 	struct mutex context_lock;
-	struct mutex write_queue_lock;
+	struct mutex write_lock; /* write lock */
 	wait_queue_head_t wq;
-	struct kfifo write_queue;
+	struct list_head writers;
 	struct dal_client *clients[DAL_CLIENTS_PER_DEVICE];
 	struct dal_bh_msg bh_fw_msg;
-	struct dal_client *current_write_client;
 	struct dal_client *current_read_client;
 
 	struct mei_cl_device *cldev;
@@ -202,6 +201,7 @@ struct dal_device {
  */
 struct dal_client {
 	struct dal_device *ddev;
+	struct list_head wrlink;
 	struct kfifo read_queue;
 	char write_buffer[DAL_MAX_BUFFER_SIZE];
 	enum dal_intf intf;

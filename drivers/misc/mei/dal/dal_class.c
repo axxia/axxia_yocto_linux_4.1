@@ -142,18 +142,16 @@ static int dal_wait_for_write(struct dal_device *ddev, struct dal_client *dc)
 	 * we are the current writer
 	 */
 	if (wait_event_interruptible(ddev->wq,
-				     !ddev->current_write_client ||
-				     ddev->current_write_client == dc ||
+				     list_first_entry(&ddev->writers,
+						      struct dal_client,
+						      wrlink) == dc ||
 				     ddev->is_device_removed)) {
-		dev_err(&ddev->dev, "wait_for_write(): signal interrupted\n");
 		return -ERESTARTSYS;
 	}
 
 	/* if the device was removed indicate that to the caller */
-	if (ddev->is_device_removed) {
-		dev_dbg(&ddev->dev, "wait_for_write(): woke up, device was removed\n");
+	if (ddev->is_device_removed)
 		return -ENODEV;
-	}
 
 	return 0;
 }
@@ -178,9 +176,6 @@ static int dal_send_error_access_denied(struct dal_client *dc)
 		mutex_unlock(&ddev->context_lock);
 		return -ENOMEM;
 	}
-
-	dev_dbg(&ddev->dev, "calls wake_up_interruptible\n");
-	wake_up_interruptible(&ddev->wq);
 
 	mutex_unlock(&ddev->context_lock);
 
@@ -233,9 +228,7 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	struct device *dev;
 	ssize_t wr;
 	ssize_t ret;
-	int status;
 	enum dal_intf intf = dc->intf;
-	struct dal_client *curr_wc; /* debug */
 
 	dev = &ddev->dev;
 
@@ -243,66 +236,39 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	dal_dc_print(dev, dc);
 
 	/* lock for adding new client that want to write to fifo */
-	dev_dbg(dev, "before write_queue_lock - client type %d", intf);
-	mutex_lock(&ddev->write_queue_lock);
-
+	mutex_lock(&ddev->write_lock);
 	/* update client on latest msg seq number*/
 	dc->seq = seq;
 	dev_dbg(dev, "current_write_client seq = %llu", dc->seq);
 
-	/* put dc in write queue*/
-	if (ddev->current_write_client != dc) {
+	/* put dc in the writers queue if not already */
+	if (list_first_entry_or_null(&ddev->writers,
+				     struct dal_client, wrlink) != dc) {
 		/* adding client to write queue - this is the first fragment */
 		const struct bhp_command_header *hdr;
 
 		hdr = bh_msg_cmd_hdr(dc->write_buffer, count);
-		if (!hdr) {
-			mutex_unlock(&ddev->write_queue_lock);
-			return -EINVAL;
-		}
 
 		ret = bh_filter_hdr(hdr, count, dc, dal_write_filter_tbl);
 		if (ret == -EPERM) {
 			ret = dal_send_error_access_denied(dc);
-			ret = ret ?: count;
+			ret = ret ? ret : count;
 		}
-		if (ret) {
-			mutex_unlock(&ddev->write_queue_lock);
-			return ret;
-		}
+		if (ret)
+			goto out;
 
 		dc->bytes_sent_to_fw = 0;
 		dc->expected_msg_size_to_fw = hdr->h.length;
-		dev_dbg(dev, "This is first fragment - client type %d, cmd id = %d",
-				intf, hdr->id);
 
-		if (kfifo_is_empty(&ddev->write_queue))
-			ddev->current_write_client = dc;
-
-		ret = kfifo_in(&ddev->write_queue, dc, sizeof(dc));
-		dev_dbg(dev, "kfifo_in returned %zu - client type %d",
-			ret, intf);
-		dev_dbg(dev, "kfifo_avail = %d",
-			kfifo_avail(&ddev->write_queue));
-		if (ret < sizeof(dc)) {
-			dev_dbg(dev, "queue is full probably a bug");
-
-			mutex_unlock(&ddev->write_queue_lock);
-			return -EBUSY;
-		}
+		list_add_tail(&dc->wrlink, &ddev->writers);
 	}
-
-	dev_dbg(dev, "dal_write_mutex_unlock - client type %d\n", intf);
-	dev_dbg(dev, "dal_write(): before wait_for_write - client type %d",
-			intf);
 
 	/* wait for current writer to finish his write session */
-	mutex_unlock(&ddev->write_queue_lock);
+	mutex_unlock(&ddev->write_lock);
 	ret = dal_wait_for_write(ddev, dc);
-	if (ret < 0) {
-		mutex_lock(&ddev->context_lock);
+	mutex_lock(&ddev->write_lock);
+	if (ret < 0)
 		goto out;
-	}
 
 	dev_dbg(dev, "before mei_cldev_send - client type %d", intf);
 	print_hex_dump_bytes("Buffer to send:",
@@ -315,15 +281,10 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 		dev_err(dev, "mei_cl_send() failed, write_bytes != count (%zd != %zu)\n",
 			wr, count);
 		ret = -EFAULT;
-		mutex_lock(&ddev->context_lock);
 		goto out;
 	}
 
 	dev_dbg(dev, "wrote %zu bytes to fw - client type %d", wr, intf);
-
-	/* lock to prevent write to MEI while reading from MEI */
-	/* TODO: check if this lock is needed */
-	mutex_lock(&ddev->context_lock);
 
 	/* update client byte sent */
 	dc->bytes_sent_to_fw += count;
@@ -334,28 +295,14 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 				intf);
 		goto write_more;
 	}
-
 out:
-	dev_dbg(&ddev->dev, "removing CURRENT_WRITER\n");
-	/* init current to NULL */
-	ddev->current_write_client = NULL;
 	/* remove current dc from the queue */
-	status = kfifo_out(&ddev->write_queue, &curr_wc, sizeof(dc));
-	dev_dbg(&ddev->dev, "kfifo_out returned %d\n", status);
-
-	/* set new dal client as current,
-	 * if fifo empty current writer wont change
-	 */
-	status = kfifo_out_peek(&ddev->write_queue,
-				&ddev->current_write_client,
-				sizeof(dc));
-	dev_dbg(&ddev->dev, "kfifo_out_peek returned %d\n", status);
-
-	wake_up_interruptible(&ddev->wq);
+	list_del_init(&dc->wrlink);
+	if (list_empty(&ddev->writers))
+		wake_up_interruptible(&ddev->wq);
 
 write_more:
-	mutex_unlock(&ddev->context_lock);
-
+	mutex_unlock(&ddev->write_lock);
 	return ret;
 }
 
@@ -556,6 +503,7 @@ int dal_dc_setup(struct dal_device *ddev, enum dal_intf intf)
 
 	dc->intf = intf;
 	dc->ddev = ddev;
+	INIT_LIST_HEAD(&dc->wrlink);
 	ddev->clients[intf] = dc;
 	return 0;
 }
@@ -573,8 +521,6 @@ static int dal_remove(struct mei_cl_device *cldev)
 	/* wakeup write waiters so we can unload */
 	if (waitqueue_active(&ddev->wq))
 		wake_up_interruptible(&ddev->wq);
-
-	kfifo_free(&ddev->write_queue);
 
 	device_del(&ddev->dev);
 
@@ -608,8 +554,9 @@ static int dal_probe(struct mei_cl_device *cldev,
 
 	/* initialize the mutex and wait queue */
 	mutex_init(&ddev->context_lock);
-	mutex_init(&ddev->write_queue_lock);
+	mutex_init(&ddev->write_lock);
 	init_waitqueue_head(&ddev->wq);
+	INIT_LIST_HEAD(&ddev->writers);
 	ddev->cldev = cldev;
 	ddev->device_id = id->driver_info;
 
@@ -619,12 +566,6 @@ static int dal_probe(struct mei_cl_device *cldev,
 			ret);
 		goto free_context;
 	}
-
-	ret = kfifo_alloc(&ddev->write_queue,
-			  sizeof(struct dal_client *) * DAL_CLIENTS_PER_DEVICE,
-			  GFP_KERNEL);
-	if (ret != 0)
-		goto free_context;
 
 	/* save pointer to the context in the device */
 	mei_cldev_set_drvdata(cldev, ddev);
@@ -670,7 +611,6 @@ err_dev_create:
 disable_cldev:
 	mei_cldev_disable(cldev);
 	dal_remove(cldev);
-	kfifo_free(&ddev->write_queue);
 
 free_context:
 	kfree(ddev);
