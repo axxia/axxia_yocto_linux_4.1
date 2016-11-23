@@ -109,6 +109,8 @@ static int bh_err_to_kdi_err(int bh_err)
 		return DAL_KDI_STATUS_WD_TIMEOUT;
 	case BHE_APPLET_CRASHED:
 		return DAL_KDI_STATUS_APPLET_CRASHED;
+	case BHE_TA_PACKAGE_HASH_VERIFY_FAIL:
+		return DAL_KDI_STATUS_INVALID_ACP;
 	default:
 		return DAL_KDI_STATUS_INTERNAL_ERROR;
 	}

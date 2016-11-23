@@ -96,6 +96,7 @@ struct dal_version_info {
 #define DAL_KDI_STATUS_NON_EXCLUSIVENESS_TA     0xA0F
 #define DAL_KDI_STATUS_TA_EXIST                 0xA10
 #define DAL_KDI_STATUS_OPERATION_NOT_PERMITTED  0xA11
+#define DAL_KDI_STATUS_INVALID_ACP              0xA12
 
 #define DAL_KDI_INVALID_HANDLE    0
 
