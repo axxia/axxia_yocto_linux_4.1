@@ -117,9 +117,10 @@ static const u8 BH_MSG_RESP_MAGIC[]  = {0xff, 0xa5, 0xaa, 0x55};
 static const u8 BH_MSG_CMD_MAGIC[]   = {0xff, 0xa3, 0xaa, 0x55};
 
 /* Check for response msg */
-bool bh_msg_is_response(const char *hdr)
+bool bh_msg_is_response(const char *msg, size_t len)
 {
-	return !memcmp(hdr, BH_MSG_RESP_MAGIC, sizeof(BH_MSG_RESP_MAGIC));
+	return (len >= sizeof(struct bhp_response_header)) &&
+		!memcmp(msg, BH_MSG_RESP_MAGIC, sizeof(BH_MSG_CMD_MAGIC));
 }
 
 /* Check for command msg */

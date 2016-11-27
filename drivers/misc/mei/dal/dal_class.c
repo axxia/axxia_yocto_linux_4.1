@@ -404,7 +404,7 @@ static void dal_dc_update_read_state(struct dal_client *dc, ssize_t len)
 			(struct transport_msg_header *)dc->ddev->bh_fw_msg.msg;
 
 	/* check BH msg magic, if it exists this is the header */
-	if (bh_msg_is_response(ddev->bh_fw_msg.msg)) {
+	if (bh_msg_is_response(ddev->bh_fw_msg.msg, len)) {
 		dc->expected_msg_size_from_fw = header->length;
 		dev_dbg(&ddev->dev, "expected_msg_size_from_fw = %d bytes read = %zd",
 			dc->expected_msg_size_from_fw, len);
@@ -468,12 +468,8 @@ static void dal_recv_cb(struct mei_cl_device *cldev)
 	/* save msg len */
 	ddev->bh_fw_msg.len = len;
 
-	/*
-	 * set to where the msg should sent.
-	 *
-	 * Do not change the order of this ifs
-	 */
-	if (bh_msg_is_response(ddev->bh_fw_msg.msg)) {
+	/* set to which interface the msg should be sent */
+	if (bh_msg_is_response(ddev->bh_fw_msg.msg, len)) {
 		intf = get_client_by_squence_number(ddev);
 		dev_dbg(&ddev->dev, "recv_cb(): Client set by sequence number");
 		dc = ddev->clients[intf];
