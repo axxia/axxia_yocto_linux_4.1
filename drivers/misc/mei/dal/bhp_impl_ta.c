@@ -130,54 +130,37 @@ bool bh_msg_is_spooler(const char *hdr)
 }
 
 /* Check for command msg */
-bool bh_msg_is_cmd(const char *hdr)
+bool bh_msg_is_cmd(const char *msg, size_t len)
 {
-	return !memcmp(hdr, BH_MSG_CMD_MAGIC, sizeof(BH_MSG_CMD_MAGIC));
+	return (len >= sizeof(struct bhp_command_header)) &&
+		!memcmp(msg, BH_MSG_CMD_MAGIC, sizeof(BH_MSG_CMD_MAGIC));
 }
 
-static bool bh_cmd_is_valid(struct bhp_command_header *hdr, size_t len)
+const struct bhp_command_header *bh_msg_cmd_hdr(const void *msg, size_t len)
 {
-	return (len >= sizeof(struct bhp_command_header));
-}
-
-static const
-struct bhp_command_header *bh_msg_cmd_hdr(const char *msg, size_t len)
-{
-	struct bhp_command_header *hdr;
-
-	if (!bh_msg_is_cmd(msg))
+	/* check that len is valid before checking the hdr MAGIC,
+	in case that len is smaller than the MAGIC size */
+	if (!bh_msg_is_cmd(msg, len))
 		return NULL;
 
-	hdr = (struct bhp_command_header *)msg;
-
-	if (!bh_cmd_is_valid(hdr, len))
-		return NULL;
-
-	return hdr;
+	return msg;
 }
 
-bool bh_msg_is_cmd_open_session(const char *msg)
+bool bh_msg_is_cmd_open_session(const struct bhp_command_header *hdr)
 {
-	struct bhp_command_header *hdr;
-
-	if (!bh_msg_is_cmd(msg))
-		return 0;
-
-	hdr = (struct bhp_command_header *)msg;
 	return hdr->id == BHP_CMD_OPEN_JTASESSION;
 }
 
-const uuid_be *bh_open_session_ta_id(const char *hdr, size_t count)
+const uuid_be *bh_open_session_ta_id(const struct bhp_command_header *hdr,
+				     size_t count)
 {
-	struct bhp_command_header *cmd_hdr;
 	struct bhp_open_jtasession_cmd *open_cmd;
 
 	if (count < sizeof(struct bhp_command_header) +
 		sizeof(struct bhp_open_jtasession_cmd))
 		return NULL;
 
-	cmd_hdr = (struct bhp_command_header *)hdr;
-	open_cmd = (struct bhp_open_jtasession_cmd *)cmd_hdr->cmd;
+	open_cmd = (struct bhp_open_jtasession_cmd *)hdr->cmd;
 
 	return &open_cmd->appid;
 }
@@ -672,25 +655,14 @@ int bhp_close_ta_session(const u64 handle)
 	return ret;
 }
 
-int bh_filter_msg(const char *msg, size_t count, void *ctx,
+int bh_filter_hdr(const struct bhp_command_header *hdr, size_t count, void *ctx,
 		  const bh_filter_func tbl[])
 {
 	int i;
 	int ret;
-	const struct bhp_command_header *hdr;
-
-	if (count < BHP_MSG_MAGIC_LENGTH)
-		return -EINVAL;
-
-	if (!bh_msg_is_cmd(msg))
-		return 0;
-
-	hdr = bh_msg_cmd_hdr(msg, count);
-	if (!hdr)
-		return -EINVAL;
 
 	for (i = 0; tbl[i]; i++) {
-		ret = tbl[i](msg, count, ctx);
+		ret = tbl[i](hdr, count, ctx);
 		if (ret < 0)
 			return ret;
 	}
@@ -706,16 +678,4 @@ void bh_prep_access_denied_response(const char *cmd,
 	res->h.length = sizeof(struct bhp_response_header);
 	res->code = BHE_OPERATION_NOT_PERMITTED;
 	res->seq = cmd_hdr->seq;
-}
-
-bool bh_is_kdi_hdr(const char *msg)
-{
-	const struct bhp_command_header *cmd_hdr;
-
-	if (!bh_msg_is_cmd(msg))
-		return 0;
-
-	cmd_hdr = (const struct bhp_command_header *)msg;
-
-	return cmd_hdr->seq >= MSG_SEQ_START_NUMBER;
 }

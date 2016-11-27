@@ -187,27 +187,34 @@ static int dal_send_error_access_denied(struct dal_client *dc)
 	return 0;
 }
 
-static int dal_validate_access(const char *msg, size_t count, void *ctx)
+static int dal_validate_access(const struct bhp_command_header *hdr,
+			       size_t count, void *ctx)
 {
 	struct dal_client *dc = ctx;
 	struct dal_device *ddev = dc->ddev;
 	const uuid_be *ta_id;
 
-	if (!bh_msg_is_cmd_open_session(msg))
+	if (!bh_msg_is_cmd_open_session(hdr))
 		return 0;
 
-	ta_id = bh_open_session_ta_id(msg, count);
+	ta_id = bh_open_session_ta_id(hdr, count);
 	if (!ta_id)
 		return -EINVAL;
 
 	return dal_access_policy_allowed(ddev, *ta_id, dc);
 }
 
-static int dal_validate_seq(const char *msg, size_t count, void *ctx)
+static bool bh_is_kdi_hdr(const struct bhp_command_header *hdr)
+{
+	return hdr->seq >= MSG_SEQ_START_NUMBER;
+}
+
+static int dal_validate_seq(const struct bhp_command_header *hdr,
+			    size_t count, void *ctx)
 {
 	struct dal_client *dc = ctx;
 
-	if (dc->intf != DAL_INTF_KDI && bh_is_kdi_hdr(msg))
+	if (dc->intf != DAL_INTF_KDI && bh_is_kdi_hdr(hdr))
 		return -EPERM;
 
 	return 0;
@@ -223,7 +230,6 @@ static const bh_filter_func dal_write_filter_tbl[] = {
 ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 {
 	struct dal_device *ddev = dc->ddev;
-	struct bhp_command_header *header;
 	struct device *dev;
 	ssize_t wr;
 	ssize_t ret;
@@ -247,7 +253,15 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 	/* put dc in write queue*/
 	if (ddev->current_write_client != dc) {
 		/* adding client to write queue - this is the first fragment */
-		ret = bh_filter_msg(dc->write_buffer, count, dc, dal_write_filter_tbl);
+		const struct bhp_command_header *hdr;
+
+		hdr = bh_msg_cmd_hdr(dc->write_buffer, count);
+		if (!hdr) {
+			mutex_unlock(&ddev->write_queue_lock);
+			return -EINVAL;
+		}
+
+		ret = bh_filter_hdr(hdr, count, dc, dal_write_filter_tbl);
 		if (ret == -EPERM) {
 			ret = dal_send_error_access_denied(dc);
 			ret = ret ?: count;
@@ -256,6 +270,11 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 			mutex_unlock(&ddev->write_queue_lock);
 			return ret;
 		}
+
+		dc->bytes_sent_to_fw = 0;
+		dc->expected_msg_size_to_fw = hdr->h.length;
+		dev_dbg(dev, "This is first fragment - client type %d, cmd id = %d",
+				intf, hdr->id);
 
 		if (kfifo_is_empty(&ddev->write_queue))
 			ddev->current_write_client = dc;
@@ -308,37 +327,9 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 
 	/* update client byte sent */
 	dc->bytes_sent_to_fw += count;
-
-	/* get msg header */
-	header = (struct bhp_command_header *)dc->write_buffer;
-
-	/*
-	 * if this the spooler open session then don't do anything else,
-	 * as the response from the FW is async and may never occur
-	 */
-	/* TODO: we can remove this check and look only on the size */
-	if (bh_msg_is_spooler(dc->write_buffer)) {
-		ret = wr;
-		dev_dbg(dev, "SPOOLER msg command id = %d", header->id);
-		goto out;
-	}
-
 	ret = wr;
-	/* header msg is being sent,
-	 * this is the first fragment of the message
-	 */
-	if (bh_msg_is_cmd(dc->write_buffer)) {
-		dc->expected_msg_size_to_fw = header->h.length;
-		dev_dbg(dev, "This is first fragment - client type %d",
-				intf);
-		dev_dbg(dev, "command id = %d", header->id);
 
-		dc->bytes_sent_to_fw = count;
-		/* if there's extra data, mark it */
-		if (dc->expected_msg_size_to_fw > count)
-			goto write_more;
-
-	} else if (dc->bytes_sent_to_fw != dc->expected_msg_size_to_fw) {
+	if (dc->bytes_sent_to_fw != dc->expected_msg_size_to_fw) {
 		dev_dbg(dev, "expecting to write more data to FW - client type %d",
 				intf);
 		goto write_more;
