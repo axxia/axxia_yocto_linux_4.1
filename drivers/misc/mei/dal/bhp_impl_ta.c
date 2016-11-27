@@ -113,7 +113,6 @@ static int __uuid_be_to_bin(const char *uuid_str, uuid_be *uuid)
 /*
  * 4 bytes array to identify BH headers
  */
-static const u8 BH_MSG_SPLR_MAGIC[]  = {0x53, 0x50, 0x4c, 0x52};
 static const u8 BH_MSG_RESP_MAGIC[]  = {0xff, 0xa5, 0xaa, 0x55};
 static const u8 BH_MSG_CMD_MAGIC[]   = {0xff, 0xa3, 0xaa, 0x55};
 
@@ -121,12 +120,6 @@ static const u8 BH_MSG_CMD_MAGIC[]   = {0xff, 0xa3, 0xaa, 0x55};
 bool bh_msg_is_response(const char *hdr)
 {
 	return !memcmp(hdr, BH_MSG_RESP_MAGIC, sizeof(BH_MSG_RESP_MAGIC));
-}
-
-/* Check for spoolar msg */
-bool bh_msg_is_spooler(const char *hdr)
-{
-	return !memcmp(hdr, BH_MSG_SPLR_MAGIC, sizeof(BH_MSG_SPLR_MAGIC));
 }
 
 /* Check for command msg */

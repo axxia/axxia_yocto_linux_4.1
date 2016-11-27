@@ -477,10 +477,6 @@ static void dal_recv_cb(struct mei_cl_device *cldev)
 		intf = get_client_by_squence_number(ddev);
 		dev_dbg(&ddev->dev, "recv_cb(): Client set by sequence number");
 		dc = ddev->clients[intf];
-	} else if (bh_msg_is_spooler(ddev->bh_fw_msg.msg)) {
-		intf = DAL_INTF_CDEV;
-		dev_dbg(&ddev->dev, "recv_cb(): EVENT msg received");
-		dc = ddev->clients[intf];
 	} else if (!ddev->current_read_client) {
 		intf = DAL_INTF_CDEV;
 		dev_dbg(&ddev->dev, "recv_cb(): EXTRA msg received - curr == NULL");

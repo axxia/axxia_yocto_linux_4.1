@@ -194,9 +194,7 @@ void bh_prep_access_denied_response(const char *cmd,
 				    struct bhp_response_header *res);
 
 bool bh_msg_is_cmd(const char *msg, size_t len);
-
 bool bh_msg_is_response(const char *hdr);
-bool bh_msg_is_spooler(const char *hdr);
 
 #define mutex_enter(s) {}
 #define mutex_exit(s)  {}
