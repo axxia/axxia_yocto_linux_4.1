@@ -43,17 +43,13 @@
 #define PORT_LINK_MODE_1_LANES          (0x1 << 16)
 #define PORT_LINK_MODE_2_LANES          (0x3 << 16)
 #define PORT_LINK_MODE_4_LANES          (0x7 << 16)
-#define PORT_LINK_MODE_8_LANES          (0xf << 16)
 
 #define PCIE_LINK_WIDTH_SPEED_CONTROL   0x80C
 #define PORT_LOGIC_SPEED_CHANGE         (0x1 << 17)
-#define PORT_LOGIC_LINK_WIDTH_MASK      (0x1f << 8)
+#define PORT_LOGIC_LINK_WIDTH_MASK      (0x1ff << 8)
 #define PORT_LOGIC_LINK_WIDTH_1_LANES   (0x1 << 8)
 #define PORT_LOGIC_LINK_WIDTH_2_LANES   (0x2 << 8)
 #define PORT_LOGIC_LINK_WIDTH_4_LANES   (0x4 << 8)
-#define PORT_LOGIC_LINK_WIDTH_8_LANES   (0x8 << 8)
-
-#define PCIE_GEN3_EQ_CONTROL_OFF        0x8a8
 
 #define PCIE_MSI_ADDR_LO                0x820
 #define PCIE_MSI_ADDR_HI                0x824
@@ -526,24 +522,6 @@ void axxia_pcie_setup_rc(struct pcie_port *pp)
 	u32 membase;
 	u32 memlimit;
 
-	axxia_pcie_readl_rc(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, &val);
-	val &= ~PORT_LOGIC_LINK_WIDTH_MASK;
-	switch (pp->lanes) {
-	case 2:
-		val |= PORT_LOGIC_LINK_WIDTH_2_LANES;
-		break;
-	case 4:
-		val |= PORT_LOGIC_LINK_WIDTH_4_LANES;
-		break;
-	case 8:
-		val |= PORT_LOGIC_LINK_WIDTH_8_LANES;
-		break;
-	case 1:
-	default:
-		val |= PORT_LOGIC_LINK_WIDTH_1_LANES;
-	}
-	axxia_pcie_writel_rc(pp, PCIE_LINK_WIDTH_SPEED_CONTROL, val);
-
 	/* Set the number of lanes based on the device tree. */
 	axxia_pcie_readl_rc(pp, PCIE_PORT_LINK_CONTROL, &val);
 	val &= ~PORT_LINK_MODE_MASK;
@@ -557,9 +535,6 @@ void axxia_pcie_setup_rc(struct pcie_port *pp)
 		break;
 	case 4:
 		val |= PORT_LINK_MODE_4_LANES;
-		break;
-	case 8:
-		val |= PORT_LINK_MODE_8_LANES;
 		break;
 	default:
 		break;
@@ -593,7 +568,7 @@ void axxia_pcie_setup_rc(struct pcie_port *pp)
 	axxia_cc_gpreg_readl(pp, PEI_GENERAL_CORE_CTL_REG, &val);
 	msleep(100);
 	val |= 0x1;
-	axxia_cc_gpreg_writel(pp, val, PEI_GENERAL_CORE_CTL_REG);
+	axxia_cc_gpreg_writel(pp, 0x1, PEI_GENERAL_CORE_CTL_REG);
 	msleep(100);
 }
 
@@ -608,20 +583,6 @@ static int axxia_pcie_establish_link(struct pcie_port *pp)
 		return 1;
 
 	return 0;
-}
-
-static void pci_axxia_program_rc_class(struct pcie_port *pp)
-{
-	u32 dbi_ro_wr_en;
-	/* program correct class for RC */
-	axxia_pcie_readl_rc(pp, 0x8bc, &dbi_ro_wr_en);
-	/* DBI_RO_WR_EN */
-	if (!(dbi_ro_wr_en & 0x1))
-		axxia_pcie_writel_rc(pp, (dbi_ro_wr_en | 0x1), 0x8bc);
-	axxia_pcie_wr_own_conf(pp, PCI_CLASS_DEVICE, 2, PCI_CLASS_BRIDGE_PCI);
-	/* DBI_RO_WR_EN */
-	if (!(dbi_ro_wr_en & 0x1))
-		axxia_pcie_writel_rc(pp, dbi_ro_wr_en, 0x8bc);
 }
 
 static irqreturn_t axxia_pcie_irq_handler(int irq, void *arg)
@@ -916,7 +877,7 @@ int axxia_pcie_host_init(struct pcie_port *pp)
 	axxia_pcie_enable_interrupts(pp);
 
 	/* program correct class for RC */
-	pci_axxia_program_rc_class(pp);
+	axxia_pcie_wr_own_conf(pp, PCI_CLASS_DEVICE, 2, PCI_CLASS_BRIDGE_PCI);
 
 	bus = pci_create_root_bus(&pdev->dev, pp->root_bus_nr,
 				  &axxia_pciex_pci_ops, pp, &res);
