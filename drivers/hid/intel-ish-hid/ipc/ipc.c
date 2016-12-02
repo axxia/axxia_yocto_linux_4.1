@@ -521,28 +521,6 @@ eoi:
 	return	IRQ_HANDLED;
 }
 
-/**
- * ish_wakeup() - wakeup ishfw from waiting-for-host state
- * @dev: ishtp device pointer
- *
- * Set the dma enable bit and send a void message to FW,
- * it wil wakeup FW from waiting-for-host state
- */
-static void ish_wakeup(struct ishtp_device *dev)
-{
-	/* Set dma enable bit */
-	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
-
-	/*
-	 * Send 0 IPC message so that ISH FW wakes up if it was already
-	 * asleep
-	 */
-
-	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
-	/* Flush writes to doorbell and REMAP2 */
-	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
-}
-
 static int _ish_hw_reset(struct ishtp_device *dev)
 {
 	struct pci_dev *pdev = dev->pdev;
@@ -588,8 +566,16 @@ static int _ish_hw_reset(struct ishtp_device *dev)
 	csr |= PCI_D0;
 	pci_write_config_word(pdev, pdev->pm_cap + PCI_PM_CTRL, csr);
 
-	/* Now we can enable ISH DMA operation and wakeup ISHFW */
-	ish_wakeup(dev);
+	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
+
+	/*
+	 * Send 0 IPC message so that ISH FW wakes up if it was already
+	 * asleep
+	 */
+	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
+
+	/* Flush writes to doorbell and REMAP2 */
+	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
 
 	return	0;
 }
@@ -633,9 +619,16 @@ static int _ish_ipc_reset(struct ishtp_device *dev)
 int ish_hw_start(struct ishtp_device *dev)
 {
 	ish_set_host_rdy(dev);
+	/* After that we can enable ISH DMA operation */
+	ish_reg_write(dev, IPC_REG_ISH_RMP2, IPC_RMP2_DMA_ENABLED);
 
-	/* After that we can enable ISH DMA operation and wakeup ISHFW */
-	ish_wakeup(dev);
+	/*
+	 * Send 0 IPC message so that ISH FW wakes up if it was already
+	 * asleep
+	 */
+	ish_reg_write(dev, IPC_REG_HOST2ISH_DRBL, IPC_DRBL_BUSY_BIT);
+	/* Flush write to doorbell */
+	ish_reg_read(dev, IPC_REG_ISH_HOST_FWSTS);
 
 	set_host_ready(dev);
 
