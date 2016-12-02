@@ -14,7 +14,6 @@
  */
 
 #include <linux/hid.h>
-#include <linux/sched.h>
 #include <uapi/linux/input.h>
 #include "ishtp/client.h"
 #include "ishtp-hid.h"
