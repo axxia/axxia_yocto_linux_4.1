@@ -972,7 +972,6 @@ struct input_keymap_entry {
 #define BUS_GSC			0x1A
 #define BUS_ATARI		0x1B
 #define BUS_SPI			0x1C
-#define BUS_INTEL_ISHTP		0x1D
 
 /*
  * MT_TOOL types
