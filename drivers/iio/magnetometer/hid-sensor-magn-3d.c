@@ -45,7 +45,6 @@ enum magn_3d_channel {
 struct magn_3d_state {
 	struct hid_sensor_hub_callbacks callbacks;
 	struct hid_sensor_common common_attributes;
-	struct hid_sensor_common rot_attributes;
 	struct hid_sensor_hub_attribute_info magn[MAGN_3D_CHANNEL_MAX];
 
 	/* dynamically sized array to hold sensor values */
@@ -53,14 +52,10 @@ struct magn_3d_state {
 	/* array of pointers to sensor value */
 	u32 *magn_val_addr[MAGN_3D_CHANNEL_MAX];
 
-	int scale_pre_decml_magn;
-	int scale_post_decml_magn;
-	int scale_precision_magn;
-	int value_offset_magn;
-	int scale_pre_decml_rot;
-	int scale_post_decml_rot;
-	int scale_precision_rot;
-	int value_offset_rot;
+	int scale_pre_decml;
+	int scale_post_decml;
+	int scale_precision;
+	int value_offset;
 };
 
 static const u32 magn_3d_addresses[MAGN_3D_CHANNEL_MAX] = {
@@ -187,52 +182,21 @@ static int magn_3d_read_raw(struct iio_dev *indio_dev,
 		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SCALE:
-		switch (chan->type) {
-		case IIO_MAGN:
-			*val = magn_state->scale_pre_decml_magn;
-			*val2 = magn_state->scale_post_decml_magn;
-			ret_type = magn_state->scale_precision_magn;
-			break;
-		case IIO_ROT:
-			*val = magn_state->scale_pre_decml_rot;
-			*val2 = magn_state->scale_post_decml_rot;
-			ret_type = magn_state->scale_precision_rot;
-			break;
-		default:
-			ret_type = -EINVAL;
-		}
+		*val = magn_state->scale_pre_decml;
+		*val2 = magn_state->scale_post_decml;
+		ret_type = magn_state->scale_precision;
 		break;
 	case IIO_CHAN_INFO_OFFSET:
-		switch (chan->type) {
-		case IIO_MAGN:
-			*val = magn_state->value_offset_magn;
-			ret_type = IIO_VAL_INT;
-			break;
-		case IIO_ROT:
-			*val = magn_state->value_offset_rot;
-			ret_type = IIO_VAL_INT;
-			break;
-		default:
-			ret_type = -EINVAL;
-		}
+		*val = magn_state->value_offset;
+		ret_type = IIO_VAL_INT;
 		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		ret_type = hid_sensor_read_samp_freq_value(
 			&magn_state->common_attributes, val, val2);
 		break;
 	case IIO_CHAN_INFO_HYSTERESIS:
-		switch (chan->type) {
-		case IIO_MAGN:
-			ret_type = hid_sensor_read_raw_hyst_value(
-				&magn_state->common_attributes, val, val2);
-			break;
-		case IIO_ROT:
-			ret_type = hid_sensor_read_raw_hyst_value(
-				&magn_state->rot_attributes, val, val2);
-			break;
-		default:
-			ret_type = -EINVAL;
-		}
+		ret_type = hid_sensor_read_raw_hyst_value(
+			&magn_state->common_attributes, val, val2);
 		break;
 	default:
 		ret_type = -EINVAL;
@@ -258,18 +222,8 @@ static int magn_3d_write_raw(struct iio_dev *indio_dev,
 				&magn_state->common_attributes, val, val2);
 		break;
 	case IIO_CHAN_INFO_HYSTERESIS:
-		switch (chan->type) {
-		case IIO_MAGN:
-			ret = hid_sensor_write_raw_hyst_value(
+		ret = hid_sensor_write_raw_hyst_value(
 				&magn_state->common_attributes, val, val2);
-			break;
-		case IIO_ROT:
-			ret = hid_sensor_write_raw_hyst_value(
-				&magn_state->rot_attributes, val, val2);
-			break;
-		default:
-			ret = -EINVAL;
-		}
 		break;
 	default:
 		ret = -EINVAL;
@@ -435,17 +389,10 @@ static int magn_3d_parse_report(struct platform_device *pdev,
 	dev_dbg(&pdev->dev, "magn_3d Setup %d IIO channels\n",
 			*chan_count);
 
-	st->scale_precision_magn = hid_sensor_format_scale(
+	st->scale_precision = hid_sensor_format_scale(
 				HID_USAGE_SENSOR_COMPASS_3D,
 				&st->magn[CHANNEL_SCAN_INDEX_X],
-				&st->scale_pre_decml_magn,
-				&st->scale_post_decml_magn);
-	st->scale_precision_rot
-		= hid_sensor_format_scale(
-			HID_USAGE_SENSOR_ORIENT_COMP_MAGN_NORTH,
-			&st->magn[CHANNEL_SCAN_INDEX_NORTH_MAGN_TILT_COMP],
-			&st->scale_pre_decml_rot,
-			&st->scale_post_decml_rot);
+				&st->scale_pre_decml, &st->scale_post_decml);
 
 	/* Set Sensitivity field ids, when there is no individual modifier */
 	if (st->common_attributes.sensitivity.index < 0) {
@@ -457,26 +404,6 @@ static int magn_3d_parse_report(struct platform_device *pdev,
 		dev_dbg(&pdev->dev, "Sensitivity index:report %d:%d\n",
 			st->common_attributes.sensitivity.index,
 			st->common_attributes.sensitivity.report_id);
-	}
-	if (st->common_attributes.sensitivity.index < 0) {
-		sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, usage_id,
-			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
-			HID_USAGE_SENSOR_ORIENT_MAGN_FLUX,
-			&st->common_attributes.sensitivity);
-		dev_dbg(&pdev->dev, "Sensitivity index:report %d:%d\n",
-			st->common_attributes.sensitivity.index,
-			st->common_attributes.sensitivity.report_id);
-	}
-	if (st->rot_attributes.sensitivity.index < 0) {
-		sensor_hub_input_get_attribute_info(hsdev,
-			HID_FEATURE_REPORT, usage_id,
-			HID_USAGE_SENSOR_DATA_MOD_CHANGE_SENSITIVITY_ABS |
-			HID_USAGE_SENSOR_ORIENT_COMP_MAGN_NORTH,
-			&st->rot_attributes.sensitivity);
-		dev_dbg(&pdev->dev, "Sensitivity index:report %d:%d\n",
-			st->rot_attributes.sensitivity.index,
-			st->rot_attributes.sensitivity.report_id);
 	}
 
 	return 0;
@@ -511,7 +438,6 @@ static int hid_magn_3d_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to setup common attributes\n");
 		return ret;
 	}
-	magn_state->rot_attributes = magn_state->common_attributes;
 
 	ret = magn_3d_parse_report(pdev, hsdev,
 				&channels, &chan_count,
