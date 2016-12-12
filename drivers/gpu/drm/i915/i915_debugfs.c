@@ -1336,7 +1336,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 	struct intel_engine_cs *ring;
 	u64 acthd[I915_NUM_RINGS];
 	u32 seqno[I915_NUM_RINGS];
-	int i;
+	u32 instdone[I915_NUM_INSTDONE_REG];
+	int i, j;
 
 	if (!i915.enable_hangcheck) {
 		seq_printf(m, "Hangcheck disabled\n");
@@ -1349,6 +1350,8 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 		seqno[i] = ring->get_seqno(ring, false);
 		acthd[i] = intel_ring_get_active_head(ring);
 	}
+
+	i915_get_extra_instdone(dev, instdone);
 
 	intel_runtime_pm_put(dev_priv);
 
@@ -1370,6 +1373,21 @@ static int i915_hangcheck_info(struct seq_file *m, void *unused)
 			   (long long)ring->hangcheck.max_acthd);
 		seq_printf(m, "\tscore = %d\n", ring->hangcheck.score);
 		seq_printf(m, "\taction = %d\n", ring->hangcheck.action);
+
+		if (ring->id == RCS) {
+			seq_puts(m, "\tinstdone read =");
+
+			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
+				seq_printf(m, " 0x%08x", instdone[j]);
+
+			seq_puts(m, "\n\tinstdone accu =");
+
+			for (j = 0; j < I915_NUM_INSTDONE_REG; j++)
+				seq_printf(m, " 0x%08x",
+					   ring->hangcheck.instdone[j]);
+
+			seq_puts(m, "\n");
+		}
 	}
 
 	return 0;
