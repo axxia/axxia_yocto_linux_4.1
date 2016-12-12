@@ -10553,7 +10553,6 @@ retry:
 	}
 
 	connector_state->crtc = crtc;
-	connector_state->best_encoder = &intel_encoder->base;
 
 	crtc_state = intel_atomic_get_crtc_state(state, intel_crtc);
 	if (IS_ERR(crtc_state)) {
@@ -10649,7 +10648,6 @@ void intel_release_load_detect_pipe(struct drm_connector *connector,
 		if (IS_ERR(crtc_state))
 			goto fail;
 
-		connector_state->best_encoder = NULL;
 		connector_state->crtc = NULL;
 
 		crtc_state->base.enable = crtc_state->base.active = false;
