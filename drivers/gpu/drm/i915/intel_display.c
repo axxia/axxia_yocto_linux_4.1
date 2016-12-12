@@ -16004,9 +16004,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	struct drm_i915_gem_object *obj;
 	int ret;
 
-	mutex_lock(&dev->struct_mutex);
 	intel_init_gt_powersave(dev);
-	mutex_unlock(&dev->struct_mutex);
 
 	intel_modeset_init_hw(dev);
 
@@ -16086,9 +16084,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 
 	intel_cleanup_overlay(dev);
 
-	mutex_lock(&dev->struct_mutex);
 	intel_cleanup_gt_powersave(dev);
-	mutex_unlock(&dev->struct_mutex);
 
 	intel_teardown_gmbus(dev);
 }
