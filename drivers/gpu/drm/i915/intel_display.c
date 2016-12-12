@@ -4837,7 +4837,9 @@ static void intel_pre_plane_update(struct intel_crtc_state *old_crtc_state)
 
 	if (pipe_config->disable_cxsr) {
 		crtc->wm.cxsr_allowed = false;
-		intel_set_memory_cxsr(dev_priv, false);
+
+		if (old_crtc_state->base.active)
+			intel_set_memory_cxsr(dev_priv, false);
 	}
 
 	if (!needs_modeset(&pipe_config->base) && pipe_config->wm_changed)
