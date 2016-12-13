@@ -3461,7 +3461,7 @@ intel_dp_get_dpcd(struct intel_dp *intel_dp)
 		memset(intel_dp->edp_dpcd, 0, sizeof(intel_dp->edp_dpcd));
 		if ((intel_dp->dpcd[DP_EDP_CONFIGURATION_CAP] & DP_DPCD_DISPLAY_CONTROL_CAPABLE) &&
 				(drm_dp_dpcd_read(&intel_dp->aux, DP_EDP_DPCD_REV,
-						  intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd)) ==
+						intel_dp->edp_dpcd, sizeof(intel_dp->edp_dpcd)) ==
 								sizeof(intel_dp->edp_dpcd)))
 			DRM_DEBUG_KMS("EDP DPCD : %*ph\n", (int) sizeof(intel_dp->edp_dpcd),
 					intel_dp->edp_dpcd);
