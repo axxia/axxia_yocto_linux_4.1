@@ -824,13 +824,8 @@ static bool intel_fbc_can_choose(struct intel_crtc *crtc)
 		return false;
 	}
 
-	if (i915.enable_fbc < 0) {
-		fbc->no_fbc_reason = "disabled per chip default";
-		return false;
-	}
-
 	if (!i915.enable_fbc) {
-		fbc->no_fbc_reason = "disabled per module param";
+		fbc->no_fbc_reason = "disabled per module param or by default";
 		return false;
 	}
 
@@ -1219,6 +1214,26 @@ void intel_fbc_init_pipe_state(struct drm_i915_private *dev_priv)
 			dev_priv->fbc.visible_pipes_mask |= (1 << crtc->pipe);
 }
 
+/*
+ * The DDX driver changes its behavior depending on the value it reads from
+ * i915.enable_fbc, so sanitize it by translating the default value into either
+ * 0 or 1 in order to allow it to know what's going on.
+ *
+ * Notice that this is done at driver initialization and we still allow user
+ * space to change the value during runtime without sanitizing it again. IGT
+ * relies on being able to change i915.enable_fbc at runtime.
+ */
+static int intel_sanitize_fbc_option(struct drm_i915_private *dev_priv)
+{
+	if (i915.enable_fbc >= 0)
+		return !!i915.enable_fbc;
+
+	if (IS_BROADWELL(dev_priv))
+		return 1;
+
+	return 0;
+}
+
 /**
  * intel_fbc_init - Initialize FBC
  * @dev_priv: the i915 device
@@ -1235,6 +1250,9 @@ void intel_fbc_init(struct drm_i915_private *dev_priv)
 	fbc->enabled = false;
 	fbc->active = false;
 	fbc->work.scheduled = false;
+
+	i915.enable_fbc = intel_sanitize_fbc_option(dev_priv);
+	DRM_DEBUG_KMS("Sanitized enable_fbc value: %d\n", i915.enable_fbc);
 
 	if (!HAS_FBC(dev_priv)) {
 		fbc->no_fbc_reason = "unsupported by this chipset";
