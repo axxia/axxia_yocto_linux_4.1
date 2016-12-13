@@ -128,7 +128,7 @@ i915_gem_wait_for_error(struct i915_gpu_error *error)
 
 int i915_mutex_lock_interruptible(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	ret = i915_gem_wait_for_error(&dev_priv->gpu_error);
@@ -377,13 +377,13 @@ out:
 
 void *i915_gem_object_alloc(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	return kmem_cache_zalloc(dev_priv->objects, GFP_KERNEL);
 }
 
 void i915_gem_object_free(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	kmem_cache_free(dev_priv->objects, obj);
 }
 
@@ -636,7 +636,7 @@ i915_gem_gtt_pread(struct drm_device *dev,
 		   struct drm_i915_gem_object *obj, uint64_t size,
 		   uint64_t data_offset, uint64_t data_ptr)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_ggtt *ggtt = &dev_priv->ggtt;
 	struct drm_mm_node node;
 	char __user *user_data;
@@ -1250,7 +1250,7 @@ int
 i915_gem_pwrite_ioctl(struct drm_device *dev, void *data,
 		      struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_pwrite *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -1761,7 +1761,7 @@ i915_gem_object_wait_rendering__nonblocking(struct drm_i915_gem_object *obj,
 					    bool readonly)
 {
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_request *requests[I915_NUM_ENGINES];
 	int ret, i, n = 0;
 
@@ -2270,7 +2270,7 @@ i915_gem_get_gtt_alignment(struct drm_device *dev, uint32_t size,
 
 static int i915_gem_object_create_mmap_offset(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	int ret;
 
 	dev_priv->mm.shrinker_no_lock_stealing = true;
@@ -2486,7 +2486,7 @@ i915_gem_object_put_pages(struct drm_i915_gem_object *obj)
 static int
 i915_gem_object_get_pages_gtt(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	int page_count, i;
 	struct address_space *mapping;
 	struct sg_table *st;
@@ -2618,7 +2618,7 @@ err_pages:
 int
 i915_gem_object_get_pages(struct drm_i915_gem_object *obj)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	const struct drm_i915_gem_object_ops *ops = obj->ops;
 	int ret;
 
@@ -2798,7 +2798,7 @@ i915_gem_init_seqno(struct drm_i915_private *dev_priv, u32 seqno)
 
 int i915_gem_set_seqno(struct drm_device *dev, u32 seqno)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	if (seqno == 0)
@@ -3180,7 +3180,7 @@ static void i915_gem_reset_engine_cleanup(struct intel_engine_cs *engine)
 
 void i915_gem_reset(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 
 	/*
@@ -3630,7 +3630,7 @@ static void __i915_vma_iounmap(struct i915_vma *vma)
 static int __i915_vma_unbind(struct i915_vma *vma, bool wait)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	int ret;
 
 	if (list_empty(&vma->obj_link))
@@ -4248,7 +4248,7 @@ int i915_gem_get_caching_ioctl(struct drm_device *dev, void *data,
 int i915_gem_set_caching_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_caching *args = data;
 	struct drm_i915_gem_object *obj;
 	enum i915_cache_level level;
@@ -4442,7 +4442,7 @@ i915_gem_object_set_to_cpu_domain(struct drm_i915_gem_object *obj, bool write)
 static int
 i915_gem_ring_throttle(struct drm_device *dev, struct drm_file *file)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_file_private *file_priv = file->driver_priv;
 	unsigned long recent_enough = jiffies - DRM_I915_THROTTLE_JIFFIES;
 	struct drm_i915_gem_request *request, *target = NULL;
@@ -4536,7 +4536,7 @@ i915_gem_object_do_pin(struct drm_i915_gem_object *obj,
 		       uint32_t alignment,
 		       uint64_t flags)
 {
-	struct drm_i915_private *dev_priv = obj->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
 	struct i915_vma *vma;
 	unsigned bound;
 	int ret;
@@ -4700,7 +4700,7 @@ int
 i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_i915_gem_madvise *args = data;
 	struct drm_i915_gem_object *obj;
 	int ret;
@@ -4865,7 +4865,7 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 {
 	struct drm_i915_gem_object *obj = to_intel_bo(gem_obj);
 	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct i915_vma *vma, *next;
 
 	intel_runtime_pm_get(dev_priv);
@@ -4969,7 +4969,7 @@ void i915_gem_vma_destroy(struct i915_vma *vma)
 static void
 i915_gem_stop_engines(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv)
@@ -4979,7 +4979,7 @@ i915_gem_stop_engines(struct drm_device *dev)
 int
 i915_gem_suspend(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret = 0;
 
 	mutex_lock(&dev->struct_mutex);
@@ -5011,7 +5011,7 @@ err:
 
 void i915_gem_init_swizzling(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	if (INTEL_INFO(dev)->gen < 5 ||
 	    dev_priv->mm.bit_6_swizzle_x == I915_BIT_6_SWIZZLE_NONE)
@@ -5036,7 +5036,7 @@ void i915_gem_init_swizzling(struct drm_device *dev)
 
 static void init_unused_ring(struct drm_device *dev, u32 base)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 
 	I915_WRITE(RING_CTL(base), 0);
 	I915_WRITE(RING_HEAD(base), 0);
@@ -5063,7 +5063,7 @@ static void init_unused_rings(struct drm_device *dev)
 
 int i915_gem_init_engines(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	ret = intel_init_render_ring_buffer(dev);
@@ -5111,7 +5111,7 @@ cleanup_render_ring:
 int
 i915_gem_init_hw(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 	int ret;
 
@@ -5176,7 +5176,7 @@ out:
 
 int i915_gem_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int ret;
 
 	mutex_lock(&dev->struct_mutex);
@@ -5233,7 +5233,7 @@ out_unlock:
 void
 i915_gem_cleanup_engines(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_engine_cs *engine;
 
 	for_each_engine(engine, dev_priv)
@@ -5274,7 +5274,7 @@ i915_gem_load_init_fences(struct drm_i915_private *dev_priv)
 void
 i915_gem_load_init(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(dev);
 	int i;
 
 	dev_priv->objects =
@@ -5442,7 +5442,7 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 u64 i915_gem_obj_offset(struct drm_i915_gem_object *o,
 			struct i915_address_space *vm)
 {
-	struct drm_i915_private *dev_priv = o->base.dev->dev_private;
+	struct drm_i915_private *dev_priv = to_i915(o->base.dev);
 	struct i915_vma *vma;
 
 	WARN_ON(vm == &dev_priv->mm.aliasing_ppgtt->base);
