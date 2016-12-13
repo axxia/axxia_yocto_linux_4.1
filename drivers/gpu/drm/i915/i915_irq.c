@@ -3797,6 +3797,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 	uint32_t de_pipe_enables;
 	u32 de_port_masked = GEN8_AUX_CHANNEL_A;
 	u32 de_port_enables;
+	u32 de_misc_masked = GEN8_DE_MISC_GSE;
 	enum pipe pipe;
 
 	if (INTEL_INFO(dev_priv)->gen >= 9) {
@@ -3832,6 +3833,7 @@ static void gen8_de_irq_postinstall(struct drm_i915_private *dev_priv)
 					  de_pipe_enables);
 
 	GEN5_IRQ_INIT(GEN8_DE_PORT_, ~de_port_masked, de_port_enables);
+	GEN5_IRQ_INIT(GEN8_DE_MISC_, ~de_misc_masked, de_misc_masked);
 }
 
 static int gen8_irq_postinstall(struct drm_device *dev)
