@@ -1034,7 +1034,7 @@ static int i915_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (PCI_FUNC(pdev->devfn))
 		return -ENODEV;
 
-	return drm_get_pci_dev(pdev, ent, &driver);
+	return i915_driver_load(pdev, ent, &driver);
 }
 
 static void
@@ -1748,7 +1748,6 @@ static struct drm_driver driver = {
 	.driver_features =
 	    DRIVER_HAVE_IRQ | DRIVER_IRQ_SHARED | DRIVER_GEM | DRIVER_PRIME |
 	    DRIVER_RENDER | DRIVER_MODESET,
-	.load = i915_driver_load,
 	.unload = i915_driver_unload,
 	.open = i915_driver_open,
 	.lastclose = i915_driver_lastclose,
