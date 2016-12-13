@@ -275,7 +275,7 @@ static void drm_update_vblank_count(struct drm_device *dev, unsigned int pipe,
 	}
 
 	DRM_DEBUG_VBL("updating vblank count on crtc %u:"
-		      " current=%u, diff=%u, hw=%u hw_last=%u\n",
+		      " current=%lu, diff=%u, hw=%u hw_last=%u\n",
 		      pipe, vblank->count, diff, cur_vblank, vblank->last);
 
 	if (diff == 0) {
@@ -1761,7 +1761,6 @@ int drm_wait_vblank(struct drm_device *dev, void *data,
 
 	DRM_DEBUG("waiting on vblank count %d, crtc %u\n",
 		  vblwait->request.sequence, pipe);
-	vblank->last_wait = vblwait->request.sequence;
 	DRM_WAIT_ON(ret, vblank->queue, 3 * HZ,
 		    (((drm_vblank_count(dev, pipe) -
 		       vblwait->request.sequence) <= (1 << 23)) ||
