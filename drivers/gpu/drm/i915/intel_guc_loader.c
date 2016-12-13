@@ -442,7 +442,7 @@ int intel_guc_setup(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_fetch_status),
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
-	err = i915_guc_submission_init(dev);
+	err = i915_guc_submission_init(dev_priv);
 	if (err)
 		goto fail;
 
@@ -481,7 +481,7 @@ int intel_guc_setup(struct drm_device *dev)
 		intel_guc_fw_status_repr(guc_fw->guc_fw_load_status));
 
 	if (i915.enable_guc_submission) {
-		err = i915_guc_submission_enable(dev);
+		err = i915_guc_submission_enable(dev_priv);
 		if (err)
 			goto fail;
 		direct_interrupts_to_guc(dev_priv);
@@ -494,8 +494,8 @@ fail:
 		guc_fw->guc_fw_load_status = GUC_FIRMWARE_FAIL;
 
 	direct_interrupts_to_host(dev_priv);
-	i915_guc_submission_disable(dev);
-	i915_guc_submission_fini(dev);
+	i915_guc_submission_disable(dev_priv);
+	i915_guc_submission_fini(dev_priv);
 
 	/*
 	 * We've failed to load the firmware :(
@@ -722,8 +722,8 @@ void intel_guc_fini(struct drm_device *dev)
 
 	mutex_lock(&dev->struct_mutex);
 	direct_interrupts_to_host(dev_priv);
-	i915_guc_submission_disable(dev);
-	i915_guc_submission_fini(dev);
+	i915_guc_submission_disable(dev_priv);
+	i915_guc_submission_fini(dev_priv);
 
 	if (guc_fw->guc_fw_obj)
 		drm_gem_object_unreference(&guc_fw->guc_fw_obj->base);
