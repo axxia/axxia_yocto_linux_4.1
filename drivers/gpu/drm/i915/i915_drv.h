@@ -3900,6 +3900,11 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	return false;
 }
 
+#define ptr_mask_bits(ptr) ({						\
+	unsigned long __v = (unsigned long)(ptr);			\
+	(typeof(ptr))(__v & PAGE_MASK);					\
+})
+
 #define ptr_unpack_bits(ptr, bits) ({					\
 	unsigned long __v = (unsigned long)(ptr);			\
 	(bits) = __v & ~PAGE_MASK;					\
