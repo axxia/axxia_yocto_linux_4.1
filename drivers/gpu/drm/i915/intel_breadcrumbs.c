@@ -195,7 +195,7 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 		if (next && next != &wait->node) {
 			GEM_BUG_ON(first);
 			b->first_wait = to_wait(next);
-			smp_store_mb(b->tasklet, b->first_wait->tsk);
+			set_mb(b->tasklet, b->first_wait->tsk);
 			/* As there is a delay between reading the current
 			 * seqno, processing the completed tasks and selecting
 			 * the next waiter, we may have missed the interrupt
@@ -220,7 +220,7 @@ static bool __intel_engine_add_wait(struct intel_engine_cs *engine,
 	if (first) {
 		GEM_BUG_ON(rb_first(&b->waiters) != &wait->node);
 		b->first_wait = wait;
-		smp_store_mb(b->tasklet, wait->tsk);
+		set_mb(b->tasklet, wait->tsk);
 		first = __intel_breadcrumbs_enable_irq(b);
 	}
 	GEM_BUG_ON(!b->tasklet);
@@ -317,7 +317,7 @@ void intel_engine_remove_wait(struct intel_engine_cs *engine,
 			 * exception rather than a seqno completion.
 			 */
 			b->first_wait = to_wait(next);
-			smp_store_mb(b->tasklet, b->first_wait->tsk);
+			set_mb(b->tasklet, b->first_wait->tsk);
 			if (b->first_wait->seqno != wait->seqno)
 				__intel_breadcrumbs_enable_irq(b);
 			wake_up_process(b->tasklet);
