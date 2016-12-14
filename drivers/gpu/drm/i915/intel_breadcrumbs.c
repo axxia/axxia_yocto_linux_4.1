@@ -500,7 +500,7 @@ void intel_engine_enable_signaling(struct drm_i915_gem_request *request)
 	rb_link_node(&request->signaling.node, parent, p);
 	rb_insert_color(&request->signaling.node, &b->signals);
 	if (first)
-		smp_store_mb(b->first_signal, request);
+		set_mb(b->first_signal, request);
 
 unlock:
 	spin_unlock(&b->lock);

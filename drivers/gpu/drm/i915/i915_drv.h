@@ -3998,7 +3998,7 @@ static inline bool __i915_request_irq_complete(struct drm_i915_gem_request *req)
 	 * is woken.
 	 */
 	if (engine->irq_seqno_barrier &&
-	    cmpxchg_relaxed(&engine->irq_posted, 1, 0)) {
+	    cmpxchg(&engine->irq_posted, 1, 0)) {
 		/* The ordering of irq_posted versus applying the barrier
 		 * is crucial. The clearing of the current irq_posted must
 		 * be visible before we perform the barrier operation,
