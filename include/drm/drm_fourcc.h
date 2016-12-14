@@ -32,6 +32,6 @@ int drm_format_horz_chroma_subsampling(uint32_t format);
 int drm_format_vert_chroma_subsampling(uint32_t format);
 int drm_format_plane_width(int width, uint32_t format, int plane);
 int drm_format_plane_height(int height, uint32_t format, int plane);
-char *drm_get_format_name(uint32_t format) __malloc;
+char *drm_get_format_name(uint32_t format);
 
 #endif /* __DRM_FOURCC_H__ */
