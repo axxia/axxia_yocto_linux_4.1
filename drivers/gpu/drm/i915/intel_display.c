@@ -2539,7 +2539,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 
 		offset = _intel_compute_tile_offset(dev_priv, &x, &y,
 						    fb, 0, fb->pitches[i],
-						    BIT(DRM_ROTATE_0), tile_size);
+						    DRM_ROTATE_0, tile_size);
 		offset /= tile_size;
 
 		if (fb->modifier[i] != DRM_FORMAT_MOD_NONE) {
@@ -2575,7 +2575,7 @@ intel_fill_fb_info(struct drm_i915_private *dev_priv,
 			drm_rect_rotate(&r,
 					rot_info->plane[i].width * tile_width,
 					rot_info->plane[i].height * tile_height,
-					BIT(DRM_ROTATE_270));
+					DRM_ROTATE_270);
 			x = r.x1;
 			y = r.y1;
 
@@ -14832,9 +14832,9 @@ intel_check_primary_plane(struct drm_plane *plane,
 	}
 
 	ret = drm_plane_helper_check_state(&state->base,
-					    &state->clip,
-					    min_scale, max_scale,
-					    can_position, true);
+					   &state->clip,
+					   min_scale, max_scale,
+					   can_position, true);
 	if (ret)
 		return ret;
 
