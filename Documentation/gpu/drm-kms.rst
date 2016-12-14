@@ -119,6 +119,18 @@ connectors has changed. Drivers that use the fb helper can just call the
 :c:func:`drm_fb_helper_hotplug_event()` function to handle this
 operation.
 
+Plane Abstraction
+=================
+
+Plane Functions Reference
+-------------------------
+
+.. kernel-doc:: include/drm/drm_plane.h
+   :internal:
+
+.. kernel-doc:: drivers/gpu/drm/drm_plane.c
+   :export:
+
 Connector Abstraction
 =====================
 
