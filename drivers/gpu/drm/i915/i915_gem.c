@@ -4573,7 +4573,7 @@ void i915_gem_track_fb(struct drm_i915_gem_object *old,
 
 	if (old) {
 		WARN_ON(!(atomic_read(&old->frontbuffer_bits) & frontbuffer_bits));
-		atomic_andnot(frontbuffer_bits, &old->frontbuffer_bits);
+		atomic_clear_mask(frontbuffer_bits, &old->frontbuffer_bits);
 	}
 
 	if (new) {
