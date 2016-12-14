@@ -542,7 +542,7 @@ int drm_irq_install(struct drm_device *dev, int irq)
 		return ret;
 	}
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		vga_client_register(dev->pdev, (void *)dev, drm_irq_vgaarb_nokms, NULL);
 
 	/* After installing handler */
@@ -551,7 +551,7 @@ int drm_irq_install(struct drm_device *dev, int irq)
 
 	if (ret < 0) {
 		dev->irq_enabled = false;
-		if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		if (drm_core_check_feature(dev, DRIVER_LEGACY))
 			vga_client_register(dev->pdev, NULL, NULL, NULL);
 		free_irq(irq, dev);
 	} else {
@@ -617,7 +617,7 @@ int drm_irq_uninstall(struct drm_device *dev)
 
 	DRM_DEBUG("irq=%d\n", dev->irq);
 
-	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+	if (drm_core_check_feature(dev, DRIVER_LEGACY))
 		vga_client_register(dev->pdev, NULL, NULL, NULL);
 
 	if (dev->driver->irq_uninstall)
@@ -652,7 +652,7 @@ int drm_control(struct drm_device *dev, void *data,
 
 	if (!drm_core_check_feature(dev, DRIVER_HAVE_IRQ))
 		return 0;
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
 		return 0;
 	/* UMS was only ever supported on pci devices. */
 	if (WARN_ON(!dev->pdev))
@@ -1585,7 +1585,7 @@ int drm_modeset_ctl(struct drm_device *dev, void *data,
 		return 0;
 
 	/* KMS drivers handle this internally */
-	if (drm_core_check_feature(dev, DRIVER_MODESET))
+	if (!drm_core_check_feature(dev, DRIVER_LEGACY))
 		return 0;
 
 	pipe = modeset->crtc;
