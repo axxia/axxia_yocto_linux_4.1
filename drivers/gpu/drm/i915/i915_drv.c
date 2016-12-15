@@ -1243,6 +1243,8 @@ int i915_driver_load(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	intel_runtime_pm_put(dev_priv);
 
+	printk(KERN_INFO "IOTG i915 forklift 2016-12-15\n");
+
 	return 0;
 
 out_cleanup_vblank:
