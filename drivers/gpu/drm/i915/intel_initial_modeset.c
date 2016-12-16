@@ -38,6 +38,7 @@
  * elapshed time before user space starts.
  */
 
+#include <linux/firmware.h>
 #include "intel_drv.h"
 #include "i915_drv.h"
 
@@ -46,6 +47,12 @@ static unsigned int bg_color = 0x00000000;
 module_param_named(bg_color, bg_color, uint, 0400);
 MODULE_PARM_DESC(bg_color, "Set the background (canvas) color while "
 		 "doing initial mode set. In XRGB8888 little endian format.");
+
+static char splash[PATH_MAX] = "";
+module_param_string(splash, splash, sizeof(splash), 0400);
+MODULE_PARM_DESC(splash,
+		 "Load a splash screen binary image for a specific display."
+		 "splash=<connector>:<image>:w,h,crtc_x,crtc_y,crtc_w,crtc_h");
 
 /*
  * This makes use of the video= kernel command line to determine what
@@ -121,6 +128,121 @@ static struct drm_encoder *get_encoder(struct drm_device *dev,
 
 	return encoder;
 }
+
+static struct drm_framebuffer *
+intel_splash_screen_fb(struct drm_device *dev,
+		       struct splash_screen_info *splash_info)
+{
+	struct drm_framebuffer *fb;
+	struct drm_mode_fb_cmd2 mode_cmd = {0};
+
+	if (splash_info->obj == NULL)
+		return NULL;
+
+	mode_cmd.width = splash_info->width;
+	mode_cmd.height = splash_info->height;
+
+	mode_cmd.pitches[0] = splash_info->pitch * 4;
+	mode_cmd.pixel_format = DRM_FORMAT_ARGB8888;
+
+	mutex_lock(&dev->struct_mutex);
+	fb = __intel_framebuffer_create(dev, &mode_cmd, splash_info->obj);
+	mutex_unlock(&dev->struct_mutex);
+
+	return fb;
+}
+
+static char *get_splash_val(char *splash_str, int *val)
+{
+	char *sep;
+
+	if ((sep = strchr(splash_str, ','))) {
+		*val = simple_strtol(splash_str, NULL, 10);
+		splash_str = sep + 1;
+	} else {
+		*val = simple_strtol(splash_str, NULL, 10);
+	}
+
+	return splash_str;
+}
+
+static struct splash_screen_info *
+intel_splash_screen_init(struct drm_device *dev)
+{
+	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct splash_screen_info *splash_info;
+	char *splash_dup;
+	char *splash_str;
+	char *sep;
+	u32 fw_npages;
+
+	if (splash[0] == '\0')
+		return NULL;
+
+	splash_info = kzalloc(sizeof(struct splash_screen_info), GFP_KERNEL);
+	if (splash_info == NULL)
+		return NULL;
+
+	dev_priv->splash_screen_info = splash_info;
+
+	splash_dup = kstrdup(splash, GFP_KERNEL);
+	splash_str = splash_dup;
+
+	/* Pull connector name from string */
+	sep = strchr(splash_str, ':');
+	if (sep == NULL)
+		goto fail;
+
+	*sep = '\0';
+	splash_info->connector_name = kstrdup(splash_str, GFP_KERNEL);
+	splash_str = sep + 1;
+
+	/* Pull firmware file name from string */
+	sep = strchr(splash_str, ':');
+	if (sep == NULL)
+		goto fail;
+
+	*sep = '\0';
+	request_firmware(&splash_info->fw, splash_str,
+			 &dev_priv->drm.pdev->dev);
+	if (splash_info->fw == NULL)
+		goto fail;
+	splash_str = sep + 1;
+
+	/* Pull splash screen width, height, crtc */
+	splash_str = get_splash_val(splash_str, &splash_info->width);
+	splash_str = get_splash_val(splash_str, &splash_info->height);
+	splash_str = get_splash_val(splash_str, &splash_info->pitch);
+	splash_str = get_splash_val(splash_str, &splash_info->crtc_x);
+	splash_str = get_splash_val(splash_str, &splash_info->crtc_y);
+	splash_str = get_splash_val(splash_str, &splash_info->crtc_w);
+	splash_str = get_splash_val(splash_str, &splash_info->crtc_h);
+
+	/*
+	 * If splash image is baked into the kernel, we just get
+	 * a pointer.  Otherwise we'll get a list of pages.
+	 */
+	fw_npages = DIV_ROUND_UP_ULL(splash_info->fw->size, PAGE_SIZE);
+	if (splash_info->fw->pages == NULL)
+		splash_info->obj = i915_gem_object_create_splash(dev,
+				   splash_info->fw->data, fw_npages);
+	else
+		splash_info->obj = i915_gem_object_create_splash_pages(dev,
+				   splash_info->fw->pages, fw_npages);
+
+	kfree(splash_dup);
+
+	return splash_info;
+
+fail:
+	kfree(splash_dup);
+	release_firmware(splash_info->fw);
+	kfree(splash_info->connector_name);
+	kfree(splash_info);
+	dev_priv->splash_screen_info = NULL;
+	return NULL;
+}
+
 
 static struct drm_display_mode *get_modeline(struct drm_i915_private *dev_priv,
 					     struct drm_connector *connector,
@@ -228,6 +350,7 @@ static int update_connector_state(struct drm_atomic_state *state,
 }
 
 static int update_primary_plane_state(struct drm_atomic_state *state,
+				      struct splash_screen_info *splash_info,
 				      struct drm_crtc *crtc,
 				      struct drm_display_mode *mode,
 				      struct drm_framebuffer *fb)
@@ -242,26 +365,32 @@ static int update_primary_plane_state(struct drm_atomic_state *state,
 		return ret;
 	drm_crtc_get_hv_timing(mode, &hdisplay, &vdisplay);
 	drm_atomic_set_fb_for_plane(primary_state, fb);
-	primary_state->crtc_x = 0;
-	primary_state->crtc_y = 0;
-	primary_state->crtc_w = hdisplay;
-	primary_state->crtc_h = vdisplay;
+
+	primary_state->crtc_x = splash_info->crtc_x;
+	primary_state->crtc_y = splash_info->crtc_y;
+	primary_state->crtc_w = (splash_info->crtc_w) ?
+		splash_info->crtc_w : hdisplay;
+	primary_state->crtc_h = (splash_info->crtc_h) ?
+		splash_info->crtc_h : vdisplay;
+
 	primary_state->src_x = 0 << 16;
 	primary_state->src_y = 0 << 16;
-	primary_state->src_w = hdisplay << 16;
-	primary_state->src_h = vdisplay << 16;
+	primary_state->src_w = splash_info->width << 16;
+	primary_state->src_h = splash_info->height << 16;
 
 	return 0;
 }
 
 static int update_atomic_state(struct drm_device *dev,
 			       struct drm_atomic_state *state,
+			       struct splash_screen_info *splash_info,
+			       struct drm_framebuffer *fb,
 			       struct drm_connector *connector,
 			       struct drm_encoder *encoder)
+
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *mode;
-	struct drm_framebuffer *fb = NULL;
 	struct drm_crtc *crtc = encoder->crtc;
 	int ret;
 
@@ -280,13 +409,13 @@ static int update_atomic_state(struct drm_device *dev,
 	if (ret)
 		return ret;
 
-	/* Set up primary plane if a framebuffer is allocated */
-	if (fb) {
-		ret = update_primary_plane_state(state, crtc, mode, fb);
+	/* set up primary plane if a splash screen is requested */
+	if (fb && splash_info) {
+		ret = update_primary_plane_state(state, splash_info,
+						 crtc, mode, fb);
 		if (ret)
 			return ret;
 	}
-
 	return 0;
 }
 
@@ -336,6 +465,8 @@ static void modeset_config_fn(struct work_struct *work)
 	struct drm_modeset_acquire_ctx ctx;
 	struct drm_plane *plane;
 	int ret;
+	struct splash_screen_info *splash_info, *info;
+	struct drm_framebuffer *fb = NULL;
 	bool found = false;
 
 	state = drm_atomic_state_alloc(dev);
@@ -345,6 +476,13 @@ static void modeset_config_fn(struct work_struct *work)
 	drm_modeset_acquire_init(&ctx, 0);
 	state->acquire_ctx = &ctx;
 	drm_modeset_lock_all_ctx(dev, &ctx);
+
+	splash_info = intel_splash_screen_init(dev);
+	if (splash_info) {
+		fb = intel_splash_screen_fb(dev, splash_info);
+		if (IS_ERR(fb))
+			fb = NULL;
+	}
 
 retry:
 	ret = disable_planes(dev, state);
@@ -359,11 +497,15 @@ retry:
 	drm_for_each_connector(connector, dev) {
 		struct drm_encoder *encoder;
 
+		info = NULL;
 		if (use_connector(connector)) {
 			if (!(encoder = get_encoder(dev, connector)))
 				continue;
 
-			ret = update_atomic_state(dev, state,
+			if (splash_info &&
+			    strcmp(splash_info->connector_name, connector->name) == 0)
+					info = splash_info;
+			ret = update_atomic_state(dev, state, info, fb,
 					    connector, encoder);
 			if (ret)
 				goto fail;
@@ -375,13 +517,18 @@ retry:
 		/* Try to detect attached connectors */
 		drm_for_each_connector(connector, dev) {
 			struct drm_encoder *encoder;
+
+			info = NULL;
 			connector->status = connector->funcs->detect(connector,
 								     true);
 			if (connector->status == connector_status_connected) {
 				if (!(encoder = get_encoder(dev, connector)))
 					continue;
 
-				ret = update_atomic_state(dev, state,
+				if (splash_info &&
+				    strcmp(splash_info->connector_name, connector->name) == 0)
+					info = splash_info;
+				ret = update_atomic_state(dev, state, info, fb,
 							  connector, encoder);
 				if (ret)
 					goto fail;
@@ -436,9 +583,51 @@ void intel_initial_mode_config_init(struct drm_device *dev)
 	schedule_work(&dev_priv->initial_modeset_work);
 }
 
+static void initial_mode_destroy(struct drm_device *dev)
+{
+	struct drm_atomic_state *state;
+	struct drm_modeset_acquire_ctx ctx;
+	int ret;
+
+	state = drm_atomic_state_alloc(dev);
+	if (!state)
+		return;
+
+	drm_modeset_acquire_init(&ctx, 0);
+	state->acquire_ctx = &ctx;
+	drm_modeset_lock_all_ctx(dev, &ctx);
+
+retry:
+	ret = disable_planes(dev, state);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		drm_atomic_state_clear(state);
+		goto retry;
+	}
+
+	ret = drm_atomic_commit(state);
+	if (ret == -EDEADLK) {
+		drm_modeset_backoff(&ctx);
+		drm_atomic_state_clear(state);
+		goto retry;
+	}
+
+	drm_modeset_drop_locks(&ctx);
+	drm_modeset_acquire_fini(&ctx);
+}
+
 void intel_initial_mode_config_fini(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
+	struct splash_screen_info *splash_info = dev_priv->splash_screen_info;
 
 	flush_work(&dev_priv->initial_modeset_work);
+
+	initial_mode_destroy(dev);
+
+	if (splash_info) {
+		release_firmware(splash_info->fw);
+		kfree(splash_info->connector_name);
+		kfree(splash_info);
+	}
 }

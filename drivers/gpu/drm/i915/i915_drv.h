@@ -1047,6 +1047,19 @@ struct i915_drrs {
 	enum drrs_support_type type;
 };
 
+struct splash_screen_info {
+	const struct firmware *fw;
+	struct drm_i915_gem_object *obj;
+	char *connector_name;
+	int width;
+	int height;
+	int pitch;
+	int crtc_x;
+	int crtc_y;
+	int crtc_w;
+	int crtc_h;
+};
+
 struct i915_psr {
 	struct mutex lock;
 	bool sink_support;
@@ -1951,6 +1964,8 @@ struct drm_i915_private {
 	struct intel_fbdev *fbdev;
 	struct work_struct fbdev_suspend_work;
 #endif
+
+	struct splash_screen_info *splash_screen_info;
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
@@ -3092,6 +3107,12 @@ struct drm_i915_gem_object *i915_gem_object_create(struct drm_device *dev,
 struct drm_i915_gem_object *i915_gem_object_create_from_data(
 		struct drm_device *dev, const void *data, size_t size);
 void i915_gem_close_object(struct drm_gem_object *gem, struct drm_file *file);
+struct drm_i915_gem_object *i915_gem_object_create_splash_pages(
+					struct drm_device *dev,
+					struct page **pages, u32 n_pages);
+struct drm_i915_gem_object *i915_gem_object_create_splash(
+					struct drm_device *dev,
+					const u8 *ptr, u32 n_pages);
 void i915_gem_free_object(struct drm_gem_object *obj);
 
 struct i915_vma * __must_check
