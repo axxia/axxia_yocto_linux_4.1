@@ -193,26 +193,10 @@ static void i915_gem_dmabuf_kunmap(struct dma_buf *dma_buf, unsigned long page_n
 
 static int i915_gem_dmabuf_mmap(struct dma_buf *dma_buf, struct vm_area_struct *vma)
 {
-	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
-	int ret;
-
-	if (obj->base.size < vma->vm_end - vma->vm_start)
-		return -EINVAL;
-
-	if (!obj->base.filp)
-		return -ENODEV;
-
-	ret = obj->base.filp->f_op->mmap(obj->base.filp, vma);
-	if (ret)
-		return ret;
-
-	fput(vma->vm_file);
-	vma->vm_file = get_file(obj->base.filp);
-
-	return 0;
+	return -EINVAL;
 }
 
-static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, enum dma_data_direction direction)
+static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, size_t start, size_t length, enum dma_data_direction direction)
 {
 	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
 	struct drm_device *dev = obj->base.dev;
@@ -228,27 +212,6 @@ static int i915_gem_begin_cpu_access(struct dma_buf *dma_buf, enum dma_data_dire
 	return ret;
 }
 
-static void i915_gem_end_cpu_access(struct dma_buf *dma_buf, enum dma_data_direction direction)
-{
-	struct drm_i915_gem_object *obj = dma_buf_to_obj(dma_buf);
-	struct drm_device *dev = obj->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	bool was_interruptible;
-	int ret;
-
-	mutex_lock(&dev->struct_mutex);
-	was_interruptible = dev_priv->mm.interruptible;
-	dev_priv->mm.interruptible = false;
-
-	ret = i915_gem_object_set_to_gtt_domain(obj, false);
-
-	dev_priv->mm.interruptible = was_interruptible;
-	mutex_unlock(&dev->struct_mutex);
-
-	if (unlikely(ret))
-		DRM_ERROR("unable to flush buffer following CPU access; rendering may be corrupt\n");
-}
-
 static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.map_dma_buf = i915_gem_map_dma_buf,
 	.unmap_dma_buf = i915_gem_unmap_dma_buf,
@@ -261,7 +224,6 @@ static const struct dma_buf_ops i915_dmabuf_ops =  {
 	.vmap = i915_gem_dmabuf_vmap,
 	.vunmap = i915_gem_dmabuf_vunmap,
 	.begin_cpu_access = i915_gem_begin_cpu_access,
-	.end_cpu_access = i915_gem_end_cpu_access,
 };
 
 struct dma_buf *i915_gem_prime_export(struct drm_device *dev,
@@ -294,6 +256,7 @@ static int i915_gem_object_get_pages_dmabuf(struct drm_i915_gem_object *obj)
 		return PTR_ERR(sg);
 
 	obj->pages = sg;
+	obj->has_dma_mapping = true;
 	return 0;
 }
 
@@ -301,6 +264,7 @@ static void i915_gem_object_put_pages_dmabuf(struct drm_i915_gem_object *obj)
 {
 	dma_buf_unmap_attachment(obj->base.import_attach,
 				 obj->pages, DMA_BIDIRECTIONAL);
+	obj->has_dma_mapping = false;
 }
 
 static const struct drm_i915_gem_object_ops i915_gem_object_dmabuf_ops = {

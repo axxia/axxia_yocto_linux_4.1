@@ -69,13 +69,13 @@ void i915_check_vgpu(struct drm_device *dev)
 	if (!IS_HASWELL(dev))
 		return;
 
-	magic = __raw_i915_read64(dev_priv, vgtif_reg(magic));
+	magic = readq(dev_priv->regs + vgtif_reg(magic));
 	if (magic != VGT_MAGIC)
 		return;
 
 	version = INTEL_VGT_IF_VERSION_ENCODE(
-		__raw_i915_read16(dev_priv, vgtif_reg(version_major)),
-		__raw_i915_read16(dev_priv, vgtif_reg(version_minor)));
+		readw(dev_priv->regs + vgtif_reg(version_major)),
+		readw(dev_priv->regs + vgtif_reg(version_minor)));
 	if (version != INTEL_VGT_IF_VERSION) {
 		DRM_INFO("VGT interface version mismatch!\n");
 		return;
@@ -181,7 +181,7 @@ static int vgt_balloon_space(struct drm_mm *mm,
 int intel_vgt_balloon(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct i915_address_space *ggtt_vm = &dev_priv->ggtt.base;
+	struct i915_address_space *ggtt_vm = &dev_priv->gtt.base;
 	unsigned long ggtt_vm_end = ggtt_vm->start + ggtt_vm->total;
 
 	unsigned long mappable_base, mappable_size, mappable_end;
@@ -203,18 +203,18 @@ int intel_vgt_balloon(struct drm_device *dev)
 		 unmappable_base, unmappable_size / 1024);
 
 	if (mappable_base < ggtt_vm->start ||
-	    mappable_end > dev_priv->ggtt.mappable_end ||
-	    unmappable_base < dev_priv->ggtt.mappable_end ||
+	    mappable_end > dev_priv->gtt.mappable_end ||
+	    unmappable_base < dev_priv->gtt.mappable_end ||
 	    unmappable_end > ggtt_vm_end) {
 		DRM_ERROR("Invalid ballooning configuration!\n");
 		return -EINVAL;
 	}
 
 	/* Unmappable graphic memory ballooning */
-	if (unmappable_base > dev_priv->ggtt.mappable_end) {
+	if (unmappable_base > dev_priv->gtt.mappable_end) {
 		ret = vgt_balloon_space(&ggtt_vm->mm,
 					&bl_info.space[2],
-					dev_priv->ggtt.mappable_end,
+					dev_priv->gtt.mappable_end,
 					unmappable_base);
 
 		if (ret)
@@ -244,11 +244,11 @@ int intel_vgt_balloon(struct drm_device *dev)
 			goto err;
 	}
 
-	if (mappable_end < dev_priv->ggtt.mappable_end) {
+	if (mappable_end < dev_priv->gtt.mappable_end) {
 		ret = vgt_balloon_space(&ggtt_vm->mm,
 					&bl_info.space[1],
 					mappable_end,
-					dev_priv->ggtt.mappable_end);
+					dev_priv->gtt.mappable_end);
 
 		if (ret)
 			goto err;
