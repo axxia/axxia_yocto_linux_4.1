@@ -71,7 +71,6 @@
 #include "bhp_impl.h"
 #include "dal_dev.h"
 
-static atomic_t kdi_ref_count = ATOMIC_INIT(0);
 static DEFINE_MUTEX(kdi_lock);
 
 #define BH_MSG_MAGIC_LENGTH            4
@@ -115,35 +114,6 @@ static int bh_err_to_kdi_err(int bh_err)
 		return DAL_KDI_STATUS_INTERNAL_ERROR;
 	}
 }
-
-static int kdi_add_dev(struct device *dev,
-		       struct class_interface *class_intf)
-{
-	int ret;
-	struct dal_device *ddev;
-
-	ddev = to_dal_device(dev);
-	mutex_lock(&ddev->context_lock);
-	ret = dal_dc_setup(ddev, DAL_INTF_KDI);
-	mutex_unlock(&ddev->context_lock);
-	return ret;
-}
-
-static void kdi_rm_dev(struct device *dev,
-		       struct class_interface *class_intf)
-{
-	struct dal_device *ddev;
-
-	ddev = to_dal_device(dev);
-	mutex_lock(&ddev->context_lock);
-	dal_dc_destroy(ddev, DAL_INTF_KDI);
-	mutex_unlock(&ddev->context_lock);
-}
-
-static struct class_interface kdi_interface __refdata = {
-	.add_dev        = kdi_add_dev,
-	.remove_dev     = kdi_rm_dev,
-};
 
 int kdi_send(unsigned int handle, const unsigned char *buf,
 	     size_t len, u64 seq)
@@ -312,27 +282,8 @@ static inline bool kdi_check_handle(u64 handle)
 
 int kdi_init(u32 flags, u64 *handle)
 {
-	int ret, bh_err;
-
 	if (!handle)
 		return DAL_KDI_STATUS_INVALID_PARAMS;
-
-	if (atomic_inc_return(&kdi_ref_count) > 1)
-		goto out;
-
-	kdi_interface.class = dal_class;
-	ret = class_interface_register(&kdi_interface);
-	if (ret)
-		return DAL_KDI_STATUS_INTERNAL_ERROR;
-
-	bh_err = bhp_init_internal();
-	ret = bh_err_to_kdi_err(bh_err);
-	if (bh_err) {
-		class_interface_unregister(&kdi_interface);
-		pr_err("BHP_Init failed with status = %d\n", bh_err);
-		return ret;
-	}
-out:
 
 	*handle = (u64)dal_class;
 	return DAL_KDI_SUCCESS;
@@ -341,22 +292,11 @@ EXPORT_SYMBOL(kdi_init);
 
 int kdi_deinit(u64 handle)
 {
-	int ret, bh_err;
-
 	/* check handle first */
 	if (!kdi_check_handle(handle))
 		return DAL_KDI_STATUS_INVALID_HANDLE;
 
-	ret = DAL_KDI_SUCCESS;
-	if (atomic_dec_if_positive(&kdi_ref_count) == 0) {
-		class_interface_unregister(&kdi_interface);
-		bh_err = bhp_deinit_internal();
-		ret = bh_err_to_kdi_err(bh_err);
-		if (bh_err)
-			pr_warn("bhp_deinit_internal failed: = %d\n", bh_err);
-	}
-
-	return ret;
+	return 0;
 }
 EXPORT_SYMBOL(kdi_deinit);
 
@@ -369,9 +309,6 @@ int dal_create_session(u64 handle,
 		       size_t init_param_len)
 {
 	int ret;
-
-	if (atomic_read(&kdi_ref_count) == 0)
-		return DAL_KDI_STATUS_NOT_INITIALIZED;
 
 	if (!kdi_check_handle(handle))
 		return DAL_KDI_STATUS_INVALID_HANDLE;
@@ -401,9 +338,6 @@ int dal_send_and_receive(u64 handle,
 {
 	int ret, bh_err;
 
-	if (atomic_read(&kdi_ref_count) == 0)
-		return DAL_KDI_STATUS_NOT_INITIALIZED;
-
 	if (!kdi_check_handle(handle))
 		return DAL_KDI_STATUS_INVALID_HANDLE;
 
@@ -426,9 +360,6 @@ EXPORT_SYMBOL(dal_send_and_receive);
 int dal_close_session(u64 handle, u64 session_handle)
 {
 	int ret, bh_err;
-
-	if (atomic_read(&kdi_ref_count) == 0)
-		return DAL_KDI_STATUS_NOT_INITIALIZED;
 
 	if (!kdi_check_handle(handle))
 		return DAL_KDI_STATUS_INVALID_HANDLE;
@@ -560,3 +491,63 @@ int dal_get_version_info(struct dal_version_info *version_info)
 	return 0;
 }
 EXPORT_SYMBOL(dal_get_version_info);
+
+static int kdi_add_dev(struct device *dev,
+		       struct class_interface *class_intf)
+{
+	int ret;
+	struct dal_device *ddev;
+
+	ddev = to_dal_device(dev);
+	mutex_lock(&ddev->context_lock);
+	ret = dal_dc_setup(ddev, DAL_INTF_KDI);
+	mutex_unlock(&ddev->context_lock);
+	return ret;
+}
+
+static void kdi_rm_dev(struct device *dev,
+		       struct class_interface *class_intf)
+{
+	struct dal_device *ddev;
+
+	ddev = to_dal_device(dev);
+	mutex_lock(&ddev->context_lock);
+	dal_dc_destroy(ddev, DAL_INTF_KDI);
+	mutex_unlock(&ddev->context_lock);
+}
+
+static struct class_interface kdi_interface __refdata = {
+	.add_dev    = kdi_add_dev,
+	.remove_dev = kdi_rm_dev,
+};
+
+int dal_kdi_init(void)
+{
+	int bh_err;
+	int ret;
+
+	bh_err = bhp_init_internal();
+	if (bh_err) {
+		pr_err("bhp_init: failed with status = 0x%x\n", bh_err);
+		return  -EFAULT;
+	}
+
+	kdi_interface.class = dal_class;
+	ret = class_interface_register(&kdi_interface);
+	if (ret) {
+		pr_err("failed reister class interface = %d\n", ret);
+		goto err;
+	}
+
+	return 0;
+
+err:
+	bhp_deinit_internal();
+	return ret;
+}
+
+void dal_kdi_exit(void)
+{
+	bhp_deinit_internal();
+	class_interface_unregister(&kdi_interface);
+}
