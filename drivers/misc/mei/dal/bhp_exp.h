@@ -65,12 +65,6 @@
 
 #include "bh_errcode.h"
 
-struct bhp_transport {
-	int (*send)(unsigned int handle,
-		    unsigned char *buf, unsigned int len, u64 seq);
-	int (*recv)(unsigned int handle, unsigned char *buf, unsigned int *len);
-};
-
 /**
  * Invoke this function before using other API.
  * It will try to connect ME processes(Launcher, SDM and I-VM),
@@ -84,7 +78,7 @@ struct bhp_transport {
  * @return BPE_INTERNAL_ERROR if receiver thread cannot be
  * created or other internal failure
  */
-int bhp_init_internal(const struct bhp_transport *transport);
+int bhp_init_internal(void);
 
 /**
  * Invoke this function before exiting.

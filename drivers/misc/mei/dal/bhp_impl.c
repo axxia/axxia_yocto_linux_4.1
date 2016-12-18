@@ -67,7 +67,6 @@
 static unsigned int init_state = DEINITED;
 static u64 sequence_number = MSG_SEQ_START_NUMBER;
 static struct bh_connection_item connections[MAX_CONNECTIONS];
-static struct bhp_transport bhp_transport;
 
 /*
  * increment_seq_number():
@@ -346,53 +345,48 @@ bool bhp_is_initialized(void)
 static char skip_buffer[DAL_MAX_BUFFER_SIZE] = {0};
 static int bh_transport_recv(unsigned int handle, void *buffer, size_t size)
 {
-	size_t got = 0;
+	size_t got;
 	size_t count = 0;
-	int status = 0;
+	int ret;
+	char *buf = buffer;
 
 	if (handle > DAL_MEI_DEVICE_MAX)
 		return BPE_COMMS_ERROR;
 
 	while (size - count > 0) {
+		got = min_t(size_t, size - count, DAL_MAX_BUFFER_SIZE);
+		if (buf)
+			ret = kdi_recv(handle, buf + count, &got);
+		else
+			ret = kdi_recv(handle, skip_buffer, &got);
 
-		if (buffer) {
-			got = min_t(size_t, size - count, DAL_MAX_BUFFER_SIZE);
-			status = bhp_transport.recv(handle,
-					(unsigned char *) buffer + count,
-					(unsigned int *) &got);
-		} else {
-			got = min_t(size_t, DAL_MAX_BUFFER_SIZE, size - count);
-			status = bhp_transport.recv(handle,
-					skip_buffer, (unsigned int *) &got);
-		}
-
-		if (status != 0)
-			return BPE_COMMS_ERROR;
+		if (ret != BH_SUCCESS)
+			return ret;
 
 		count += got;
 	}
 
-	return status == BH_SUCCESS && count == size ? BH_SUCCESS : status;
+	return ret == BH_SUCCESS && count == size ? BH_SUCCESS : ret;
 }
 
 static int bh_transport_send(unsigned int handle, const void *buffer,
 			     unsigned int size, u64 seq)
 {
-	unsigned int written = 0;
+	size_t chunk_sz;
 	unsigned int count = 0;
-	int status = 0;
+	int ret;
+	const char *buf = buffer;
 
 	if (handle > DAL_MEI_DEVICE_MAX)
 		return BPE_COMMS_ERROR;
 
 	while (size - count > 0) {
-		written = min_t(u32, size - count, DAL_MAX_BUFFER_SIZE);
-		status = bhp_transport.send(handle,
-				(unsigned char *)buffer + count, written, seq);
-		if (status != 0)
-			return BPE_COMMS_ERROR;
+		chunk_sz = min_t(size_t, size - count, DAL_MAX_BUFFER_SIZE);
+		ret = kdi_send(handle, buf + count, chunk_sz, seq);
+		if (ret != BH_SUCCESS)
+			return ret;
 
-		count += written;
+		count += chunk_sz;
 	}
 
 	return BH_SUCCESS;
@@ -512,16 +506,6 @@ static int bh_recv_message(int conn_idx, u64 *seq)
 	return ret;
 }
 
-static int bh_transport_init(const struct bhp_transport *context)
-{
-	memcpy(&bhp_transport, context, sizeof(struct bhp_transport));
-
-	if (!bhp_transport.send || !bhp_transport.recv)
-		return BPE_INVALID_PARAMS;
-
-	return BH_SUCCESS;
-}
-
 static void bh_do_connect(int conn_idx)
 {
 	struct bh_connection_item *conn = &connections[conn_idx];
@@ -614,21 +598,12 @@ int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
 	return ret;
 }
 
-int bhp_init_internal(const struct bhp_transport *transport)
+int bhp_init_internal(void)
 {
-	int ret;
-
 	if (bhp_is_initialized())
 		return BPE_INITIALIZED_ALREADY;
 
-	if (!transport)
-		return BPE_INVALID_PARAMS;
-
 	/* step 1: init connections to each process */
-	ret = bh_transport_init(transport);
-	if (ret)
-		return ret;
-
 	bh_connections_init();
 
 	/* RESET flow removed to allow JHI and KDI to coexist */

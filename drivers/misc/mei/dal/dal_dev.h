@@ -233,4 +233,7 @@ int dal_access_policy_allowed(struct dal_device *ddev,
 void dal_access_list_free(struct dal_device *ddev);
 int dal_access_list_init(struct dal_device *ddev);
 
+int kdi_send(unsigned int handle, const unsigned char *buf,
+	     size_t len, u64 seq);
+int kdi_recv(unsigned int handle, unsigned char *buf, size_t *count);
 #endif  /* _DAL_KDI_H_ */

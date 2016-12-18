@@ -145,8 +145,8 @@ static struct class_interface kdi_interface __refdata = {
 	.remove_dev     = kdi_rm_dev,
 };
 
-static int kdi_send(unsigned int handle,
-		    unsigned char *buf, unsigned int len, u64 seq)
+int kdi_send(unsigned int handle, const unsigned char *buf,
+	     size_t len, u64 seq)
 {
 	enum dal_dev_type mei_device;
 	struct dal_device *ddev;
@@ -193,8 +193,7 @@ out:
 	return ret;
 }
 
-static int kdi_recv(unsigned int handle,
-		    unsigned char *buf, unsigned int *count)
+int kdi_recv(unsigned int handle, unsigned char *buf, size_t *count)
 {
 	enum dal_dev_type mei_device;
 	struct dal_device *ddev;
@@ -241,7 +240,7 @@ static int kdi_recv(unsigned int handle,
 	}
 
 	if (len > *count) {
-		dev_err(&ddev->dev, "could not copy buffer: src size = %zd > dest size = %u\n",
+		dev_err(&ddev->dev, "could not copy buffer: src size = %zd > dest size = %zd\n",
 			len, *count);
 		ret = BPE_COMMS_ERROR;
 		goto out;
@@ -260,11 +259,6 @@ out:
 	put_device(dev);
 	return ret;
 }
-
-static struct bhp_transport kdi_transport = {
-	.send = kdi_send,
-	.recv = kdi_recv,
-};
 
 static int kdi_create_session(u64 *handle, const char *jta_id,
 			      const u8 *buffer, size_t buffer_length,
@@ -331,7 +325,7 @@ int kdi_init(u32 flags, u64 *handle)
 	if (ret)
 		return DAL_KDI_STATUS_INTERNAL_ERROR;
 
-	bh_err = bhp_init_internal(&kdi_transport);
+	bh_err = bhp_init_internal();
 	ret = bh_err_to_kdi_err(bh_err);
 	if (bh_err) {
 		class_interface_unregister(&kdi_interface);
