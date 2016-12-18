@@ -67,9 +67,6 @@
 static unsigned int init_state = DEINITED;
 static u64 sequence_number = MSG_SEQ_START_NUMBER;
 static struct bh_connection_item connections[MAX_CONNECTIONS];
-
-/* the isd-id in the firmware, got during init */
-static uuid_be isd_uuid;
 static struct bhp_transport bhp_transport;
 
 /*
@@ -583,35 +580,6 @@ static void bh_connections_deinit(void)
 		bh_do_disconnect(i);
 }
 
-/* get isd uuid from SDM in Firmware side. */
-static int bh_proxy_get_isd(void)
-{
-	char cmdbuf[CMDBUF_SIZE];
-	struct bhp_command_header *h = (struct bhp_command_header *) cmdbuf;
-	struct bh_response_record rr;
-	struct bhp_get_isd_response *resp;
-	int ret;
-
-	h->id = BHP_CMD_GET_ISD;
-
-	ret = bh_cmd_transfer(CONN_IDX_SDM, (char *) h, sizeof(*h),
-			NULL, 0, rrmap_add(CONN_IDX_SDM, &rr));
-	if (ret == BH_SUCCESS)
-		ret = rr.code;
-
-	if (ret == BH_SUCCESS) {
-		if (rr.buffer &&
-		    rr.length == sizeof(struct bhp_get_isd_response)) {
-			resp = (struct bhp_get_isd_response *)rr.buffer;
-			isd_uuid = resp->sdid;
-		} else
-			ret = BPE_MESSAGE_ILLEGAL;
-	}
-
-	kfree(rr.buffer);
-	return ret;
-}
-
 #define MAX_RETRY_COUNT   (3)
 int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
 		const void *data, unsigned int dlen, u64 seq)
@@ -664,14 +632,6 @@ int bhp_init_internal(const struct bhp_transport *transport)
 	bh_connections_init();
 
 	/* RESET flow removed to allow JHI and KDI to coexist */
-
-	/* step 3: get isd-uuid from SDM */
-	ret = bh_proxy_get_isd();
-	if (ret) {
-		bh_connections_deinit();
-		return ret;
-	}
-
 	/* this assignment is atomic operation */
 	WRITE_ONCE(init_state, INITED);
 
