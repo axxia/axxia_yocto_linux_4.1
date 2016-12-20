@@ -8349,6 +8349,10 @@ enum {
 #define  READ_REQUEST_PRIORITY_HIGH			(3 << 3)
 #define  RGB_FLIP_TO_BGR				(1 << 2)
 
+/* BXT has dual link Z inversion overlap field */
+#define  BXT_PIXEL_OVERLAP_CNT_MASK                     (15 << 10)
+#define  BXT_PIXEL_OVERLAP_CNT_SHIFT                    10
+
 #define  BXT_PIPE_SELECT_SHIFT				7
 #define  BXT_PIPE_SELECT_MASK				(7 << 7)
 #define  BXT_PIPE_SELECT(pipe)				((pipe) << 7)
