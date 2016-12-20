@@ -534,6 +534,10 @@ static void intel_dsi_enable(struct intel_encoder *encoder)
 	}
 
 	intel_panel_enable_backlight(intel_dsi->attached_connector);
+
+	if (intel_dsi->panel && intel_dsi->panel->funcs &&
+	    intel_dsi->panel->funcs->backlight_on)
+		intel_dsi->panel->funcs->backlight_on(intel_dsi->panel);
 }
 
 static void intel_dsi_prepare(struct intel_encoder *intel_encoder,
@@ -625,7 +629,11 @@ static void intel_dsi_pre_disable(struct intel_encoder *encoder,
 
 	DRM_DEBUG_KMS("\n");
 
-	intel_panel_disable_backlight(intel_dsi->attached_connector);
+	if (intel_dsi->panel && intel_dsi->panel->funcs &&
+			intel_dsi->panel->funcs->backlight_off)
+		intel_panel_disable_backlight(intel_dsi->attached_connector);
+
+	intel_dsi->panel->funcs->backlight_off(intel_dsi->panel);
 
 	/*
 	 * Disable Device ready before the port shutdown in order

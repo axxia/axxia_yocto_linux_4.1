@@ -507,14 +507,12 @@ static int vbt_panel_unprepare(struct drm_panel *panel)
 static int vbt_panel_enable(struct drm_panel *panel)
 {
 	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_ON);
-	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_ON);
 
 	return 0;
 }
 
 static int vbt_panel_disable(struct drm_panel *panel)
 {
-	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_OFF);
 	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_OFF);
 
 	return 0;
@@ -564,6 +562,20 @@ static int vbt_panel_reset(struct drm_panel *panel)
 	return 0;
 }
 
+static int vbt_panel_backlight_on(struct drm_panel *panel)
+{
+	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_ON);
+
+	return 0;
+}
+
+static int vbt_panel_backlight_off(struct drm_panel *panel)
+{
+	generic_exec_sequence(panel, MIPI_SEQ_BACKLIGHT_OFF);
+
+	return 0;
+}
+
 static const struct drm_panel_funcs vbt_panel_funcs = {
 	.disable = vbt_panel_disable,
 	.unprepare = vbt_panel_unprepare,
@@ -573,6 +585,8 @@ static const struct drm_panel_funcs vbt_panel_funcs = {
 	.power_off = vbt_panel_power_off,
 	.enable = vbt_panel_enable,
 	.get_modes = vbt_panel_get_modes,
+	.backlight_on = vbt_panel_backlight_on,
+	.backlight_off = vbt_panel_backlight_off,
 };
 
 struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
