@@ -980,23 +980,31 @@ static void bxt_dsi_get_pipe_config(struct intel_encoder *encoder,
 					adjusted_mode_sw->crtc_hblank_end;
 }
 
-static void intel_dsi_get_config(struct intel_encoder *encoder,
+static void intel_dsi_get_config(struct intel_encoder *intel_encoder,
 				 struct intel_crtc_state *pipe_config)
 {
-	struct drm_device *dev = encoder->base.dev;
+	struct drm_device *dev = intel_encoder->base.dev;
+	struct drm_encoder *encoder = &intel_encoder->base;
+	struct intel_dsi *intel_dsi = enc_to_intel_dsi(encoder);
 	u32 pclk;
 	DRM_DEBUG_KMS("\n");
 
 	if (IS_BROXTON(dev))
-		bxt_dsi_get_pipe_config(encoder, pipe_config);
+		bxt_dsi_get_pipe_config(intel_encoder, pipe_config);
 
-	pclk = intel_dsi_get_pclk(encoder, pipe_config->pipe_bpp,
+	pclk = intel_dsi_get_pclk(intel_encoder, pipe_config->pipe_bpp,
 				  pipe_config);
 	if (!pclk)
 		return;
 
-	pipe_config->base.adjusted_mode.crtc_clock = pclk;
-	pipe_config->port_clock = pclk;
+	/* dual link pclk is about 1/2 of crtc clock */
+	if (IS_BROXTON(dev) && (intel_dsi->dual_link)) {
+		pipe_config->base.adjusted_mode.crtc_clock = pclk * 2;
+		pipe_config->port_clock = pclk * 2;
+	} else {
+		pipe_config->base.adjusted_mode.crtc_clock = pclk;
+		pipe_config->port_clock = pclk;
+	}
 }
 
 static enum drm_mode_status
