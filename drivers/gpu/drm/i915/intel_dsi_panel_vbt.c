@@ -30,6 +30,7 @@
 #include <drm/i915_drm.h>
 #include <drm/drm_panel.h>
 #include <linux/gpio/consumer.h>
+#include <linux/gpio.h>
 #include <linux/slab.h>
 #include <video/mipi_display.h>
 #include <asm/intel-mid.h>
@@ -113,6 +114,34 @@ static struct gpio_map vlv_gpio_table[] = {
 
 #define CHV_GPIO_PAD_CFG1(f, i)		(0x4400 + (f) * 0x400 + (i) * 8 + 4)
 #define  CHV_GPIO_CFGLOCK		(1 << 31)
+
+#define BXT_PANEL0_VDDEN_PIN       193
+#define BXT_PANEL0_BKLTEN_PIN      194
+#define BXT_PANEL0_BKLTCTL_PIN     195
+#define BXT_PANEL1_VDDEN_PIN       196
+#define BXT_PANEL1_BKLTEN_PIN      197
+#define BXT_PANEL1_BKLTCTL_PIN     198
+
+#define BXT_PANEL0_VDDEN_OFFSET    270
+#define BXT_PANEL0_BKLTEN_OFFSET   271
+#define BXT_PANEL0_BKLTCTL_OFFSET  272
+#define BXT_PANEL1_VDDEN_OFFSET    366 /* 273 */
+#define BXT_PANEL1_BKLTEN_OFFSET   367 /* 274 */
+#define BXT_PANEL1_BKLTCTL_OFFSET  368 /* 275 */
+
+struct bxt_gpio_map {
+	u8 gpio_index;
+	u16 gpio_number;
+	bool requested;
+};
+static struct bxt_gpio_map bxt_gpio_table[] = {
+	{BXT_PANEL0_VDDEN_PIN, BXT_PANEL0_VDDEN_OFFSET},
+	{BXT_PANEL0_BKLTEN_PIN, BXT_PANEL0_BKLTEN_OFFSET},
+	{BXT_PANEL0_BKLTCTL_PIN, BXT_PANEL0_BKLTCTL_OFFSET},
+	{BXT_PANEL1_VDDEN_PIN, BXT_PANEL1_VDDEN_OFFSET},
+	{BXT_PANEL1_BKLTEN_PIN, BXT_PANEL1_BKLTEN_OFFSET},
+	{BXT_PANEL1_BKLTCTL_PIN, BXT_PANEL1_BKLTCTL_OFFSET},
+};
 
 static inline enum port intel_dsi_seq_port_to_port(u8 port)
 {
@@ -330,6 +359,47 @@ static void bxt_exec_gpio(struct drm_i915_private *dev_priv,
 	gpiod_set_value(gpio_desc, value);
 }
 
+/*
+ * This is used to set the panel backlight control GPIO pin. For some
+ * reason, this pin is not available via the ACPI table like
+ * the VDD enable and backlight enable pins.
+ */
+static void bxt_set_gpio(struct drm_i915_private *dev_priv,
+			 u8 gpio_source, u8 gpio_index, bool value)
+{
+	struct bxt_gpio_map *map = NULL;
+	unsigned int gpio;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(bxt_gpio_table); i++) {
+		if (gpio_index == bxt_gpio_table[i].gpio_index) {
+			map = &bxt_gpio_table[i];
+			break;
+		}
+	}
+
+	if (!map) {
+		DRM_DEBUG_KMS("invalid gpio index %u\n", gpio_index);
+		return;
+	}
+
+	gpio = map->gpio_number;
+
+	if (!map->requested) {
+		int ret = devm_gpio_request_one(dev_priv->drm.dev, gpio,
+						GPIOF_DIR_OUT, "MIPI DSI");
+		if (ret) {
+			DRM_ERROR("unable to request GPIO %u (%d)\n", gpio, ret);
+			return;
+		}
+		map->requested = true;
+	}
+
+	gpio_set_value(gpio, value);
+}
+
+
+
 static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 {
 	struct drm_device *dev = intel_dsi->base.base.dev;
@@ -492,13 +562,29 @@ static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
 
 static int vbt_panel_prepare(struct drm_panel *panel)
 {
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
 	generic_exec_sequence(panel, MIPI_SEQ_INIT_OTP);
+
+	if (IS_BROXTON(dev_priv))
+		bxt_set_gpio(dev_priv, 0, BXT_PANEL1_BKLTCTL_PIN, 1);
 
 	return 0;
 }
 
 static int vbt_panel_unprepare(struct drm_panel *panel)
 {
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = to_i915(dev);
+
+	if (IS_BROXTON(dev_priv))
+		bxt_set_gpio(dev_priv, 0, BXT_PANEL1_BKLTCTL_PIN, 0);
+
 	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
 
 	return 0;
