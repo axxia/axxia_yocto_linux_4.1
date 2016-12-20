@@ -414,8 +414,13 @@ static void bxt_dsi_program_clocks(struct drm_device *dev, enum port port,
 	rx_div_lower = rx_div & RX_DIVIDER_BIT_1_2;
 	rx_div_upper = (rx_div & RX_DIVIDER_BIT_3_4) >> 2;
 
-	/* As per bpsec program the 8/3X clock divider to the below value */
-	if (dev_priv->vbt.dsi.config->is_cmd_mode)
+	/*
+	 * Set the 8/3X clock to divide by 3 for DBI mode as it needs a
+	 * faster clock than DPI mode. However, dual link panels also
+	 * need the faster clock, even when in DPI mode.
+	 */
+	if (dev_priv->vbt.dsi.config->is_cmd_mode ||
+	    dev_priv->vbt.dsi.config->dual_link)
 		mipi_8by3_divider = 0x2;
 	else
 		mipi_8by3_divider = 0x3;
