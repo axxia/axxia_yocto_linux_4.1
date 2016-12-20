@@ -1275,11 +1275,19 @@ enum skl_disp_power_wells {
 #define CHV_TX_DW14(ch, lane) _TXLANE(ch, lane, 0xb8)
 #define   DPIO_UPAR_SHIFT		30
 
+/* BXT DSI Regulator registers */
+#define BXT_DSI_CFG                    _MMIO(0x160020)
+#define   STRAP_SELECT                 (1 << 0)
+
+#define BXT_DSI_TXCNTRL                _MMIO(0x160054)
+#define   HS_IO_CONTROL_SELECT         0x0
+
 /* BXT PHY registers */
 #define _BXT_PHY(phy, a, b)		_MMIO_PIPE((phy), (a), (b))
 
 #define BXT_P_CR_GT_DISP_PWRON		_MMIO(0x138090)
 #define   GT_DISPLAY_POWER_ON(phy)	(1 << (phy))
+#define   MIPIO_RST_CTRL                (1 << 2)
 
 #define _BXT_PHY_CTL_DDI_A		0x64C00
 #define _BXT_PHY_CTL_DDI_B		0x64C10
