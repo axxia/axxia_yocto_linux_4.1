@@ -587,6 +587,8 @@ static void intel_dsi_pre_enable(struct intel_encoder *encoder,
 		I915_WRITE(BXT_DSI_TXCNTRL, HS_IO_CONTROL_SELECT);
 	}
 
+	drm_panel_reset(intel_dsi->panel);
+
 	/* put device in ready state */
 	intel_dsi_device_ready(encoder);
 
