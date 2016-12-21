@@ -275,48 +275,15 @@ static int kdi_create_session(u64 *handle, const char *jta_id,
 	return bh_err_to_kdi_err(bh_err);
 }
 
-static inline bool kdi_check_handle(u64 handle)
-{
-	return (handle == (u64)dal_class);
-}
-
-int kdi_init(u32 flags, u64 *handle)
-{
-	if (!handle)
-		return DAL_KDI_STATUS_INVALID_PARAMS;
-
-	*handle = (u64)dal_class;
-	return DAL_KDI_SUCCESS;
-}
-EXPORT_SYMBOL(kdi_init);
-
-int kdi_deinit(u64 handle)
-{
-	/* check handle first */
-	if (!kdi_check_handle(handle))
-		return DAL_KDI_STATUS_INVALID_HANDLE;
-
-	return 0;
-}
-EXPORT_SYMBOL(kdi_deinit);
-
-int dal_create_session(u64 handle,
-		       u64 *session_handle,
-		       const char *app_id,
-		       const u8 *acp_pkg,
-		       size_t acp_pkg_len,
-		       const u8 *init_param,
-		       size_t init_param_len)
+int dal_create_session(u64 *session_handle,  const char *app_id,
+		       const u8 *acp_pkg, size_t acp_pkg_len,
+		       const u8 *init_param, size_t init_param_len)
 {
 	int ret;
 
-	if (!kdi_check_handle(handle))
-		return DAL_KDI_STATUS_INVALID_HANDLE;
-
 	mutex_lock(&kdi_lock);
 
-	ret = kdi_create_session(session_handle, app_id,
-				 acp_pkg, acp_pkg_len,
+	ret = kdi_create_session(session_handle, app_id, acp_pkg, acp_pkg_len,
 				 init_param, init_param_len);
 	if (ret)
 		pr_err("kdi_create_session failed = %d\n", ret);
@@ -327,19 +294,11 @@ int dal_create_session(u64 handle,
 }
 EXPORT_SYMBOL(dal_create_session);
 
-int dal_send_and_receive(u64 handle,
-			 u64 session_handle,
-			 int command_id,
-			 const u8 *input,
-			 size_t input_len,
-			 u8 **output,
-			 size_t *output_len,
+int dal_send_and_receive(u64 session_handle, int command_id, const u8 *input,
+			 size_t input_len, u8 **output, size_t *output_len,
 			 int *response_code)
 {
 	int ret, bh_err;
-
-	if (!kdi_check_handle(handle))
-		return DAL_KDI_STATUS_INVALID_HANDLE;
 
 	mutex_lock(&kdi_lock);
 
@@ -357,12 +316,9 @@ int dal_send_and_receive(u64 handle,
 }
 EXPORT_SYMBOL(dal_send_and_receive);
 
-int dal_close_session(u64 handle, u64 session_handle)
+int dal_close_session(u64 session_handle)
 {
 	int ret, bh_err;
-
-	if (!kdi_check_handle(handle))
-		return DAL_KDI_STATUS_INVALID_HANDLE;
 
 	mutex_lock(&kdi_lock);
 
@@ -382,7 +338,6 @@ EXPORT_SYMBOL(dal_close_session);
 /**
  * dal_set_exclusive_access - set given uuid exclusive
  *
- * @handle: kdi handle
  * @ta_id: trusted applet id
  *
  * Return:
@@ -391,15 +346,12 @@ EXPORT_SYMBOL(dal_close_session);
  *    DAL_KDI_STATUS_TA_EXIST
  *    DAL_KDI_STATUS_NON_EXCLUSIVENESS_TA;
  */
-int dal_set_ta_exclusive_access(u64 handle, uuid_be ta_id)
+int dal_set_ta_exclusive_access(uuid_be ta_id)
 {
 	struct dal_device *ddev;
 	struct device *dev;
 	struct dal_client *dc;
 	int ret;
-
-	if (!kdi_check_handle(handle))
-		return DAL_KDI_STATUS_INVALID_HANDLE;
 
 	mutex_lock(&kdi_lock);
 
@@ -431,20 +383,16 @@ EXPORT_SYMBOL(dal_set_ta_exclusive_access);
 /**
  * dal_unset_ta_exclusive_access - remove exclusiveness from uuid
  *
- * @handle: kdi handle
  * @ta_id: trusted applet id
  *
  * Return:
  */
-int dal_unset_ta_exclusive_access(u64 handle, uuid_be ta_id)
+int dal_unset_ta_exclusive_access(uuid_be ta_id)
 {
 	struct dal_device *ddev;
 	struct device *dev;
 	struct dal_client *dc;
 	int ret;
-
-	if (!kdi_check_handle(handle))
-		return DAL_KDI_STATUS_INVALID_HANDLE;
 
 	mutex_lock(&kdi_lock);
 

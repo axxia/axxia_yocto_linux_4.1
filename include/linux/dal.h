@@ -103,27 +103,6 @@ struct dal_version_info {
 #define KDI_INIT_FLAGS_NONE       0
 
 /**
- * kdi_init -  Init KDI kernel interface.
- * NOTE: Before calling kdi init we assuming that user space api
- *       called.
- *
- * @falgs:    flag for init flow
- * @handle:   pointer to get handle
- *
- * Return: 0 for success < 0 otherwise
- */
-int kdi_init(u32 flags, u64 *handle);
-
-/**
- * kdi_deinit -  deinit KDI kernel interface.
- *
- * @handle:   kdi handle
- *
- * Return: 0 for success < 0 otherwise
- */
-int kdi_deinit(u64 handle);
-
-/**
  * dal_get_version_info - return DAL version.
  *
  * @version_info:   pointer to KDI version struct
@@ -135,7 +114,6 @@ int dal_get_version_info(struct dal_version_info *version_info);
 /**
  * dal_create_session - will open session to an applet
  *
- * @handle:            kdi handle
  * @session_handle:    pointer to get the session handle
  * @app_id:            applet id
  * @acp_pkg:           applet acp data
@@ -145,15 +123,13 @@ int dal_get_version_info(struct dal_version_info *version_info);
  *
  * Return: 0 for success fail otherwise
  */
-int dal_create_session(u64 handle, u64 *session_handle,
-		       const char *app_id, const u8 *acp_pkg,
-		       size_t acp_pkg_len, const u8 *init_param,
-		       size_t init_param_len);
+int dal_create_session(u64 *session_handle, const char *app_id,
+		       const u8 *acp_pkg, size_t acp_pkg_len,
+		       const u8 *init_param, size_t init_param_len);
 
 /**
  * dal_send_and_receive - send and receive data to/from the applet
  *
- * @handle:            kdi handle
  * @session_handle:    session handle
  * @command_id:        command id
  * @input:             send buffer
@@ -164,24 +140,21 @@ int dal_create_session(u64 handle, u64 *session_handle,
  *
  * Return: 0 for success fail otherwise
  */
-int dal_send_and_receive(u64 handle, u64 session_handle,
-			 int command_id, const u8 *input,
-			 size_t input_len, u8 **output,
-			 size_t *output_len,
+int dal_send_and_receive(u64 session_handle, int command_id, const u8 *input,
+			 size_t input_len, u8 **output, size_t *output_len,
 			 int *response_code);
 
 /**
  * dal_close_session - close an open applet session
  *
- * @handle:            kdi handle
  * @session_handle:    session handle
  *
  * Return: 0 for success fail otherwise
  */
-int dal_close_session(u64 handle, u64 session_handle);
+int dal_close_session(u64 session_handle);
 
-int dal_set_ta_exclusive_access(u64 handle, uuid_be ta_id);
+int dal_set_ta_exclusive_access(uuid_be ta_id);
 
-int dal_unset_ta_exclusive_access(u64 handle, uuid_be ta_id);
+int dal_unset_ta_exclusive_access(uuid_be ta_id);
 
 #endif /* _DAL_H_ */
