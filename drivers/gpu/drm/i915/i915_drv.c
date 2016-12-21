@@ -613,6 +613,7 @@ static int i915_load_modeset_init(struct drm_device *dev)
 	 * working irqs for e.g. gmbus and dp aux transfers. */
 	intel_modeset_init(dev);
 
+	intel_huc_init(dev);
 	intel_guc_init(dev);
 
 	ret = i915_gem_init(dev);
