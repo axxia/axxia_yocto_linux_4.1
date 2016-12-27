@@ -248,7 +248,11 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 		const struct bhp_command_header *hdr;
 
 		hdr = bh_msg_cmd_hdr(dc->write_buffer, count);
-
+		if (!hdr) {
+			dev_err(dev, "expected cmd hdr at first fragment\n");
+			ret = -EINVAL;
+			goto out;
+		}
 		ret = bh_filter_hdr(hdr, count, dc, dal_write_filter_tbl);
 		if (ret == -EPERM) {
 			ret = dal_send_error_access_denied(dc);
