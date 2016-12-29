@@ -5180,12 +5180,23 @@ static struct rtnl_link_stats64 *igb_get_stats64(struct net_device *netdev,
 						struct rtnl_link_stats64 *stats)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
+	struct pci_dev *pdev = adapter->pdev;
 
+	pm_runtime_get(&pdev->dev);
 	spin_lock(&adapter->stats64_lock);
 	igb_update_stats(adapter, &adapter->stats64);
 	memcpy(stats, &adapter->stats64, sizeof(*stats));
 	spin_unlock(&adapter->stats64_lock);
 
+	/* Schedule the suspend if netif_carrier_ok returns true
+	 * else let watchdog task schedule the suspend.
+	 */
+	if (netif_carrier_ok(adapter->netdev)) {
+		pm_runtime_mark_last_busy(&pdev->dev);
+		pm_runtime_put_autosuspend(&pdev->dev);
+	} else {
+		pm_runtime_put_noidle(&pdev->dev);
+	}
 	return stats;
 }
 
