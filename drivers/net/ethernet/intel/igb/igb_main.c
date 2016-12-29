@@ -7492,6 +7492,7 @@ static int igb_resume(struct device *dev)
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	u32 err;
+	int status;
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
@@ -7525,9 +7526,23 @@ static int igb_resume(struct device *dev)
 	wr32(E1000_WUS, ~0);
 
 	if (netdev->flags & IFF_UP) {
-		rtnl_lock();
-		err = __igb_open(netdev, true);
-		rtnl_unlock();
+		if (!(pdev->dev.power.runtime_status == RPM_RESUMING)) {
+			/* normal resume */
+			rtnl_lock();
+			err = __igb_open(netdev, true);
+			rtnl_unlock();
+		} else {
+			/* Ensure that rtnl_lock is held. If it was previously
+			 * held, it is safe to proceed as it should be held by
+			 * the caller, such as in ethtool case, and not by any
+			 * other thread while runtime resuming.
+			 */
+			status = rtnl_trylock();
+			err = __igb_open(netdev, true);
+			if (status == 1)
+				rtnl_unlock();
+		}
+
 		if (err)
 			return err;
 	}
