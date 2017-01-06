@@ -115,20 +115,6 @@ static bool attach_crtc(struct drm_device *dev, struct drm_encoder *encoder,
 	return false;
 }
 
-static struct drm_encoder *get_encoder(struct drm_device *dev,
-				       struct drm_connector *connector)
-{
-	const struct drm_connector_helper_funcs *connector_funcs;
-	struct drm_encoder *encoder;
-
-	connector_funcs = connector->helper_private;
-	encoder = connector_funcs->best_encoder(connector);
-
-	WARN_ON(encoder == NULL);
-
-	return encoder;
-}
-
 static struct drm_framebuffer *
 intel_splash_screen_fb(struct drm_device *dev,
 		       struct splash_screen_info *splash_info)
@@ -430,6 +416,7 @@ static int update_primary_plane_state(struct drm_atomic_state *state,
 	primary_state->src_y = 0 << 16;
 	primary_state->src_w = splash_info->width << 16;
 	primary_state->src_h = splash_info->height << 16;
+	primary_state->rotation = DRM_ROTATE_0;
 
 	return 0;
 }
@@ -460,16 +447,23 @@ static int update_atomic_state(struct drm_device *dev,
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_display_mode *mode;
-	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_crtc *crtc;
 	int ret;
 	struct splash_screen_info *splash_info;
 
+	drm_modeset_unlock(&dev->mode_config.connection_mutex);
 	mode = get_modeline(dev_priv, connector,
 			    dev->mode_config.max_width,
 			    dev->mode_config.max_height);
 	if (!mode)
 		return -EINVAL;
 
+	if (connector->encoder)
+		crtc = connector->encoder->crtc;
+	else
+		return -EINVAL;
+
+	drm_modeset_lock(&dev->mode_config.connection_mutex, state->acquire_ctx);
 	ret = update_crtc_state(state, mode, crtc);
 	if (ret)
 		return ret;
@@ -514,7 +508,7 @@ static int disable_planes(struct drm_device *dev,
 
 		ret = drm_atomic_plane_set_property(plane, plane_state,
 					dev->mode_config.rotation_property,
-					BIT(DRM_ROTATE_0));
+					DRM_ROTATE_0);
 		WARN_ON(ret);
 
 		ret = drm_atomic_set_crtc_for_plane(plane_state, NULL);
@@ -576,7 +570,7 @@ retry:
 		struct drm_encoder *encoder;
 
 		if (use_connector(connector)) {
-			if (!(encoder = get_encoder(dev, connector)))
+			if (!(encoder = connector->encoder))
 				continue;
 			if (!attach_crtc(dev, encoder, &used_crtcs))
 				continue;
@@ -598,7 +592,7 @@ retry:
 			connector->status = connector->funcs->detect(connector,
 								     true);
 			if (connector->status == connector_status_connected) {
-				if (!(encoder = get_encoder(dev, connector)))
+				if (!(encoder = connector->encoder))
 					continue;
 				if (!attach_crtc(dev, encoder, &used_crtcs))
 					continue;
