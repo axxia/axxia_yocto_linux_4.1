@@ -443,27 +443,18 @@ static void create_splash_fb(struct drm_device *dev,
 static int update_atomic_state(struct drm_device *dev,
 			       struct drm_atomic_state *state,
 			       struct drm_connector *connector,
-			       struct drm_encoder *encoder)
+			       struct drm_display_mode *mode)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct drm_display_mode *mode;
 	struct drm_crtc *crtc;
 	int ret;
 	struct splash_screen_info *splash_info;
-
-	drm_modeset_unlock(&dev->mode_config.connection_mutex);
-	mode = get_modeline(dev_priv, connector,
-			    dev->mode_config.max_width,
-			    dev->mode_config.max_height);
-	if (!mode)
-		return -EINVAL;
 
 	if (connector->encoder)
 		crtc = connector->encoder->crtc;
 	else
 		return -EINVAL;
 
-	drm_modeset_lock(&dev->mode_config.connection_mutex, state->acquire_ctx);
 	ret = update_crtc_state(state, mode, crtc);
 	if (ret)
 		return ret;
@@ -536,9 +527,54 @@ static void modeset_config_fn(struct work_struct *work)
 	struct drm_plane *plane;
 	int ret;
 	bool found = false;
-	uint32_t used_crtcs;
+	uint32_t used_crtcs = 0;
+	struct drm_display_mode *connector_mode[20];
+	struct drm_encoder *encoder;
+	struct drm_display_mode *mode;
 
 	intel_splash_screen_init(dev);
+
+	drm_for_each_connector(connector, dev) {
+		if (use_connector(connector)) {
+			if (!(encoder = connector->encoder))
+				continue;
+			if (!attach_crtc(dev, encoder, &used_crtcs))
+				continue;
+			mode = get_modeline(dev_priv, connector,
+					    dev->mode_config.max_width,
+					    dev->mode_config.max_height);
+			if (mode) {
+				found = true;
+				WARN_ON(connector->index >= 20);
+				connector_mode[connector->index] = mode;
+			}
+		}
+	}
+	if (!found) {
+		used_crtcs = 0;
+		/* Try to detect attached connectors */
+		drm_for_each_connector(connector, dev) {
+			connector->status = connector->funcs->detect(connector,
+								     true);
+			if (connector->status == connector_status_connected) {
+				if (!(encoder = connector->encoder))
+					continue;
+				if (!attach_crtc(dev, encoder, &used_crtcs))
+					continue;
+				mode = get_modeline(dev_priv, connector,
+						    dev->mode_config.max_width,
+						    dev->mode_config.max_height);
+				if (mode) {
+					found = true;
+					WARN_ON(connector->index >= 20);
+					connector_mode[connector->index] = mode;
+				}
+			}
+		}
+	}
+
+	if (!found)
+		return;
 
 	state = drm_atomic_state_alloc(dev);
 	if (!state)
@@ -561,58 +597,22 @@ retry:
 	if (ret)
 		goto fail;
 
-	used_crtcs = 0;
 	/*
 	 * For each connector that we want to set up, update the atomic
 	 * state to include the connector and crtc mode.
 	 */
 	drm_for_each_connector(connector, dev) {
-		struct drm_encoder *encoder;
-
-		if (use_connector(connector)) {
-			if (!(encoder = connector->encoder))
-				continue;
-			if (!attach_crtc(dev, encoder, &used_crtcs))
-				continue;
-
-			ret = update_atomic_state(dev, state,
-					    connector, encoder);
-			if (ret)
-				goto fail;
-			found = true;
-		}
-	}
-
-	if (!found) {
-		used_crtcs = 0;
-		/* Try to detect attached connectors */
-		drm_for_each_connector(connector, dev) {
-			struct drm_encoder *encoder;
-
-			connector->status = connector->funcs->detect(connector,
-								     true);
-			if (connector->status == connector_status_connected) {
-				if (!(encoder = connector->encoder))
-					continue;
-				if (!attach_crtc(dev, encoder, &used_crtcs))
-					continue;
-
-				ret = update_atomic_state(dev, state,
-							  connector, encoder);
-				if (ret)
-					goto fail;
-				found = true;
-			}
+		if (connector_mode[connector->index]) {
+			ret = update_atomic_state(dev, state, connector,
+						  connector_mode[connector->index]);
 			if (ret)
 				goto fail;
 		}
 	}
 
-	if (found) {
-		ret = drm_atomic_commit(state);
-		if (ret)
-			goto fail;
-	}
+	ret = drm_atomic_commit(state);
+	if (ret)
+		goto fail;
 	goto out;
 
 fail:
