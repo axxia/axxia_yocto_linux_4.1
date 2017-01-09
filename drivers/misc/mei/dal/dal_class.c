@@ -132,6 +132,163 @@ void dal_dc_print(struct device *dev, struct dal_client *dc)
 		dc->bytes_sent_to_host);
 }
 
+/**
+ * dal_dc_update_read_state - update relevant client state variables
+ *      according to the msg received header or payload
+ * @dc : dal client
+ * @len: received message length
+ *
+ * Lock: called from 'dal_recv_cb' which is under lock.
+ */
+static void dal_dc_update_read_state(struct dal_client *dc, ssize_t len)
+{
+	struct dal_device *ddev = dc->ddev;
+	struct transport_msg_header *header =
+			(struct transport_msg_header *)dc->ddev->bh_fw_msg.msg;
+
+	/* check BH msg magic, if it exists this is the header */
+	if (bh_msg_is_response(ddev->bh_fw_msg.msg, len)) {
+		dc->expected_msg_size_from_fw = header->length;
+		dev_dbg(&ddev->dev, "expected_msg_size_from_fw = %d bytes read = %zd",
+			dc->expected_msg_size_from_fw, len);
+
+		/* clear data from the past. */
+		dc->bytes_sent_to_host = 0;
+		dc->bytes_rcvd_from_fw = 0;
+	}
+
+	/* update number of bytes rcvd */
+	dc->bytes_rcvd_from_fw += len;
+	dc->read_buffer_size += len;
+}
+
+/*
+ * get interface (user space OR kernel space) to send the received msg
+ */
+static enum dal_intf get_client_by_squence_number(struct dal_device *ddev)
+{
+	struct bhp_response_header *head;
+
+	if (!ddev->clients[DAL_INTF_KDI])
+		return DAL_INTF_CDEV;
+
+	head = (struct bhp_response_header *)ddev->bh_fw_msg.msg;
+
+	dev_dbg(&ddev->dev, "msg seq = %llu", head->seq);
+
+	if (head->seq == ddev->clients[DAL_INTF_KDI]->seq)
+		return DAL_INTF_KDI;
+
+	return DAL_INTF_CDEV;
+}
+
+static void dal_recv_cb(struct mei_cl_device *cldev)
+{
+	struct dal_device *ddev;
+	struct dal_client *dc;
+	enum dal_intf intf;
+	ssize_t len;
+	ssize_t ret;
+	bool is_unexpected_msg = false;
+
+	ddev = mei_cldev_get_drvdata(cldev);
+
+	/*
+	 * read the msg from MEI
+	 */
+	len = mei_cldev_recv(cldev, ddev->bh_fw_msg.msg, DAL_MAX_BUFFER_SIZE);
+	if (len < 0) {
+		dev_err(&cldev->dev, "recv failed %zd\n", len);
+		return;
+	}
+
+	/*
+	 * lock to prevent read from MEI while writing to MEI and to
+	 * deal with just one msg at the same time
+	 */
+	mutex_lock(&ddev->context_lock);
+
+	/* save msg len */
+	ddev->bh_fw_msg.len = len;
+
+	/* set to which interface the msg should be sent */
+	if (bh_msg_is_response(ddev->bh_fw_msg.msg, len)) {
+		intf = get_client_by_squence_number(ddev);
+		dev_dbg(&ddev->dev, "recv_cb(): Client set by sequence number");
+		dc = ddev->clients[intf];
+	} else if (!ddev->current_read_client) {
+		intf = DAL_INTF_CDEV;
+		dev_dbg(&ddev->dev, "recv_cb(): EXTRA msg received - curr == NULL");
+		dc = ddev->clients[intf];
+		is_unexpected_msg = true;
+	} else {
+		dc = ddev->current_read_client;
+		dev_dbg(&ddev->dev, "recv_cb(): FRAGMENT msg received - curr != NULL");
+	}
+
+	if (!dc) {/* TODO: fix me - why device removed */
+		dev_dbg(&ddev->dev, "recv_cb(): dc is null");
+		goto out;
+	}
+
+	/* save the current read client */
+	ddev->current_read_client = dc;
+	dev_dbg(&cldev->dev, "read client type %d data from mei client seq =  %llu ",
+		dc->intf, dc->seq);
+
+	/*
+	 * save new msg in queue,
+	 * if the queue is full all new messages will be thrown
+	 */
+	ret = kfifo_in(&dc->read_queue, &ddev->bh_fw_msg, len + sizeof(len));
+	if (ret < len + sizeof(len))
+		dev_err(&ddev->dev, "queue is full - MSG THROWN");
+
+	dal_dc_update_read_state(dc, len);
+
+	/*
+	 * To clear current client we check if the whole msg received
+	 * for the current client
+	 */
+	if (is_unexpected_msg ||
+	    (dc->bytes_rcvd_from_fw == dc->expected_msg_size_from_fw)) {
+		dev_dbg(&ddev->dev, "recv_cb(): setting CURRENT_READER to NULL\n");
+		ddev->current_read_client = NULL;
+	}
+	/* wake up all clients waiting for read or write */
+	wake_up_interruptible(&ddev->wq);
+
+out:
+	mutex_unlock(&ddev->context_lock);
+	dev_dbg(&cldev->dev, "recv_cb(): unlock\n");
+}
+
+/* enable mei cldev */
+static int dal_mei_enable(struct dal_device *ddev)
+{
+	int ret;
+
+	ret = mei_cldev_enable(ddev->cldev);
+	if (ret < 0) {
+		dev_err(&ddev->cldev->dev, "mei_cl_enable_device() failed with ret = %d\n",
+			ret);
+		return ret;
+	}
+
+	/* save pointer to the context in the device */
+	mei_cldev_set_drvdata(ddev->cldev, ddev);
+
+	/* register to mei bus callbacks */
+	ret = mei_cldev_register_rx_cb(ddev->cldev, dal_recv_cb);
+	if (ret) {
+		dev_err(&ddev->cldev->dev, "mei_cl_register_event_cb() failed ret = %d\n",
+			ret);
+		mei_cldev_disable(ddev->cldev);
+	}
+
+	return ret;
+}
+
 /* wait until we can write to MEI,
  * on success will return with the mutex locked
  */
@@ -285,6 +442,22 @@ ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq)
 		dev_err(dev, "mei_cl_send() failed, write_bytes != count (%zd != %zu)\n",
 			wr, count);
 		ret = -EFAULT;
+		/* if FW client is disconnected, try to reconnect */
+		if (wr == -ENODEV) {
+			dev_dbg(dev, "try to reconnect to FW cl\n");
+			ret = mei_cldev_disable(ddev->cldev);
+			if (ret < 0) {
+				dev_err(&ddev->cldev->dev, "failed to disable mei cl [%zd]\n",
+					ret);
+				goto out;
+			}
+			ret = dal_mei_enable(ddev);
+			if (ret < 0)
+				dev_err(&ddev->cldev->dev, "failed to reconnect to FW client [%zd]\n",
+					ret);
+			else
+				ret = -EAGAIN;
+		}
 		goto out;
 	}
 
@@ -340,137 +513,6 @@ ssize_t dal_read(struct dal_client *dc)
 	return 0;
 }
 
-/**
- * dal_dc_update_read_state - update relevant client state variables
- *      according to the msg received header or payload
- * @dc : dal client
- * @len: received message length
- *
- * Lock: called from 'dal_recv_cb' which is under lock.
- */
-static void dal_dc_update_read_state(struct dal_client *dc, ssize_t len)
-{
-	struct dal_device *ddev = dc->ddev;
-	struct transport_msg_header *header =
-			(struct transport_msg_header *)dc->ddev->bh_fw_msg.msg;
-
-	/* check BH msg magic, if it exists this is the header */
-	if (bh_msg_is_response(ddev->bh_fw_msg.msg, len)) {
-		dc->expected_msg_size_from_fw = header->length;
-		dev_dbg(&ddev->dev, "expected_msg_size_from_fw = %d bytes read = %zd",
-			dc->expected_msg_size_from_fw, len);
-
-		/* clear data from the past. */
-		dc->bytes_sent_to_host = 0;
-		dc->bytes_rcvd_from_fw = 0;
-	}
-
-	/* update number of bytes rcvd */
-	dc->bytes_rcvd_from_fw += len;
-	dc->read_buffer_size += len;
-}
-
-/*
- * get interface (user space OR kernel space) to send the received msg
- */
-static enum dal_intf get_client_by_squence_number(struct dal_device *ddev)
-{
-	struct bhp_response_header *head;
-
-	if (!ddev->clients[DAL_INTF_KDI])
-		return DAL_INTF_CDEV;
-
-	head = (struct bhp_response_header *)ddev->bh_fw_msg.msg;
-
-	dev_dbg(&ddev->dev, "msg seq = %llu", head->seq);
-
-	if (head->seq == ddev->clients[DAL_INTF_KDI]->seq)
-		return DAL_INTF_KDI;
-
-	return DAL_INTF_CDEV;
-}
-
-static void dal_recv_cb(struct mei_cl_device *cldev)
-{
-	struct dal_device *ddev;
-	struct dal_client *dc;
-	enum dal_intf intf;
-	ssize_t len;
-	ssize_t ret;
-	bool is_unexpected_msg = false;
-
-	ddev = mei_cldev_get_drvdata(cldev);
-
-	/*
-	 * read the msg from MEI
-	 */
-	len = mei_cldev_recv(cldev, ddev->bh_fw_msg.msg, DAL_MAX_BUFFER_SIZE);
-	if (len < 0) {
-		dev_err(&cldev->dev, "recv failed %zd\n", len);
-		return;
-	}
-
-	/*
-	 * lock to prevent read from MEI while writing to MEI and to
-	 * deal with just one msg at the same time
-	 */
-	mutex_lock(&ddev->context_lock);
-
-	/* save msg len */
-	ddev->bh_fw_msg.len = len;
-
-	/* set to which interface the msg should be sent */
-	if (bh_msg_is_response(ddev->bh_fw_msg.msg, len)) {
-		intf = get_client_by_squence_number(ddev);
-		dev_dbg(&ddev->dev, "recv_cb(): Client set by sequence number");
-		dc = ddev->clients[intf];
-	} else if (!ddev->current_read_client) {
-		intf = DAL_INTF_CDEV;
-		dev_dbg(&ddev->dev, "recv_cb(): EXTRA msg received - curr == NULL");
-		dc = ddev->clients[intf];
-		is_unexpected_msg = true;
-	} else {
-		dc = ddev->current_read_client;
-		dev_dbg(&ddev->dev, "recv_cb(): FRAGMENT msg received - curr != NULL");
-	}
-
-	if (!dc) {/* TODO: fix me - why device removed */
-		dev_dbg(&ddev->dev, "recv_cb(): dc is null");
-		goto out;
-	}
-
-	/* save the current read client */
-	ddev->current_read_client = dc;
-	dev_dbg(&cldev->dev, "read client type %d data from mei client seq =  %llu ",
-		dc->intf, dc->seq);
-
-	/*
-	 * save new msg in queue,
-	 * if the queue is full all new messages will be thrown
-	 */
-	ret = kfifo_in(&dc->read_queue, &ddev->bh_fw_msg, len + sizeof(len));
-	if (ret < len + sizeof(len))
-		dev_err(&ddev->dev, "queue is full - MSG THROWN");
-
-	dal_dc_update_read_state(dc, len);
-
-	/*
-	 * To clear current client we check if the whole msg received
-	 * for the current client
-	 */
-	if (is_unexpected_msg ||
-	    (dc->bytes_rcvd_from_fw == dc->expected_msg_size_from_fw)) {
-		dev_dbg(&ddev->dev, "recv_cb(): setting CURRENT_READER to NULL\n");
-		ddev->current_read_client = NULL;
-	}
-	/* wake up all clients waiting for read or write */
-	wake_up_interruptible(&ddev->wq);
-
-out:
-	mutex_unlock(&ddev->context_lock);
-	dev_dbg(&cldev->dev, "recv_cb(): unlock\n");
-}
-
 void dal_dc_destroy(struct dal_device *ddev, enum dal_intf intf)
 {
 	struct dal_client *dc;
@@ -516,6 +558,9 @@ int dal_dc_setup(struct dal_device *ddev, enum dal_intf intf)
 static int dal_remove(struct mei_cl_device *cldev)
 {
 	struct dal_device *ddev = mei_cldev_get_drvdata(cldev);
+
+	if (!ddev)
+		return 0;
 
 	dal_dev_del(ddev);
 
@@ -564,23 +609,9 @@ static int dal_probe(struct mei_cl_device *cldev,
 	ddev->cldev = cldev;
 	ddev->device_id = id->driver_info;
 
-	ret = mei_cldev_enable(cldev);
-	if (ret < 0) {
-		dev_err(&cldev->dev, "mei_cl_enable_device() failed with ret = %d\n",
-			ret);
-		goto free_context;
-	}
-
-	/* save pointer to the context in the device */
-	mei_cldev_set_drvdata(cldev, ddev);
-
-	/* register to mei bus callbacks */
-	ret = mei_cldev_register_rx_cb(cldev, dal_recv_cb);
-	if (ret) {
-		dev_err(&cldev->dev, "mei_cl_register_event_cb() failed ret = %d\n",
-			ret);
-		goto disable_cldev;
-	}
+	ret = dal_mei_enable(ddev);
+	if (ret < 0)
+		goto err_dal_mei_remove;
 
 	ddev->dev.parent = &cldev->dev;
 	ddev->dev.class  = dal_class;
@@ -612,11 +643,9 @@ static int dal_probe(struct mei_cl_device *cldev,
 err_dev_create:
 	dal_dev_del(ddev);
 
-disable_cldev:
-	mei_cldev_disable(cldev);
+err_dal_mei_remove:
 	dal_remove(cldev);
 
-free_context:
 	kfree(ddev);
 
 	return ret;
