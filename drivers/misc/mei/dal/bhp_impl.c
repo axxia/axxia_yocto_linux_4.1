@@ -351,7 +351,7 @@ static int bh_transport_recv(unsigned int handle, void *buffer, size_t size)
 	char *buf = buffer;
 
 	if (handle > DAL_MEI_DEVICE_MAX)
-		return BPE_COMMS_ERROR;
+		return -ENODEV;
 
 	while (size - count > 0) {
 		got = min_t(size_t, size - count, DAL_MAX_BUFFER_SIZE);
@@ -360,13 +360,16 @@ static int bh_transport_recv(unsigned int handle, void *buffer, size_t size)
 		else
 			ret = kdi_recv(handle, skip_buffer, &got);
 
-		if (ret != BH_SUCCESS)
+		if (ret)
 			return ret;
 
 		count += got;
 	}
 
-	return ret == BH_SUCCESS && count == size ? BH_SUCCESS : ret;
+	if (count != size)
+		return -EFAULT;
+
+	return 0;
 }
 
 static int bh_transport_send(unsigned int handle, const void *buffer,
@@ -378,32 +381,32 @@ static int bh_transport_send(unsigned int handle, const void *buffer,
 	const char *buf = buffer;
 
 	if (handle > DAL_MEI_DEVICE_MAX)
-		return BPE_COMMS_ERROR;
+		return -ENODEV;
 
 	while (size - count > 0) {
 		chunk_sz = min_t(size_t, size - count, DAL_MAX_BUFFER_SIZE);
 		ret = kdi_send(handle, buf + count, chunk_sz, seq);
-		if (ret != BH_SUCCESS)
+		if (ret)
 			return ret;
 
 		count += chunk_sz;
 	}
 
-	return BH_SUCCESS;
+	return 0;
 }
 
 int bh_do_open_vm(uuid_be sdid, int *conn_idx, int mode)
 {
 	if (!conn_idx)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	*conn_idx = CONN_IDX_IVM;
-	return BH_SUCCESS;
+	return 0;
 }
 
 int bh_do_close_vm(int conn_idx)
 {
-	return BH_SUCCESS;
+	return 0;
 }
 
 static int bh_send_message(int conn_idx, void *cmd, unsigned int clen,
@@ -414,12 +417,12 @@ static int bh_send_message(int conn_idx, void *cmd, unsigned int clen,
 	struct bhp_command_header *h = NULL;
 
 	if (!rr)
-		return BPE_INTERNAL_ERROR;
+		return -EFAULT;
 
 	mutex_enter(connections[conn_idx].bhm_send);
 
 	if (clen < sizeof(struct bhp_command_header) || !cmd || !rr)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	rr->buffer = NULL;
 	rr->length = 0;
@@ -431,10 +434,10 @@ static int bh_send_message(int conn_idx, void *cmd, unsigned int clen,
 	h->seq = seq;
 
 	ret = bh_transport_send(conn_idx, cmd, clen, seq);
-	if (ret == BH_SUCCESS && dlen > 0)
+	if (!ret && dlen > 0)
 		ret = bh_transport_send(conn_idx, (void *) data, dlen, seq);
 
-	if (ret != BH_SUCCESS)
+	if (ret)
 		rrmap_remove(conn_idx, seq, false);
 
 	mutex_exit(connections[conn_idx].bhm_send);
@@ -454,13 +457,13 @@ static int bh_recv_message(int conn_idx, u64 *seq)
 
 	ret = bh_transport_recv(conn_idx,
 			(char *) head, sizeof(struct bhp_response_header));
-	if (ret != BH_SUCCESS)
+	if (ret)
 		return ret;
 
 	/* check magic */
 	if (memcmp(BHP_MSG_RESPONSE_MAGIC,
 			head->h.magic, BHP_MSG_MAGIC_LENGTH) != 0)
-		return BPE_MESSAGE_ILLEGAL;
+		return -EBADMSG;
 
 	/* verify rr */
 	rr = rrmap_remove(conn_idx, head->seq, false);
@@ -469,15 +472,15 @@ static int bh_recv_message(int conn_idx, u64 *seq)
 		dlen = head->h.length - sizeof(struct bhp_response_header);
 		data = kzalloc(dlen, GFP_KERNEL);
 		ret = bh_transport_recv(conn_idx, data, dlen);
-		if (ret == BH_SUCCESS && data == NULL)
-			ret = BPE_OUT_OF_MEMORY;
+		if (!ret && !data)
+			ret = -ENOMEM;
 	}
 
 	if (rr) {
 		rr->buffer = data;
 		rr->length = dlen;
 
-		if (ret == BH_SUCCESS)
+		if (!ret)
 			rr->code = (int) head->code;
 		else
 			rr->code = ret;
@@ -538,7 +541,7 @@ static int bh_do_disconnect(int conn_idx)
 	INIT_LIST_HEAD(&conn->rr_map_list_header);
 	memset(&conn->sdid, 0, sizeof(uuid_be));
 
-	return BH_SUCCESS;
+	return 0;
 }
 
 static void bh_connections_init(void)
@@ -569,30 +572,29 @@ int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
 		const void *data, unsigned int dlen, u64 seq)
 {
 	int ret;
-	u32 retry_count;
+	u32 retry_count = 0;
 	u64 seq_response = 0;
 
 	ret = bh_send_message(conn_idx, cmd, clen, data, dlen, seq);
+	if (ret)
+		return ret;
 
-	if (ret == BH_SUCCESS) {
-		retry_count = 0;
-		do {
-			ret = bh_recv_message(conn_idx, &seq_response);
-			if (ret == BH_SUCCESS) {
-				pr_debug("bh_cmd_transfer(): recv message with seq=%llu\n",
-						seq_response);
-				if (seq_response == seq)
-					break;
-			}
-			pr_debug("bh_cmd_transfer(): recv message with seq=%llu != seq_response=%llu\n",
-					seq, seq_response);
-			retry_count++;
-		} while (retry_count < MAX_RETRY_COUNT);
-
-		if (retry_count == MAX_RETRY_COUNT) {
-			pr_debug("bh_cmd_transfer(): out of retry attempts\n");
-			ret = BPE_INTERNAL_ERROR;
+	do {
+		ret = bh_recv_message(conn_idx, &seq_response);
+		if (!ret) {
+			pr_debug("bh_cmd_transfer(): recv message with seq=%llu\n",
+					seq_response);
+			if (seq_response == seq)
+				break;
 		}
+		pr_debug("bh_cmd_transfer(): recv message with seq=%llu != seq_response=%llu\n",
+				seq, seq_response);
+		retry_count++;
+	} while (retry_count < MAX_RETRY_COUNT);
+
+	if (retry_count == MAX_RETRY_COUNT) {
+		pr_debug("bh_cmd_transfer(): out of retry attempts\n");
+		ret = -EFAULT;
 	}
 
 	return ret;
@@ -601,7 +603,7 @@ int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
 int bhp_init_internal(void)
 {
 	if (bhp_is_initialized())
-		return BPE_INITIALIZED_ALREADY;
+		return 0;
 
 	/* step 1: init connections to each process */
 	bh_connections_init();
@@ -610,15 +612,15 @@ int bhp_init_internal(void)
 	/* this assignment is atomic operation */
 	WRITE_ONCE(init_state, INITED);
 
-	return BH_SUCCESS;
+	return 0;
 }
 
 int bhp_deinit_internal(void)
 {
-	int ret;
+	int ret = 0;
 
 	if (!bhp_is_initialized())
-		return BPE_NOT_INIT;
+		return 0;
 
 	mutex_enter(bhm_gInit);
 
@@ -626,9 +628,6 @@ int bhp_deinit_internal(void)
 		/* RESET flow removed to allow JHI and KDI to coexist */
 		bh_connections_deinit();
 		WRITE_ONCE(init_state, DEINITED);
-		ret = BH_SUCCESS;
-	} else {
-		ret = BPE_NOT_INIT;
 	}
 
 	mutex_exit(bhm_gInit);

@@ -194,7 +194,7 @@ static int bh_proxy_get_sd_by_ta(uuid_be taid, uuid_be *sdid)
 	memset(&rr, 0, sizeof(rr));
 
 	if (!sdid)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	h->id = BHP_CMD_GET_SD_BY_TA;
 	cmd->taid = taid;
@@ -203,10 +203,10 @@ static int bh_proxy_get_sd_by_ta(uuid_be taid, uuid_be *sdid)
 			sizeof(*h) + sizeof(*cmd), NULL, 0,
 			rrmap_add(CONN_IDX_SDM, &rr));
 
-	if (ret == BH_SUCCESS)
+	if (!ret)
 		ret = rr.code;
 
-	if (ret != BH_SUCCESS)
+	if (ret)
 		goto cleanup;
 
 	if (rr.buffer && rr.length ==
@@ -215,7 +215,7 @@ static int bh_proxy_get_sd_by_ta(uuid_be taid, uuid_be *sdid)
 				(struct bhp_get_sd_by_ta_response *) rr.buffer;
 		*sdid = resp->sdid;
 	} else
-		ret = BPE_MESSAGE_ILLEGAL;
+		ret = -EBADMSG;
 
 cleanup:
 	kfree(rr.buffer);
@@ -243,7 +243,7 @@ static int bh_proxy_check_svl_ta_blocked_state(uuid_be taid)
 	ret = bh_cmd_transfer(CONN_IDX_SDM, (char *) h,
 			sizeof(*h) + sizeof(*cmd), NULL, 0,
 			rrmap_add(CONN_IDX_SDM, &rr));
-	if (ret == BH_SUCCESS)
+	if (!ret)
 		ret = rr.code;
 
 	kfree(rr.buffer);
@@ -266,45 +266,45 @@ static int bh_proxy_listJTAPackages(int conn_idx, int *count,
 	memset(&rr, 0, sizeof(rr));
 
 	if (!bhp_is_initialized())
-		return BPE_NOT_INIT;
+		return -EFAULT;
 
 	if (!count || !app_ids)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
+
+	*app_ids = NULL;
+	*count = 0;
 
 	h->id = BHP_CMD_LIST_TA_PACKAGES;
 
 	ret = bh_cmd_transfer(conn_idx, (char *)h, sizeof(*h),
 			     NULL, 0, rrmap_add(conn_idx, &rr));
-
-	if (ret == BH_SUCCESS)
+	if (!ret)
 		ret = rr.code;
-
-	*app_ids = NULL;
-	*count = 0;
-
-	if (ret != BH_SUCCESS)
+	if (ret)
 		goto out;
 
 	if (!rr.buffer) {
-		ret = BPE_MESSAGE_ILLEGAL;
+		ret = -EBADMSG;
 		goto out;
 	}
 
 	resp = (struct bhp_list_ta_packages_response *)rr.buffer;
-	if (!resp->count)
+	if (!resp->count) {
+		ret = -EBADMSG;
 		goto out;
+	}
 
 	if (rr.length != sizeof(uuid_be) *
 			 resp->count +
 			sizeof(struct bhp_list_ta_packages_response)) {
-		ret = BPE_MESSAGE_ILLEGAL;
+		ret = -EBADMSG;
 		goto out;
 	}
 
 	outbuf = kcalloc(resp->count, sizeof(uuid_be), GFP_KERNEL);
 
 	if (!outbuf) {
-		ret = BPE_OUT_OF_MEMORY;
+		ret = -ENOMEM;
 		goto out;
 	}
 	for (i = 0; i < resp->count; i++)
@@ -335,7 +335,7 @@ static int bh_proxy_download_javata(
 	memset(&rr, 0, sizeof(rr));
 
 	if (!ta_pkg || !pkg_len)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	h->id = BHP_CMD_DOWNLOAD_JAVATA;
 	cmd->appid = ta_id;
@@ -343,7 +343,7 @@ static int bh_proxy_download_javata(
 	ret = bh_cmd_transfer(conn_idx, (char *) h, sizeof(*h) + sizeof(*cmd),
 			ta_pkg, pkg_len, rrmap_add(conn_idx, &rr));
 
-	if (ret == BH_SUCCESS)
+	if (!ret)
 		ret = rr.code;
 
 	kfree(rr.buffer);
@@ -372,13 +372,13 @@ static int bh_proxy_openjtasession(
 	memset(cmdbuf, 0, sizeof(cmdbuf));
 
 	if (!handle)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 	if (!init_buffer && init_len > 0)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	rr = kzalloc(sizeof(struct bh_response_record), GFP_KERNEL);
 	if (!rr)
-		return BPE_OUT_OF_MEMORY;
+		return -ENOMEM;
 
 	memset(rr, 0, sizeof(struct bh_response_record));
 
@@ -392,7 +392,7 @@ static int bh_proxy_openjtasession(
 	ret = bh_cmd_transfer(conn_idx, (char *) h, sizeof(*h) + sizeof(*cmd),
 			     (char *) init_buffer, init_len, seq);
 
-	if (ret == BH_SUCCESS)
+	if (!ret)
 		ret = rr->code;
 
 	kfree(rr->buffer);
@@ -405,12 +405,12 @@ static int bh_proxy_openjtasession(
 		 */
 		ret = bh_proxy_download_javata(conn_idx, ta_id,
 					       ta_pkg, pkg_len);
-		if (ret == BH_SUCCESS) {
+		if (!ret) {
 			ret = bh_cmd_transfer(conn_idx, (char *)h,
 					sizeof(*h) + sizeof(*cmd),
 					(char *)init_buffer, init_len, seq);
 
-			if (ret == BH_SUCCESS)
+			if (!ret)
 				ret = rr->code;
 
 			kfree(rr->buffer);
@@ -418,7 +418,7 @@ static int bh_proxy_openjtasession(
 		}
 	}
 
-	if (ret == BH_SUCCESS) {
+	if (!ret) {
 		*handle = (u64) seq;
 		session_exit(conn_idx, rr, seq, 0);
 	} else {
@@ -448,36 +448,36 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 	int i;
 
 	if (!app_id || !session)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	if (!ta_pkg || !pkg_len)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	if (!init_buffer && init_len != 0)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	if (__uuid_be_to_bin(app_id, &ta_id))
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	*session = 0;
 
 	/* 1.1: get the TA's sdid */
 	ret = bh_proxy_get_sd_by_ta(ta_id, &sdid);
-	if (ret != BH_SUCCESS)
+	if (ret)
 		return ret;
 
 	ret = bh_proxy_check_svl_ta_blocked_state(ta_id);
-	if (ret != BH_SUCCESS)
+	if (ret)
 		return ret;
 
 	/* 1.2: get corresponding vm conn_idx */
 	ret = bh_do_open_vm(sdid, &conn_idx, BHP_OPEN_VM_NORMAL_MODE);
-	if (ret != BH_SUCCESS)
+	if (ret)
 		return ret;
 
 	/* 2.1: check whether the ta pkg existed in VM or not */
 	ret = bh_proxy_listJTAPackages(conn_idx, &count, &app_ids);
-	if (ret == BH_SUCCESS) {
+	if (!ret) {
 		for (i = 0; i < count; i++) {
 			if (!uuid_be_cmp(ta_id, app_ids[i])) {
 				ta_existed = 1;
@@ -491,7 +491,7 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 	if (!ta_existed) {
 		ret = bh_proxy_download_javata(conn_idx,
 					       ta_id, ta_pkg, pkg_len);
-		if (ret != BH_SUCCESS && ret != BHE_PACKAGE_EXIST)
+		if (ret && ret != BHE_PACKAGE_EXIST)
 			goto cleanup;
 	}
 
@@ -506,7 +506,7 @@ cleanup:
 	 * closeVM only when this process failed and vm has not been closed
 	 * inside openjtasession, otherwise the session is created.
 	 */
-	if (ret != BH_SUCCESS && !vm_conn_closed)
+	if (ret && !vm_conn_closed)
 		bh_do_close_vm(conn_idx);
 
 	return ret;
@@ -529,20 +529,20 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 	memset(cmdbuf, 0, sizeof(cmdbuf));
 
 	if (!bhp_is_initialized())
-		return BPE_NOT_INIT;
+		return -EFAULT;
 
 	if (!input && length != 0)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	if (!output_length)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	if (output)
 		*output = NULL;
 
 	rr = session_enter_vm(seq, &conn_idx, 1);
 	if (!rr)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	rr->buffer = NULL;
 	h->id = BHP_CMD_SENDANDRECV;
@@ -554,13 +554,13 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 	ret = bh_cmd_transfer(conn_idx, (char *)h, sizeof(*h) + sizeof(*cmd),
 			      (char *) input, length, seq);
 
-	if (ret == BH_SUCCESS)
+	if (!ret)
 		ret = rr->code;
 
 	if (rr->killed)
 		ret = BHE_UNCAUGHT_EXCEPTION;
 
-	if (ret == BH_SUCCESS) {
+	if (!ret) {
 		struct bhp_snr_response *resp = NULL;
 
 		if (rr->buffer &&
@@ -578,15 +578,15 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 						memcpy(*output,
 						       resp->buffer, len);
 					else
-						ret = BPE_OUT_OF_MEMORY;
+						ret = -ENOMEM;
 
 				} else
-					ret = BHE_APPLET_SMALL_BUFFER;
+					ret = -EMSGSIZE;
 			}
 
 			*output_length = len;
 		} else
-			ret = BPE_MESSAGE_TOO_SHORT;
+			ret = -EBADMSG;
 
 	} else if (ret == BHE_APPLET_SMALL_BUFFER && rr->buffer &&
 		   rr->length == sizeof(struct bhp_snr_bof_response)) {
@@ -623,7 +623,7 @@ int bhp_close_ta_session(const u64 handle)
 
 	rr = session_enter_vm(seq, &conn_idx, 1);
 	if (!rr)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	h->id = BHP_CMD_CLOSE_JTASESSION;
 	cmd->ta_session_id = rr->addr;
@@ -631,7 +631,7 @@ int bhp_close_ta_session(const u64 handle)
 	ret = bh_cmd_transfer(conn_idx, (char *) h, sizeof(*h) + sizeof(*cmd),
 			      NULL, 0, seq);
 
-	if (ret == BH_SUCCESS)
+	if (!ret)
 		ret = rr->code;
 
 	if (rr->killed)

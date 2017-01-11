@@ -77,11 +77,17 @@ static DEFINE_MUTEX(kdi_lock);
 #define BH_MSG_MAGIC_LENGTH            4
 #define BH_MSG_SEQUENCE_OFFSET         8
 
-static int bh_err_to_kdi_err(int bh_err)
+static int to_kdi_err(int err)
 {
-	switch (bh_err) {
-	case BH_SUCCESS:
-		return DAL_KDI_SUCCESS;
+
+	if (err)
+		pr_info("got error: %d\n", err);
+
+	if (err <=0)
+		return err;
+
+	/* err > 0: is error from FW */
+	switch (err) {
 	case BPE_INTERNAL_ERROR:
 		return DAL_KDI_STATUS_INTERNAL_ERROR;
 	case BPE_INVALID_PARAMS:
@@ -91,8 +97,6 @@ static int bh_err_to_kdi_err(int bh_err)
 		return DAL_KDI_STATUS_INVALID_HANDLE;
 	case BPE_NOT_INIT:
 		return DAL_KDI_STATUS_NOT_INITIALIZED;
-	case BPE_NO_CONNECTION_TO_FIRMWARE:
-		return DAL_KDI_STATUS_NO_FW_CONNECTION;
 	case BPE_OUT_OF_MEMORY:
 	case BHE_OUT_OF_MEMORY:
 		return DAL_KDI_STATUS_OUT_OF_MEMORY;
@@ -111,6 +115,10 @@ static int bh_err_to_kdi_err(int bh_err)
 		return DAL_KDI_STATUS_APPLET_CRASHED;
 	case BHE_TA_PACKAGE_HASH_VERIFY_FAIL:
 		return DAL_KDI_STATUS_INVALID_ACP;
+	case BHE_PACKAGE_NOT_FOUND:
+		return DAL_KDI_STATUS_TA_NOT_FOUND;
+	case BHE_PACKAGE_EXIST:
+		return DAL_KDI_STATUS_TA_EXIST;
 	default:
 		return DAL_KDI_STATUS_INTERNAL_ERROR;
 	}
@@ -123,42 +131,41 @@ int kdi_send(unsigned int handle, const unsigned char *buf,
 	struct dal_device *ddev;
 	struct dal_client *dc;
 	struct device *dev;
-	ssize_t ret;
+	ssize_t wr;
+	int ret;
 
 	mei_device = (enum dal_dev_type)handle;
 
 	if (!buf)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	if (mei_device < DAL_MEI_DEVICE_IVM || mei_device >= DAL_MEI_DEVICE_MAX)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	if (!len)
-		return BH_SUCCESS;
+		return 0;
 
 	dev = dal_find_dev(mei_device);
 	if (!dev) {
 		dev_err(dev, "can't find device\n");
-		return BPE_INTERNAL_ERROR;
+		return -ENODEV;
 	}
 
 	ddev = to_dal_device(dev);
 	dc = ddev->clients[DAL_INTF_KDI];
 	if (!dc) {
 		dev_err(dev, "client is NULL\n");
-		ret = BPE_INTERNAL_ERROR;
+		ret = -EFAULT;
 		goto out;
 	}
 
 	/* copy data to client object */
 	memcpy(dc->write_buffer, buf, len);
-	ret = dal_write(dc, len, seq);
-
-	if (ret <= 0)
-		ret = BPE_COMMS_ERROR;
+	wr = dal_write(dc, len, seq);
+	if (wr > 0)
+		ret = 0;
 	else
-		ret = BH_SUCCESS;
-
+		ret = wr;
 out:
 	put_device(dev);
 	return ret;
@@ -176,44 +183,43 @@ int kdi_recv(unsigned int handle, unsigned char *buf, size_t *count)
 	mei_device = (enum dal_dev_type)handle;
 
 	if (!buf || !count)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	if (mei_device < DAL_MEI_DEVICE_IVM || mei_device >= DAL_MEI_DEVICE_MAX)
-		return BPE_INVALID_PARAMS;
+		return -EINVAL;
 
 	dev = dal_find_dev(mei_device);
 	if (!dev)
-		return BPE_INTERNAL_ERROR;
+		return -ENODEV;
 
 	ddev = to_dal_device(dev);
 	dc = ddev->clients[DAL_INTF_KDI];
 	if (!dc) {
 		dev_err(dev, "client is NULL\n");
-		ret = BPE_INTERNAL_ERROR;
+		ret = -EFAULT;
 		goto out;
 	}
 
 	ret = dal_read(dc);
 
-	if (ret != 0)
+	if (ret)
 		goto out;
 
 	if (kfifo_is_empty(&dc->read_queue)) {
-		ret = 0;
 		goto out;
 	}
 
 	ret = kfifo_out(&dc->read_queue, &len, sizeof(len));
 	if (ret != sizeof(len)) {
 		dev_err(&ddev->dev, "could not copy buffer: cannot fetch size");
-		ret = BPE_COMMS_ERROR;
+		ret = -EFAULT;
 		goto out;
 	}
 
 	if (len > *count) {
 		dev_err(&ddev->dev, "could not copy buffer: src size = %zd > dest size = %zd\n",
 			len, *count);
-		ret = BPE_COMMS_ERROR;
+		ret = -EMSGSIZE;
 		goto out;
 	}
 
@@ -221,11 +227,11 @@ int kdi_recv(unsigned int handle, unsigned char *buf, size_t *count)
 	if (ret != len) {
 		dev_err(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %zd\n",
 			len, ret);
-		ret = BPE_COMMS_ERROR;
+		ret = -EFAULT;
 	}
 
 	*count = len;
-	ret = BH_SUCCESS;
+	ret = 0;
 out:
 	put_device(dev);
 	return ret;
@@ -238,10 +244,10 @@ static int kdi_create_session(u64 *handle, const char *jta_id,
 	struct ac_ins_jta_pack_ext pack;
 	char *ta_pkg;
 	int ta_pkg_size;
-	int ret, bh_err;
+	int ret;
 
 	if (!jta_id || !buffer || !buffer_length || !handle)
-		return DAL_KDI_STATUS_INVALID_PARAMS;
+		return -EINVAL;
 
 	/* init_param are optional, but if they exists the length should be
 	 * positive and if param buffer is not exists the length must be 0
@@ -249,31 +255,30 @@ static int kdi_create_session(u64 *handle, const char *jta_id,
 	if (!init_param && init_param_length != 0) {
 		pr_err("INVALID_PARAMS init_param %p init_param_length %zu",
 		       init_param, init_param_length);
-		return DAL_KDI_STATUS_INVALID_PARAMS;
+		return -EINVAL;
 	}
 
-	bh_err = acp_pload_ins_jta(buffer, buffer_length, &pack);
-	ret = bh_err_to_kdi_err(bh_err);
+	ret = acp_pload_ins_jta(buffer, buffer_length, &pack);
 	if (ret) {
-		pr_err("acp_pload_ins_jta() return %d", bh_err);
-		return ret;
+		pr_err("acp_pload_ins_jta() return %d", ret);
+		return to_kdi_err(ret);
 	}
 
 	ta_pkg = pack.ta_pack;
 	if (!ta_pkg)
-		return DAL_KDI_STATUS_INTERNAL_ERROR;
+		return -EINVAL;
 
 	ta_pkg_size = ta_pkg - (char *)buffer;
 
 	if (ta_pkg_size < 0 || (unsigned int)ta_pkg_size > buffer_length)
-		return DAL_KDI_STATUS_INTERNAL_ERROR;
+		return -EINVAL;
 
 	ta_pkg_size = buffer_length - ta_pkg_size;
 
-	bh_err = bhp_open_ta_session(handle, jta_id, ta_pkg, ta_pkg_size,
+	ret = bhp_open_ta_session(handle, jta_id, ta_pkg, ta_pkg_size,
 				     init_param, init_param_length);
 
-	return bh_err_to_kdi_err(bh_err);
+	return to_kdi_err(ret);
 }
 
 int dal_create_session(u64 *session_handle,  const char *app_id,
@@ -291,7 +296,7 @@ int dal_create_session(u64 *session_handle,  const char *app_id,
 
 	mutex_unlock(&kdi_lock);
 
-	return ret;
+	return to_kdi_err(ret);
 }
 EXPORT_SYMBOL(dal_create_session);
 
@@ -299,40 +304,36 @@ int dal_send_and_receive(u64 session_handle, int command_id, const u8 *input,
 			 size_t input_len, u8 **output, size_t *output_len,
 			 int *response_code)
 {
-	int ret, bh_err;
+	int ret;
 
 	mutex_lock(&kdi_lock);
 
-	bh_err = bhp_send_and_recv(session_handle, command_id, input, input_len,
+	ret = bhp_send_and_recv(session_handle, command_id, input, input_len,
 				   (void **)output, output_len, response_code);
 
-	if (bh_err)
-		pr_err("bhp_send_and_recv failed with status = %d\n", bh_err);
-
-	ret = bh_err_to_kdi_err(bh_err);
+	if (ret)
+		pr_err("bhp_send_and_recv failed with status = %d\n", ret);
 
 	mutex_unlock(&kdi_lock);
 
-	return ret;
+	return to_kdi_err(ret);
 }
 EXPORT_SYMBOL(dal_send_and_receive);
 
 int dal_close_session(u64 session_handle)
 {
-	int ret, bh_err;
+	int ret;
 
 	mutex_lock(&kdi_lock);
 
-	bh_err = bhp_close_ta_session(session_handle);
+	ret = bhp_close_ta_session(session_handle);
 
-	if (bh_err)
-		pr_err("hp_close_ta_session failed = %d\n", bh_err);
-
-	ret = bh_err_to_kdi_err(bh_err);
+	if (ret)
+		pr_err("hp_close_ta_session failed = %d\n", ret);
 
 	mutex_unlock(&kdi_lock);
 
-	return ret;
+	return to_kdi_err(ret);
 }
 EXPORT_SYMBOL(dal_close_session);
 
@@ -359,7 +360,7 @@ int dal_set_ta_exclusive_access(uuid_be ta_id)
 	dev = dal_find_dev(DAL_MEI_DEVICE_IVM);
 	if (!dev) {
 		dev_err(dev, "can't find device\n");
-		ret = DAL_KDI_STATUS_INTERNAL_ERROR;
+		ret = -ENODEV;
 		goto unlock;
 	}
 
@@ -367,12 +368,6 @@ int dal_set_ta_exclusive_access(uuid_be ta_id)
 	dc = ddev->clients[DAL_INTF_KDI];
 
 	ret = dal_access_policy_add(ddev, ta_id, dc);
-	if (ret == -EEXIST)
-		ret = DAL_KDI_STATUS_TA_EXIST;
-	else if (ret == -EPERM)
-		ret = DAL_KDI_STATUS_NON_EXCLUSIVENESS_TA;
-	else if (ret)
-		ret = DAL_KDI_STATUS_INTERNAL_ERROR;
 
 	put_device(dev);
 unlock:
@@ -401,17 +396,13 @@ int dal_unset_ta_exclusive_access(uuid_be ta_id)
 	if (!dev) {
 		mutex_unlock(&kdi_lock);
 		dev_err(dev, "can't find device\n");
-		return DAL_KDI_STATUS_INTERNAL_ERROR;
+		return -ENODEV;
 	}
 
 	ddev = to_dal_device(dev);
 	dc = ddev->clients[DAL_INTF_KDI];
 
 	ret = dal_access_policy_remove(ddev, ta_id, dc);
-	if (ret == -ENOENT)
-		ret = DAL_KDI_STATUS_TA_NOT_FOUND;
-	else if (ret == -EPERM)
-		ret = DAL_KDI_STATUS_OPERATION_NOT_PERMITTED;
 
 	put_device(dev);
 
@@ -472,13 +463,12 @@ static struct class_interface kdi_interface __refdata = {
 
 int dal_kdi_init(void)
 {
-	int bh_err;
 	int ret;
 
-	bh_err = bhp_init_internal();
-	if (bh_err) {
-		pr_err("bhp_init: failed with status = 0x%x\n", bh_err);
-		return  -EFAULT;
+	ret = bhp_init_internal();
+	if (ret) {
+		pr_err("bhp_init: failed with status = 0x%x\n", ret);
+		return to_kdi_err(ret);
 	}
 
 	kdi_interface.class = dal_class;

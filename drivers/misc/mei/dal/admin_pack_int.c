@@ -67,6 +67,7 @@
 
 #include <linux/kernel.h>
 #include <linux/printk.h>
+#include <linux/errno.h>
 
 #include "bh_errcode.h"
 #include "bh_acp_format.h"
@@ -79,12 +80,12 @@ int pr_init(struct pack_reader *pr, const char *data, unsigned int n)
 {
 	/* check integer overflow */
 	if ((size_t)data > SIZE_MAX - n)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	pr->cur = data;
 	pr->head = data;
 	pr->total = n;
-	return BH_SUCCESS;
+	return 0;
 }
 
 static int pr_8b_align_move(struct pack_reader *pr, size_t n_move)
@@ -94,18 +95,18 @@ static int pr_8b_align_move(struct pack_reader *pr, size_t n_move)
 	size_t len_from_head = new_cur - pr->head;
 
 	if ((size_t)pr->cur > SIZE_MAX - n_move || new_cur < pr->head)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	offset = ((8 - (len_from_head & 7)) & 7);
 	if ((size_t)new_cur > SIZE_MAX - offset)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	new_cur = new_cur + offset;
 	if (new_cur > pr->head + pr->total)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	pr->cur = new_cur;
-	return BH_SUCCESS;
+	return 0;
 }
 
 static int pr_align_move(struct pack_reader *pr, size_t n_move)
@@ -115,18 +116,18 @@ static int pr_align_move(struct pack_reader *pr, size_t n_move)
 	size_t offset;
 
 	if ((size_t)pr->cur > SIZE_MAX - n_move || new_cur < pr->head)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	offset = ((4 - (len_from_head & 3)) & 3);
 	if ((size_t)new_cur > SIZE_MAX - offset)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	new_cur = new_cur + offset;
 	if (new_cur > pr->head + pr->total)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	pr->cur = new_cur;
-	return BH_SUCCESS;
+	return 0;
 }
 
 static int pr_move(struct pack_reader *pr, size_t n_move)
@@ -136,10 +137,10 @@ static int pr_move(struct pack_reader *pr, size_t n_move)
 	/* integer overflow or out of acp pkg size */
 	if ((size_t)pr->cur > SIZE_MAX - n_move ||
 	    new_cur > pr->head + pr->total)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	pr->cur = new_cur;
-	return BH_SUCCESS;
+	return 0;
 }
 
 static bool pr_is_safe_to_read(const struct pack_reader *pr, size_t n_move)
@@ -166,16 +167,16 @@ static int acp_load_reasons(struct pack_reader *pr,
 	struct ac_ins_reasons *r;
 
 	if (!pr_is_safe_to_read(pr, sizeof(*r)))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	r = (struct ac_ins_reasons *)pr->cur;
 
 	if (r->len > BH_MAX_ACP_INS_REASONS_LENGTH)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	len = sizeof(*r) + r->len * sizeof(r->data[0]);
 	if (!pr_is_safe_to_read(pr, len))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	*reasons = r;
 	return pr_align_move(pr, len);
@@ -188,16 +189,16 @@ static int acp_load_taid_list(struct pack_reader *pr,
 	struct bh_ta_id_list *t;
 
 	if (!pr_is_safe_to_read(pr, sizeof(*t)))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	t = (struct bh_ta_id_list *)pr->cur;
 	if (t->num > BH_MAX_ACP_USED_SERVICES)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	len = sizeof(*t) + t->num * sizeof(t->list[0]);
 
 	if (!pr_is_safe_to_read(pr, len))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	*taid_list = t;
 	return pr_align_move(pr, len);
@@ -209,16 +210,16 @@ static int acp_load_prop(struct pack_reader *pr, struct bh_prop_list **prop)
 	struct bh_prop_list *p;
 
 	if (!pr_is_safe_to_read(pr, sizeof(*p)))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	p = (struct bh_prop_list *)pr->cur;
 	if (p->len > BH_MAX_ACP_PROPS_LENGTH)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	len = sizeof(*p) + p->len * sizeof(p->data[0]);
 
 	if (!pr_is_safe_to_read(pr, len))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	*prop = p;
 	return pr_align_move(pr, len);
@@ -230,8 +231,8 @@ int acp_load_ta_pack(struct pack_reader *pr, char **ta_pack)
 	char *t;
 
 	/*8 byte align to obey jeff rule*/
-	if (pr_8b_align_move(pr, 0) != BH_SUCCESS)
-		return BHE_INVALID_BPK_FILE;
+	if (pr_8b_align_move(pr, 0))
+		return -EINVAL;
 
 	t = (char *)pr->cur;
 
@@ -240,11 +241,11 @@ int acp_load_ta_pack(struct pack_reader *pr, char **ta_pack)
 	 *move cursor to the end directly
 	 */
 	if (pr->cur > pr->head + pr->total)
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	len = pr->head + pr->total - pr->cur;
 	if (!pr_is_safe_to_read(pr, len))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	*ta_pack = t;
 	return pr_move(pr, len);
@@ -254,7 +255,7 @@ static int acp_load_ins_jta_prop_head(struct pack_reader *pr,
 				      struct ac_ins_jta_prop_header **head)
 {
 	if (!pr_is_safe_to_read(pr, sizeof(struct ac_ins_jta_prop_header)))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	*head = (struct ac_ins_jta_prop_header *)pr->cur;
 	return pr_align_move(pr, sizeof(struct ac_ins_jta_prop_header));
@@ -265,23 +266,23 @@ int acp_load_ins_jta_prop(struct pack_reader *pr, struct ac_ins_jta_prop *pack)
 	int ret;
 
 	ret = acp_load_ins_jta_prop_head(pr, &pack->head);
-	if (ret != BH_SUCCESS)
+	if (ret)
 		goto out;
 
 	ret = acp_load_reasons(pr, &pack->post_reasons);
-	if (ret != BH_SUCCESS)
+	if (ret)
 		goto out;
 
 	ret = acp_load_reasons(pr, &pack->reg_reasons);
-	if (ret != BH_SUCCESS)
+	if (ret)
 		goto out;
 
 	ret = acp_load_prop(pr, &pack->prop);
-	if (ret != BH_SUCCESS)
+	if (ret)
 		goto out;
 
 	ret = acp_load_taid_list(pr, &pack->used_service_list);
-	if (ret != BH_SUCCESS)
+	if (ret)
 		return ret;
 
 out:
@@ -292,7 +293,7 @@ static int acp_load_ins_jta_head(struct pack_reader *pr,
 				 struct ac_ins_ta_header **head)
 {
 	if (!pr_is_safe_to_read(pr, sizeof(struct ac_ins_ta_header)))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	*head = (struct ac_ins_ta_header *)pr->cur;
 	return pr_align_move(pr, sizeof(struct ac_ins_ta_header));
@@ -303,20 +304,18 @@ int acp_load_ins_jta(struct pack_reader *pr, struct ac_ins_jta_pack *pack)
 	int ret;
 
 	ret = acp_load_prop(pr, &pack->ins_cond);
-	if (ret != BH_SUCCESS)
+	if (ret)
 		return ret;
 
 	ret = acp_load_ins_jta_head(pr, &pack->head);
-	if (ret != BH_SUCCESS)
-		return ret;
 
-	return BH_SUCCESS;
+	return ret;
 }
 
 int acp_load_pack_head(struct pack_reader *pr, struct ac_pack_header **head)
 {
 	if (!pr_is_safe_to_read(pr, sizeof(struct ac_pack_header)))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	*head = (struct ac_pack_header *)pr->cur;
 	return pr_align_move(pr, sizeof(struct ac_pack_header));

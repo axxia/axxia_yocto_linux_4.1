@@ -58,6 +58,7 @@
  *
  *****************************************************************************/
 #include <linux/kernel.h>
+#include <linux/errno.h>
 
 #include "bh_acp_exp.h"
 #include "bh_acp_internal.h"
@@ -70,8 +71,9 @@ static int acp_load_pack(const char *raw_pack, unsigned int size,
 	struct ac_ins_jta_pack_ext *pack_ext;
 	struct ac_ins_jta_prop_ext *prop_ext;
 
-	if (pr_init(&pr, raw_pack, size) != BH_SUCCESS)
-		return BHE_INVALID_BPK_FILE;
+	ret = pr_init(&pr, raw_pack, size);
+	if (ret)
+		return ret;
 
 	if (cmd_id != AC_INSTALL_JTA_PROP) {
 		ret = acp_load_pack_head(&pr, &pack->head);
@@ -80,7 +82,7 @@ static int acp_load_pack(const char *raw_pack, unsigned int size,
 	}
 
 	if (cmd_id != AC_INSTALL_JTA_PROP && cmd_id != pack->head->cmd_id)
-		return BHE_BAD_PARAMETER;
+		return -EINVAL;
 
 	switch (cmd_id) {
 	case AC_INSTALL_JTA:
@@ -102,11 +104,11 @@ static int acp_load_pack(const char *raw_pack, unsigned int size,
 		ret = acp_load_ta_pack(&pr, &prop_ext->jeff_pack);
 		break;
 	default:
-		return BHE_BAD_PARAMETER;
+		return -EINVAL;
 	}
 
 	if (!pr_is_end(&pr))
-		return BHE_INVALID_BPK_FILE;
+		return -EINVAL;
 
 	return ret;
 }
@@ -117,7 +119,7 @@ int acp_pload_ins_jta(const void *raw_data, unsigned int size,
 	int ret;
 
 	if (!raw_data || size <= BH_ACP_CSS_HEADER_LENGTH || !pack)
-		return BHE_BAD_PARAMETER;
+		return -EINVAL;
 
 	ret = acp_load_pack((const char *)raw_data + BH_ACP_CSS_HEADER_LENGTH,
 			    size - BH_ACP_CSS_HEADER_LENGTH,
@@ -130,7 +132,7 @@ int acp_pload_ins_jta_prop(const void *raw_data, unsigned int size,
 			   struct ac_ins_jta_prop_ext *pack)
 {
 	if (!raw_data || !pack)
-		return BHE_BAD_PARAMETER;
+		return -EINVAL;
 
 	return acp_load_pack(raw_data, size, AC_INSTALL_JTA_PROP,
 			    (struct ac_pack *)pack);
