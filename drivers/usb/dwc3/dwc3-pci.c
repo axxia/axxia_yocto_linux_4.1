@@ -109,8 +109,15 @@ static int dwc3_pci_quirks(struct dwc3_pci *dwc)
 	    (pdev->device == PCI_DEVICE_ID_INTEL_BXT ||
 	     pdev->device == PCI_DEVICE_ID_INTEL_BXT_M ||
 	     pdev->device == PCI_DEVICE_ID_INTEL_APL)) {
+		struct dwc3_platform_data pdata;
+
+		memset(&pdata, 0, sizeof(pdata));
+		pdata.has_dsm_for_softreset = true;
+
 		acpi_str_to_uuid(PCI_INTEL_BXT_DSM_UUID, dwc->uuid);
 		dwc->has_dsm_for_pm = true;
+
+		return platform_device_add_data(dwc3, &pdata, sizeof(pdata));
 	}
 
 	if (pdev->vendor == PCI_VENDOR_ID_INTEL &&
