@@ -135,7 +135,7 @@ int acp_pload_ins_jta_prop(const void *raw_data, unsigned int size,
 		return -EINVAL;
 
 	return acp_load_pack(raw_data, size, AC_INSTALL_JTA_PROP,
-			    (struct ac_pack *)pack);
+			     (struct ac_pack *)pack);
 }
 
 int acp_get_cmd_id(const void *raw_data, unsigned int size, int *cmd_id)

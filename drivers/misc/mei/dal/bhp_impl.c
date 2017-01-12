@@ -124,9 +124,7 @@ static struct RR_MAP_INFO *rrmap_find_by_addr(struct list_head *rr_map_header,
 	struct list_head *pos;
 	struct RR_MAP_INFO *rrmap_info;
 
-	list_for_each(pos, rr_map_header)
-	{
-
+	list_for_each(pos, rr_map_header) {
 		rrmap_info = list_entry(pos, struct RR_MAP_INFO, link);
 		if (rrmap_info && rrmap_info->seq == seq)
 			return rrmap_info;
@@ -149,7 +147,7 @@ u64 rrmap_add(int conn_idx, struct bh_response_record *rr)
 	rrmap_info->rr = rr;
 
 	list_add_tail(&rrmap_info->link,
-		     &connections[conn_idx].rr_map_list_header);
+		      &connections[conn_idx].rr_map_list_header);
 
 	return rrmap_info->seq;
 }
@@ -217,7 +215,6 @@ struct bh_response_record *session_enter(int conn_idx, u64 seq,
 				   seq);
 
 	if (rrmap_info) {
-
 		if (rrmap_info->rr->is_session && !rrmap_info->rr->killed) {
 			session = rrmap_info->rr;
 
@@ -456,14 +453,14 @@ static int bh_recv_message(int conn_idx, u64 *seq)
 	struct bh_response_record *rr = NULL;
 	int session_killed;
 
-	ret = bh_transport_recv(conn_idx,
-			(char *) head, sizeof(struct bhp_response_header));
+	ret = bh_transport_recv(conn_idx, (char *) head,
+				sizeof(struct bhp_response_header));
 	if (ret)
 		return ret;
 
 	/* check magic */
 	if (memcmp(BHP_MSG_RESPONSE_MAGIC,
-			head->h.magic, BHP_MSG_MAGIC_LENGTH) != 0)
+		   head->h.magic, BHP_MSG_MAGIC_LENGTH) != 0)
 		return -EBADMSG;
 
 	/* verify rr */
@@ -490,9 +487,9 @@ static int bh_recv_message(int conn_idx, u64 *seq)
 			rr->addr = head->addr;
 
 		session_killed = (rr->is_session &&
-				(rr->code == BHE_WD_TIMEOUT ||
-				rr->code == BHE_UNCAUGHT_EXCEPTION ||
-				rr->code == BHE_APPLET_CRASHED));
+				  (rr->code == BHE_WD_TIMEOUT ||
+				  rr->code == BHE_UNCAUGHT_EXCEPTION ||
+				  rr->code == BHE_APPLET_CRASHED));
 
 		/* set killed flag before wake up send_wait thread */
 		if (session_killed) {
@@ -570,7 +567,7 @@ static void bh_connections_deinit(void)
 
 #define MAX_RETRY_COUNT   (3)
 int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
-		const void *data, unsigned int dlen, u64 seq)
+		    const void *data, unsigned int dlen, u64 seq)
 {
 	int ret;
 	u32 retry_count = 0;

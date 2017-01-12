@@ -151,7 +151,7 @@ const uuid_be *bh_open_session_ta_id(const struct bhp_command_header *hdr,
 	struct bhp_open_jtasession_cmd *open_cmd;
 
 	if (count < sizeof(struct bhp_command_header) +
-		sizeof(struct bhp_open_jtasession_cmd))
+			sizeof(struct bhp_open_jtasession_cmd))
 		return NULL;
 
 	open_cmd = (struct bhp_open_jtasession_cmd *)hdr->cmd;
@@ -200,8 +200,8 @@ static int bh_proxy_get_sd_by_ta(uuid_be taid, uuid_be *sdid)
 	cmd->taid = taid;
 
 	ret = bh_cmd_transfer(CONN_IDX_SDM, (char *) h,
-			sizeof(*h) + sizeof(*cmd), NULL, 0,
-			rrmap_add(CONN_IDX_SDM, &rr));
+			      sizeof(*h) + sizeof(*cmd), NULL, 0,
+			      rrmap_add(CONN_IDX_SDM, &rr));
 
 	if (!ret)
 		ret = rr.code;
@@ -238,11 +238,11 @@ static int bh_proxy_check_svl_ta_blocked_state(uuid_be taid)
 	h->id = BHP_CMD_CHECK_SVL_TA_BLOCKED_STATE;
 	cmd->taid = taid;
 	memcpy(&cmd->taid, &taid,
-			sizeof(struct bhp_check_svl_ta_blocked_state_cmd));
+	       sizeof(struct bhp_check_svl_ta_blocked_state_cmd));
 
 	ret = bh_cmd_transfer(CONN_IDX_SDM, (char *) h,
-			sizeof(*h) + sizeof(*cmd), NULL, 0,
-			rrmap_add(CONN_IDX_SDM, &rr));
+			      sizeof(*h) + sizeof(*cmd), NULL, 0,
+			      rrmap_add(CONN_IDX_SDM, &rr));
 	if (!ret)
 		ret = rr.code;
 
@@ -277,7 +277,7 @@ static int bh_proxy_listJTAPackages(int conn_idx, int *count,
 	h->id = BHP_CMD_LIST_TA_PACKAGES;
 
 	ret = bh_cmd_transfer(conn_idx, (char *)h, sizeof(*h),
-			     NULL, 0, rrmap_add(conn_idx, &rr));
+			      NULL, 0, rrmap_add(conn_idx, &rr));
 	if (!ret)
 		ret = rr.code;
 	if (ret)
@@ -294,8 +294,7 @@ static int bh_proxy_listJTAPackages(int conn_idx, int *count,
 		goto out;
 	}
 
-	if (rr.length != sizeof(uuid_be) *
-			 resp->count +
+	if (rr.length != sizeof(uuid_be) * resp->count +
 			sizeof(struct bhp_list_ta_packages_response)) {
 		ret = -EBADMSG;
 		goto out;
@@ -307,6 +306,7 @@ static int bh_proxy_listJTAPackages(int conn_idx, int *count,
 		ret = -ENOMEM;
 		goto out;
 	}
+
 	for (i = 0; i < resp->count; i++)
 		outbuf[i] = resp->app_ids[i];
 
@@ -318,11 +318,10 @@ out:
 	return ret;
 }
 
-static int bh_proxy_download_javata(
-		int conn_idx,
-		uuid_be ta_id,
-		const char *ta_pkg,
-		unsigned int pkg_len)
+static int bh_proxy_download_javata(int conn_idx,
+				    uuid_be ta_id,
+				    const char *ta_pkg,
+				    unsigned int pkg_len)
 {
 	int ret;
 	char cmdbuf[CMDBUF_SIZE];
@@ -341,7 +340,7 @@ static int bh_proxy_download_javata(
 	cmd->appid = ta_id;
 
 	ret = bh_cmd_transfer(conn_idx, (char *) h, sizeof(*h) + sizeof(*cmd),
-			ta_pkg, pkg_len, rrmap_add(conn_idx, &rr));
+			      ta_pkg, pkg_len, rrmap_add(conn_idx, &rr));
 
 	if (!ret)
 		ret = rr.code;
@@ -351,15 +350,14 @@ static int bh_proxy_download_javata(
 	return ret;
 }
 
-static int bh_proxy_openjtasession(
-		int conn_idx,
-		uuid_be ta_id,
-		const char *init_buffer,
-		unsigned int init_len,
-		u64 *handle,
-		int *vm_conn_closed,
-		const char *ta_pkg,
-		unsigned int pkg_len)
+static int bh_proxy_openjtasession(int conn_idx,
+				   uuid_be ta_id,
+				   const char *init_buffer,
+				   unsigned int init_len,
+				   u64 *handle,
+				   int *vm_conn_closed,
+				   const char *ta_pkg,
+				   unsigned int pkg_len)
 {
 	int ret;
 	char cmdbuf[CMDBUF_SIZE];
@@ -390,7 +388,7 @@ static int bh_proxy_openjtasession(
 	cmd->appid = ta_id;
 
 	ret = bh_cmd_transfer(conn_idx, (char *) h, sizeof(*h) + sizeof(*cmd),
-			     (char *) init_buffer, init_len, seq);
+			      (char *) init_buffer, init_len, seq);
 
 	if (!ret)
 		ret = rr->code;
@@ -407,8 +405,8 @@ static int bh_proxy_openjtasession(
 					       ta_pkg, pkg_len);
 		if (!ret) {
 			ret = bh_cmd_transfer(conn_idx, (char *)h,
-					sizeof(*h) + sizeof(*cmd),
-					(char *)init_buffer, init_len, seq);
+					    sizeof(*h) + sizeof(*cmd),
+					    (char *)init_buffer, init_len, seq);
 
 			if (!ret)
 				ret = rr->code;

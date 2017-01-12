@@ -309,7 +309,7 @@ int dal_send_and_receive(u64 session_handle, int command_id, const u8 *input,
 	mutex_lock(&kdi_lock);
 
 	ret = bhp_send_and_recv(session_handle, command_id, input, input_len,
-				   (void **)output, output_len, response_code);
+				(void **)output, output_len, response_code);
 
 	if (ret)
 		pr_err("bhp_send_and_recv failed with status = %d\n", ret);

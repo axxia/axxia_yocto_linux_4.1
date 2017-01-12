@@ -136,10 +136,11 @@ static int pr_move(struct pack_reader *pr, size_t n_move)
 
 	/* integer overflow or out of acp pkg size */
 	if ((size_t)pr->cur > SIZE_MAX - n_move ||
-	    new_cur > pr->head + pr->total)
+			new_cur > pr->head + pr->total)
 		return -EINVAL;
 
 	pr->cur = new_cur;
+
 	return 0;
 }
 
