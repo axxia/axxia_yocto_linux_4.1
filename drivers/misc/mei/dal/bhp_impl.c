@@ -565,33 +565,38 @@ static void bh_connections_deinit(void)
 		bh_do_disconnect(i);
 }
 
-#define MAX_RETRY_COUNT   (3)
+#define MAX_RETRY_COUNT 3
 int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
 		    const void *data, unsigned int dlen, u64 seq)
 {
 	int ret;
-	u32 retry_count = 0;
+	u32 retry_count;
 	u64 seq_response = 0;
 
 	ret = bh_send_message(conn_idx, cmd, clen, data, dlen, seq);
 	if (ret)
 		return ret;
 
-	do {
+	for (retry_count = 0; retry_count < MAX_RETRY_COUNT; retry_count++) {
 		ret = bh_recv_message(conn_idx, &seq_response);
-		if (!ret) {
-			pr_debug("recv message with seq=%llu\n",
-					seq_response);
-			if (seq_response == seq)
-				break;
+		if (ret) {
+			pr_debug("failed to recv msg = %d\n", ret);
+			continue;
 		}
-		pr_debug("recv message with seq=%llu != seq_response=%llu\n",
-				seq, seq_response);
-		retry_count++;
-	} while (retry_count < MAX_RETRY_COUNT);
+
+		if (seq_response != seq) {
+			pr_debug("recv message with seq=%llu != seq_response=%llu\n",
+				 seq, seq_response);
+			continue;
+		}
+
+		pr_debug("recv message with try=%d seq=%llu\n",
+			 retry_count, seq_response);
+		break;
+	}
 
 	if (retry_count == MAX_RETRY_COUNT) {
-		pr_debug("out of retry attempts\n");
+		pr_err("out of retry attempts\n");
 		ret = -EFAULT;
 	}
 
