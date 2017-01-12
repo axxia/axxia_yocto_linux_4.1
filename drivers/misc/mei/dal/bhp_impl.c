@@ -57,6 +57,7 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *****************************************************************************/
+#define pr_fmt(fmt) KBUILD_MODNAME ":%s: " fmt, __func__
 
 #include <linux/printk.h>
 #include <linux/mei_cl_bus.h>
@@ -109,7 +110,7 @@ static void rrmap_dump(struct list_head *rr_map_header)
 	list_for_each(pos, rr_map_header) {
 		rrmap_info = list_entry(pos, struct RR_MAP_INFO, link);
 		if (rrmap_info) {
-			pr_debug("rrmap_dump: [%02x] seq: %llu, rr->addr: %llu",
+			pr_debug("[%02x] seq: %llu, rr->addr: %llu",
 				  count, rrmap_info->seq, rrmap_info->rr->addr);
 			count++;
 		}
@@ -582,18 +583,18 @@ int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
 	do {
 		ret = bh_recv_message(conn_idx, &seq_response);
 		if (!ret) {
-			pr_debug("bh_cmd_transfer(): recv message with seq=%llu\n",
+			pr_debug("recv message with seq=%llu\n",
 					seq_response);
 			if (seq_response == seq)
 				break;
 		}
-		pr_debug("bh_cmd_transfer(): recv message with seq=%llu != seq_response=%llu\n",
+		pr_debug("recv message with seq=%llu != seq_response=%llu\n",
 				seq, seq_response);
 		retry_count++;
 	} while (retry_count < MAX_RETRY_COUNT);
 
 	if (retry_count == MAX_RETRY_COUNT) {
-		pr_debug("bh_cmd_transfer(): out of retry attempts\n");
+		pr_debug("out of retry attempts\n");
 		ret = -EFAULT;
 	}
 
