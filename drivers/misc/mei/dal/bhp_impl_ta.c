@@ -190,8 +190,8 @@ static int bh_proxy_get_sd_by_ta(uuid_be taid, uuid_be *sdid)
 			(struct bhp_get_sd_by_ta_cmd *) h->cmd;
 	struct bh_response_record rr;
 
-	memset(cmdbuf, 0x00, sizeof(cmdbuf));
-	memset(&rr, 0x00, sizeof(rr));
+	memset(cmdbuf, 0, sizeof(cmdbuf));
+	memset(&rr, 0, sizeof(rr));
 
 	if (!sdid)
 		return BPE_INVALID_PARAMS;
@@ -232,8 +232,8 @@ static int bh_proxy_check_svl_ta_blocked_state(uuid_be taid)
 			(struct bhp_check_svl_ta_blocked_state_cmd *) h->cmd;
 	struct bh_response_record rr;
 
-	memset(cmdbuf, 0x00, sizeof(cmdbuf));
-	memset(&rr, 0x00, sizeof(rr));
+	memset(cmdbuf, 0, sizeof(cmdbuf));
+	memset(&rr, 0, sizeof(rr));
 
 	h->id = BHP_CMD_CHECK_SVL_TA_BLOCKED_STATE;
 	cmd->taid = taid;
@@ -262,8 +262,8 @@ static int bh_proxy_listJTAPackages(int conn_idx, int *count,
 	uuid_be *outbuf;
 	unsigned int i;
 
-	memset(cmdbuf, 0x00, sizeof(cmdbuf));
-	memset(&rr, 0x00, sizeof(rr));
+	memset(cmdbuf, 0, sizeof(cmdbuf));
+	memset(&rr, 0, sizeof(rr));
 
 	if (!bhp_is_initialized())
 		return BPE_NOT_INIT;
@@ -331,8 +331,8 @@ static int bh_proxy_download_javata(
 			(struct bhp_download_javata_cmd *) h->cmd;
 	struct bh_response_record rr;
 
-	memset(cmdbuf, 0x00, sizeof(cmdbuf));
-	memset(&rr, 0x00, sizeof(rr));
+	memset(cmdbuf, 0, sizeof(cmdbuf));
+	memset(&rr, 0, sizeof(rr));
 
 	if (!ta_pkg || !pkg_len)
 		return BPE_INVALID_PARAMS;
@@ -369,7 +369,7 @@ static int bh_proxy_openjtasession(
 	struct bh_response_record *rr = NULL;
 	u64 seq;
 
-	memset(cmdbuf, 0x00, sizeof(cmdbuf));
+	memset(cmdbuf, 0, sizeof(cmdbuf));
 
 	if (!handle)
 		return BPE_INVALID_PARAMS;
@@ -526,7 +526,7 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 	int conn_idx = 0;
 	unsigned int len;
 
-	memset(cmdbuf, 0x00, sizeof(cmdbuf));
+	memset(cmdbuf, 0, sizeof(cmdbuf));
 
 	if (!bhp_is_initialized())
 		return BPE_NOT_INIT;
@@ -619,7 +619,7 @@ int bhp_close_ta_session(const u64 handle)
 	u64 seq = (u64)handle;
 	int conn_idx = 0;
 
-	memset(cmdbuf, 0x00, sizeof(cmdbuf));
+	memset(cmdbuf, 0, sizeof(cmdbuf));
 
 	rr = session_enter_vm(seq, &conn_idx, 1);
 	if (!rr)

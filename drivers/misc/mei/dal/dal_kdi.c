@@ -433,7 +433,7 @@ int dal_get_version_info(struct dal_version_info *version_info)
 	if (!version_info)
 		return DAL_KDI_STATUS_INVALID_PARAMS;
 
-	memset(version_info, 0x00, sizeof(*version_info));
+	memset(version_info, 0, sizeof(*version_info));
 	snprintf(version_info->version, DAL_VERSION_LEN, "%s", KDI_VERSION);
 
 	return 0;

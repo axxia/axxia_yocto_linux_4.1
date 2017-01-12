@@ -513,7 +513,7 @@ static void bh_do_connect(int conn_idx)
 	conn->handle = 0;
 	conn->conn_count = 0;
 	INIT_LIST_HEAD(&conn->rr_map_list_header);
-	memset(&conn->sdid, 0x00, sizeof(uuid_be));
+	memset(&conn->sdid, 0, sizeof(uuid_be));
 }
 
 static int bh_do_disconnect(int conn_idx)
@@ -536,7 +536,7 @@ static int bh_do_disconnect(int conn_idx)
 	}
 
 	INIT_LIST_HEAD(&conn->rr_map_list_header);
-	memset(&conn->sdid, 0x00, sizeof(uuid_be));
+	memset(&conn->sdid, 0, sizeof(uuid_be));
 
 	return BH_SUCCESS;
 }
