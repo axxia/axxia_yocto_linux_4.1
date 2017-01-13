@@ -4778,6 +4778,37 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
 			i915_wedged_get, i915_wedged_set,
 			"%llu\n");
 
+
+static ssize_t i915_reset_info_read(struct file *filp, char __user *ubuf,
+				    size_t max, loff_t *ppos)
+{
+	int len;
+	char buf[300];
+	struct drm_device *dev = filp->private_data;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct i915_gpu_error *error = &dev_priv->gpu_error;
+	struct intel_engine_cs *engine;
+
+	len = scnprintf(buf, sizeof(buf), "full gpu reset = %u\n",
+			i915_reset_count(error));
+
+	for_each_engine(engine, dev_priv) {
+		len += scnprintf(buf + len, sizeof(buf) - len,
+				 "%s = 0\n", engine->name);
+	}
+
+	len += scnprintf(buf + len - 1, sizeof(buf) - len, "\n");
+
+	return simple_read_from_buffer(ubuf, max, ppos, buf, len);
+}
+
+static const struct file_operations i915_reset_info_fops = {
+	.owner = THIS_MODULE,
+	.open = simple_open,
+	.read = i915_reset_info_read,
+	.llseek = default_llseek,
+};
+
 static int
 i915_ring_missed_irq_get(void *data, u64 *val)
 {
@@ -5477,6 +5508,7 @@ static const struct i915_debugfs_files {
 	const struct file_operations *fops;
 } i915_debugfs_files[] = {
 	{"i915_wedged", &i915_wedged_fops},
+	{"i915_reset_info", &i915_reset_info_fops},
 	{"i915_max_freq", &i915_max_freq_fops},
 	{"i915_min_freq", &i915_min_freq_fops},
 	{"i915_rps_disable_boost", &i915_rps_disable_boost_fops},
