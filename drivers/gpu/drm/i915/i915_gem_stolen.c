@@ -680,7 +680,7 @@ found:
 
 		if (drm_mm_scan_remove_block(&obj->stolen->base)) {
 			list_add(&obj->tmp_link, &evict);
-			i915_gem_object_put(obj);
+			i915_gem_object_get(obj);
 		}
 	}
 
@@ -859,17 +859,19 @@ i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 	vma->node.start = gtt_offset;
 	vma->node.size = size;
 
-	ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
-	if (ret) {
-		DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
-		goto err;
-	}
+	if (drm_mm_initialized(&ggtt->base.mm)) {
+		ret = drm_mm_reserve_node(&ggtt->base.mm, &vma->node);
+		if (ret) {
+			DRM_DEBUG_KMS("failed to allocate stolen GTT space\n");
+			goto err;
+		}
 
-	vma->pages = obj->pages;
-	vma->flags |= I915_VMA_GLOBAL_BIND;
-	__i915_vma_set_map_and_fenceable(vma);
-	list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
-	obj->bind_count++;
+		vma->pages = obj->pages;
+		vma->flags |= I915_VMA_GLOBAL_BIND;
+		__i915_vma_set_map_and_fenceable(vma);
+		list_move_tail(&vma->vm_link, &ggtt->base.inactive_list);
+		obj->bind_count++;
+	}
 
 	list_add_tail(&obj->global_list, &dev_priv->mm.bound_list);
 	i915_gem_object_pin_pages(obj);
@@ -912,7 +914,7 @@ int i915_gem_stolen_freeze(struct drm_i915_private *i915)
 			 * This is similar to the strategy required whilst
 			 * shrinking or evicting objects (for the same reason).
 			 */
-			i915_gem_object_put(obj);
+			i915_gem_object_get(obj);
 			list_move(&obj->global_list, &migrate);
 		}
 
