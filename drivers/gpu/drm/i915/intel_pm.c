@@ -4934,6 +4934,9 @@ static void gen6_set_rps(struct drm_i915_private *dev_priv, u8 val)
 	if (IS_BXT_REVID(dev_priv, 0, BXT_REVID_A1))
 		return;
 
+	if (dev_priv->rps.rps_disable)
+		return;
+
 	WARN_ON(!mutex_is_locked(&dev_priv->rps.hw_lock));
 	WARN_ON(val > dev_priv->rps.max_freq);
 	WARN_ON(val < dev_priv->rps.min_freq);
