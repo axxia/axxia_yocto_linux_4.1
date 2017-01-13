@@ -2656,11 +2656,14 @@ static void i915_gem_reset_engine(struct intel_engine_cs *engine)
 void i915_gem_reset(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	struct intel_uc_fw *guc_fw = &dev_priv->guc.guc_fw;
 
 	i915_gem_retire_requests(dev_priv);
 
 	for_each_engine(engine, dev_priv)
 		i915_gem_reset_engine(engine);
+
+	guc_fw->load_status = UC_FIRMWARE_PENDING;
 
 	i915_gem_restore_fences(&dev_priv->drm);
 

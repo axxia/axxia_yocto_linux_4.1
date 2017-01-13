@@ -1028,6 +1028,15 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	}
 
 	guc->execbuf_client = client;
+
+	/*
+	 * During reset, RC6 gets enabled prior to GuC load hence i915
+	 * will not be able to send guc action to sample forcewake then.
+	 * Send it now.
+	 */
+	if (test_bit(I915_RESET_IN_PROGRESS, &dev_priv->gpu_error.flags))
+		i915_guc_sample_forcewake(dev_priv);
+
 	guc_init_doorbell_hw(guc);
 
 	/* Take over from manual control of ELSP (execlists) */

@@ -5365,6 +5365,7 @@ static void gen9_enable_rps(struct drm_i915_private *dev_priv)
 static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 {
 	struct intel_engine_cs *engine;
+	struct intel_guc *guc = &dev_priv->guc;
 	uint32_t rc6_mask = 0;
 
 	/* 1a: Software RC state - RC0 */
@@ -5416,7 +5417,8 @@ static void gen9_enable_rc6(struct drm_i915_private *dev_priv)
 			   rc6_mask);
 	}
 
-	i915_guc_sample_forcewake(dev_priv);
+	if (guc->guc_fw.load_status == UC_FIRMWARE_SUCCESS)
+		i915_guc_sample_forcewake(dev_priv);
 
 	/*
 	 * 3b: Enable Coarse Power Gating only when RC6 is enabled.
