@@ -5043,7 +5043,7 @@ static int i915_rps_disable_get(void *data, u64 *val)
 	struct drm_device *dev = data;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!IS_VALLEYVIEW(dev))
+	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
 
 	*val = dev_priv->rps.rps_disable;
@@ -5057,19 +5057,31 @@ static int i915_rps_disable_set(void *data, u64 val)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int ret;
 
-	if (!IS_VALLEYVIEW(dev))
+	if (INTEL_INFO(dev)->gen < 6)
 		return -ENODEV;
 
 	DRM_DEBUG_DRIVER("Setting RPS disable %s\n",
 			 val ? "true" : "false");
 
+	intel_runtime_pm_get(dev_priv);
 	ret = mutex_lock_interruptible(&dev_priv->rps.hw_lock);
 	if (ret)
 		return ret;
 
-	vlv_set_rps_mode(dev_priv, val);
+	dev_priv->rps.rps_disable = val;
+
+	if (val)
+		I915_WRITE(GEN6_RP_CONTROL, 0);
+	else
+		I915_WRITE(GEN6_RP_CONTROL, GEN6_RP_MEDIA_TURBO |
+				GEN6_RP_MEDIA_HW_NORMAL_MODE |
+				GEN6_RP_MEDIA_IS_GFX |
+				GEN6_RP_ENABLE |
+				GEN6_RP_UP_BUSY_AVG |
+				GEN6_RP_DOWN_IDLE_AVG);
 
 	mutex_unlock(&dev_priv->rps.hw_lock);
+	intel_runtime_pm_put(dev_priv);
 
 	return 0;
 }
