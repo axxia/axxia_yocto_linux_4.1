@@ -78,9 +78,4 @@ struct ac_ins_jta_prop_ext {
 int acp_pload_ins_jta(const void *raw_data, unsigned int size,
 		      struct ac_ins_jta_pack_ext *pack);
 
-int acp_pload_ins_jta_prop(const void *raw_data, unsigned int size,
-			   struct ac_ins_jta_prop_ext *pack);
-
-int acp_get_cmd_id(const void *raw_data, unsigned int size, int *cmd_id);
-
 #endif /* __BH_ACP_EXP_H */

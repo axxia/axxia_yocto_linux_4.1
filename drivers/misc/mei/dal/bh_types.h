@@ -67,20 +67,4 @@ struct bh_pack_hash {
 	u8 data[BH_MAX_PACK_HASH_LEN];
 };
 
-/**
- * struct _bh_ta_install_condition_list_t:
- *	 install_condition is like properties,
- *	 and formatted as "type\0key\0value\0".
- *	 Example: "string\0name\0Tom\0int\0Age\013\0"
- *
- * @is_user_space_client: number of properties
- * @read_buffer: the size of data in byte
- * @data: the data
- */
-struct _bh_ta_install_condition_list_t {
-	u32 num;
-	u32 len;
-	s8 data[0];
-};
-
 #endif /* __BH_SHARED_TYPES_H */

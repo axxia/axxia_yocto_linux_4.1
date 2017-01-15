@@ -82,12 +82,6 @@ enum ac_cmd_id {
 	AC_CMD_NUM
 };
 
-enum ac_ta_type {
-	AC_TA_TYPE_BOTH,
-	AC_TA_TYPE_JAVA,
-	AC_TA_TYPE_NATIVE,
-};
-
 struct ac_pack_header {
 	/*ACP Header*/
 	u8 magic[4];
@@ -103,11 +97,6 @@ struct ac_pack_header {
 	u32 idx_condition;
 	/*TBD: BH_U32 idx_encrypt;*/
 	u32 idx_data;
-} __packed;
-
-struct ac_name {
-	u8 len;/*the size of data in byte*/
-	s8 data[0];
 } __packed;
 
 struct bh_ta_id_list {

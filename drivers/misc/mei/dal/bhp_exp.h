@@ -90,14 +90,6 @@ int bhp_init_internal(void);
 int bhp_deinit_internal(void);
 
 /**
- * Send Reset command to SDM, Launcher and VM, to let them enter initial state.
- * This function will be blocked until receiving all the responses.
- *
- * @return BH_SUCCESS if success.
- */
-int bhp_reset(void);
-
-/**
  * Open Session to specified Java TA.
  * The Firmware side might need to spawn the VM process,
  * and create the TA instance.

@@ -167,20 +167,11 @@ struct bhp_check_svl_ta_blocked_state_cmd {
 	uuid_be taid;
 };
 
-struct bhp_reset_launcher_response {
-	u32 count; /* count of svm heci ports */
-	s32 vm_heci_port_list[0];
-};
-
 struct bhp_get_sd_by_ta_cmd {
 	uuid_be taid;
 };
 
 struct bhp_get_sd_by_ta_response {
-	uuid_be sdid;
-};
-
-struct bhp_get_isd_response {
 	uuid_be sdid;
 };
 

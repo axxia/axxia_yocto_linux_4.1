@@ -128,36 +128,3 @@ int acp_pload_ins_jta(const void *raw_data, unsigned int size,
 	return ret;
 }
 
-int acp_pload_ins_jta_prop(const void *raw_data, unsigned int size,
-			   struct ac_ins_jta_prop_ext *pack)
-{
-	if (!raw_data || !pack)
-		return -EINVAL;
-
-	return acp_load_pack(raw_data, size, AC_INSTALL_JTA_PROP,
-			     (struct ac_pack *)pack);
-}
-
-int acp_get_cmd_id(const void *raw_data, unsigned int size, int *cmd_id)
-{
-	int ret;
-	struct pack_reader pr;
-	struct ac_pack_header *ph = NULL;
-
-	if (!raw_data || size <= BH_ACP_CSS_HEADER_LENGTH || !cmd_id)
-		return BHE_BAD_PARAMETER;
-
-	*cmd_id = AC_CMD_INVALID;
-
-	ret = pr_init(&pr, raw_data + BH_ACP_CSS_HEADER_LENGTH,
-		      size - BH_ACP_CSS_HEADER_LENGTH);
-	if (ret != BH_SUCCESS)
-		return BHE_INVALID_BPK_FILE;
-
-	ret = acp_load_pack_head(&pr, &ph);
-	if (ret != BH_SUCCESS)
-		return ret;
-
-	*cmd_id = ph->cmd_id;
-	return BH_SUCCESS;
-}
