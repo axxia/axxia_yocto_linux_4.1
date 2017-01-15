@@ -620,11 +620,6 @@ int bhp_init_internal(void)
 
 int bhp_deinit_internal(void)
 {
-	int ret = 0;
-
-	if (!bhp_is_initialized())
-		return 0;
-
 	mutex_enter(bhm_gInit);
 
 	if (bhp_is_initialized()) {
@@ -635,5 +630,5 @@ int bhp_deinit_internal(void)
 
 	mutex_exit(bhm_gInit);
 
-	return ret;
+	return 0;
 }
