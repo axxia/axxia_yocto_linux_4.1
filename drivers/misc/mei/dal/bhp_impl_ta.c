@@ -362,25 +362,27 @@ static int bh_proxy_openjtasession(int conn_idx,
 				   unsigned int pkg_len)
 {
 	int ret;
-	char cmdbuf[CMDBUF_SIZE];
-	struct bhp_command_header *h = (struct bhp_command_header *) cmdbuf;
-	struct bhp_open_jtasession_cmd *cmd =
-			(struct bhp_open_jtasession_cmd *) h->cmd;
-	struct bh_response_record *rr = NULL;
+	struct bhp_command_header *h;
+	struct bhp_open_jtasession_cmd *cmd;
+	const size_t cmd_sz = sizeof(*h) + sizeof(*cmd);
+	char cmd_buf[cmd_sz];
+	struct bh_response_record *rr;
 	u64 seq;
-
-	memset(cmdbuf, 0, sizeof(cmdbuf));
 
 	if (!handle)
 		return -EINVAL;
+
 	if (!init_buffer && init_len > 0)
 		return -EINVAL;
 
-	rr = kzalloc(sizeof(struct bh_response_record), GFP_KERNEL);
+	memset(cmd_buf, 0, cmd_sz);
+
+	h = (struct bhp_command_header *)cmd_buf;
+	cmd = (struct bhp_open_jtasession_cmd *)h->cmd;
+
+	rr = kzalloc(sizeof(*rr), GFP_KERNEL);
 	if (!rr)
 		return -ENOMEM;
-
-	memset(rr, 0, sizeof(struct bh_response_record));
 
 	rr->count = 1;
 	rr->is_session = true;
@@ -389,8 +391,8 @@ static int bh_proxy_openjtasession(int conn_idx,
 	h->id = BHP_CMD_OPEN_JTASESSION;
 	cmd->appid = ta_id;
 
-	ret = bh_cmd_transfer(conn_idx, (char *) h, sizeof(*h) + sizeof(*cmd),
-			      (char *) init_buffer, init_len, seq);
+	ret = bh_cmd_transfer(conn_idx, cmd_buf, cmd_sz,
+			      init_buffer, init_len, seq);
 
 	if (!ret)
 		ret = rr->code;
@@ -405,30 +407,34 @@ static int bh_proxy_openjtasession(int conn_idx,
 		 */
 		ret = bh_proxy_download_javata(conn_idx, ta_id,
 					       ta_pkg, pkg_len);
-		if (!ret) {
-			ret = bh_cmd_transfer(conn_idx, (char *)h,
-					    sizeof(*h) + sizeof(*cmd),
-					    (char *)init_buffer, init_len, seq);
+		if (ret)
+			goto out_err;
 
-			if (!ret)
-				ret = rr->code;
+		ret = bh_cmd_transfer(conn_idx, cmd_buf, cmd_sz,
+				      init_buffer, init_len, seq);
 
-			kfree(rr->buffer);
-			rr->buffer = NULL;
-		}
+		if (!ret)
+			ret = rr->code;
+
+		kfree(rr->buffer);
+		rr->buffer = NULL;
 	}
 
-	if (!ret) {
-		*handle = (u64) seq;
-		session_exit(conn_idx, rr, seq, 0);
-	} else {
-		/*
-		 * bh_do_closeVM() will be called in following
-		 * session_close(), as rr->count is 1
-		 */
-		session_close(conn_idx, rr, seq, 0);
-		*vm_conn_closed = 1;
-	}
+	if (ret)
+		goto out_err;
+
+	*handle = (u64)seq;
+	session_exit(conn_idx, rr, seq, 0);
+
+	return 0;
+
+out_err:
+	/*
+	 * bh_do_closeVM() will be called in following
+	 * session_close(), as rr->count is 1
+	 */
+	session_close(conn_idx, rr, seq, 0);
+	*vm_conn_closed = 1;
 
 	return ret;
 }
