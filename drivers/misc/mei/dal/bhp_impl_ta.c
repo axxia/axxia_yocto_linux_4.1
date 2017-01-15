@@ -552,60 +552,60 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 
 	rr->buffer = NULL;
 	h->id = BHP_CMD_SENDANDRECV;
-
 	cmd->ta_session_id = rr->addr;
 	cmd->command = command_id;
 	cmd->outlen = *output_length;
 
 	ret = bh_cmd_transfer(conn_idx, (char *)h, sizeof(*h) + sizeof(*cmd),
 			      (char *) input, length, seq);
-
 	if (!ret)
 		ret = rr->code;
 
 	if (rr->killed)
 		ret = BHE_UNCAUGHT_EXCEPTION;
 
-	if (!ret) {
-		struct bhp_snr_response *resp = NULL;
+	if (ret == BHE_APPLET_SMALL_BUFFER && rr->buffer &&
+			rr->length == sizeof(struct bhp_snr_bof_response)) {
+		struct bhp_snr_bof_response *bof_resp =
+			(struct bhp_snr_bof_response *)rr->buffer;
 
-		if (rr->buffer &&
-		    rr->length >= sizeof(struct bhp_snr_response)) {
-			resp = (struct bhp_snr_response *)rr->buffer;
-			if (response_code)
-				*response_code = be32_to_cpu(resp->response);
+		if (response_code)
+			*response_code = be32_to_cpu(bof_resp->response);
 
-			len = rr->length - sizeof(struct bhp_snr_response);
+		*output_length = be32_to_cpu(bof_resp->request_length);
+	}
 
-			if (len > 0) {
-				if (output && *output_length >= len) {
-					*output = kzalloc(len, GFP_KERNEL);
-					if (*output)
-						memcpy(*output,
-						       resp->buffer, len);
-					else
-						ret = -ENOMEM;
+	if (ret)
+		goto out;
 
-				} else
-					ret = -EMSGSIZE;
-			}
-
-			*output_length = len;
-		} else
-			ret = -EBADMSG;
-
-	} else if (ret == BHE_APPLET_SMALL_BUFFER && rr->buffer &&
-		   rr->length == sizeof(struct bhp_snr_bof_response)) {
-
-		struct bhp_snr_bof_response *resp =
-				(struct bhp_snr_bof_response *)rr->buffer;
+	if (rr->buffer && rr->length >= sizeof(struct bhp_snr_response)) {
+		struct bhp_snr_response *resp =
+			(struct bhp_snr_response *)rr->buffer;
 
 		if (response_code)
 			*response_code = be32_to_cpu(resp->response);
 
-		*output_length = be32_to_cpu(resp->request_length);
-	}
+		len = rr->length - sizeof(struct bhp_snr_response);
 
+		if (*output_length < len) {
+			ret = -EMSGSIZE;
+			goto out;
+		}
+
+		if (len > 0 && output) {
+			*output = kzalloc(len, GFP_KERNEL);
+			if (!*output) {
+				ret = -ENOMEM;
+				goto out;
+			}
+			memcpy(*output, resp->buffer, len);
+		}
+
+		*output_length = len;
+	} else
+		ret = -EBADMSG;
+
+out:
 	kfree(rr->buffer);
 	rr->buffer = NULL;
 
