@@ -187,9 +187,9 @@ static int bh_proxy_get_sd_by_ta(uuid_be taid, uuid_be *sdid)
 {
 	int ret;
 	char cmdbuf[CMDBUF_SIZE];
-	struct bhp_command_header *h = (struct bhp_command_header *) cmdbuf;
+	struct bhp_command_header *h = (struct bhp_command_header *)cmdbuf;
 	struct bhp_get_sd_by_ta_cmd *cmd =
-			(struct bhp_get_sd_by_ta_cmd *) h->cmd;
+			(struct bhp_get_sd_by_ta_cmd *)h->cmd;
 	struct bh_response_record rr;
 
 	memset(cmdbuf, 0, sizeof(cmdbuf));
@@ -201,7 +201,7 @@ static int bh_proxy_get_sd_by_ta(uuid_be taid, uuid_be *sdid)
 	h->id = BHP_CMD_GET_SD_BY_TA;
 	cmd->taid = taid;
 
-	ret = bh_cmd_transfer(CONN_IDX_SDM, (char *) h,
+	ret = bh_cmd_transfer(CONN_IDX_SDM, (char *)h,
 			      sizeof(*h) + sizeof(*cmd), NULL, 0,
 			      rrmap_add(CONN_IDX_SDM, &rr));
 
@@ -214,7 +214,7 @@ static int bh_proxy_get_sd_by_ta(uuid_be taid, uuid_be *sdid)
 	if (rr.buffer && rr.length ==
 			sizeof(struct bhp_get_sd_by_ta_response)) {
 		struct bhp_get_sd_by_ta_response *resp =
-				(struct bhp_get_sd_by_ta_response *) rr.buffer;
+				(struct bhp_get_sd_by_ta_response *)rr.buffer;
 		*sdid = resp->sdid;
 	} else
 		ret = -EBADMSG;
@@ -229,9 +229,9 @@ static int bh_proxy_check_svl_ta_blocked_state(uuid_be taid)
 {
 	int ret;
 	char cmdbuf[CMDBUF_SIZE];
-	struct bhp_command_header *h = (struct bhp_command_header *) cmdbuf;
+	struct bhp_command_header *h = (struct bhp_command_header *)cmdbuf;
 	struct bhp_check_svl_ta_blocked_state_cmd *cmd =
-			(struct bhp_check_svl_ta_blocked_state_cmd *) h->cmd;
+			(struct bhp_check_svl_ta_blocked_state_cmd *)h->cmd;
 	struct bh_response_record rr;
 
 	memset(cmdbuf, 0, sizeof(cmdbuf));
@@ -242,7 +242,7 @@ static int bh_proxy_check_svl_ta_blocked_state(uuid_be taid)
 	memcpy(&cmd->taid, &taid,
 	       sizeof(struct bhp_check_svl_ta_blocked_state_cmd));
 
-	ret = bh_cmd_transfer(CONN_IDX_SDM, (char *) h,
+	ret = bh_cmd_transfer(CONN_IDX_SDM, (char *)h,
 			      sizeof(*h) + sizeof(*cmd), NULL, 0,
 			      rrmap_add(CONN_IDX_SDM, &rr));
 	if (!ret)
@@ -258,7 +258,7 @@ static int bh_proxy_listJTAPackages(int conn_idx, int *count,
 {
 	int ret;
 	char cmdbuf[CMDBUF_SIZE];
-	struct bhp_command_header *h = (struct bhp_command_header *) cmdbuf;
+	struct bhp_command_header *h = (struct bhp_command_header *)cmdbuf;
 	struct bh_response_record rr;
 	struct bhp_list_ta_packages_response *resp;
 	uuid_be *outbuf;
@@ -327,9 +327,9 @@ static int bh_proxy_download_javata(int conn_idx,
 {
 	int ret;
 	char cmdbuf[CMDBUF_SIZE];
-	struct bhp_command_header *h = (struct bhp_command_header *) cmdbuf;
+	struct bhp_command_header *h = (struct bhp_command_header *)cmdbuf;
 	struct bhp_download_javata_cmd *cmd =
-			(struct bhp_download_javata_cmd *) h->cmd;
+			(struct bhp_download_javata_cmd *)h->cmd;
 	struct bh_response_record rr;
 
 	memset(cmdbuf, 0, sizeof(cmdbuf));
@@ -341,7 +341,7 @@ static int bh_proxy_download_javata(int conn_idx,
 	h->id = BHP_CMD_DOWNLOAD_JAVATA;
 	cmd->appid = ta_id;
 
-	ret = bh_cmd_transfer(conn_idx, (char *) h, sizeof(*h) + sizeof(*cmd),
+	ret = bh_cmd_transfer(conn_idx, (char *)h, sizeof(*h) + sizeof(*cmd),
 			      ta_pkg, pkg_len, rrmap_add(conn_idx, &rr));
 
 	if (!ret)
@@ -527,7 +527,7 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 	char cmdbuf[CMDBUF_SIZE];
 	struct bhp_command_header *h = (struct bhp_command_header *)cmdbuf;
 	struct bhp_snr_cmd *cmd = (struct bhp_snr_cmd *)h->cmd;
-	u64 seq = (u64) handle;
+	u64 seq = (u64)handle;
 	struct bh_response_record *rr = NULL;
 	int conn_idx = 0;
 	unsigned int len;
@@ -557,7 +557,7 @@ int bhp_send_and_recv(const u64 handle, int command_id,
 	cmd->outlen = *output_length;
 
 	ret = bh_cmd_transfer(conn_idx, (char *)h, sizeof(*h) + sizeof(*cmd),
-			      (char *) input, length, seq);
+			      (char *)input, length, seq);
 	if (!ret)
 		ret = rr->code;
 
@@ -634,7 +634,7 @@ int bhp_close_ta_session(const u64 handle)
 	h->id = BHP_CMD_CLOSE_JTASESSION;
 	cmd->ta_session_id = rr->addr;
 
-	ret = bh_cmd_transfer(conn_idx, (char *) h, sizeof(*h) + sizeof(*cmd),
+	ret = bh_cmd_transfer(conn_idx, (char *)h, sizeof(*h) + sizeof(*cmd),
 			      NULL, 0, seq);
 
 	if (!ret)

@@ -427,13 +427,13 @@ static int bh_send_message(int conn_idx, void *cmd, unsigned int clen,
 
 	memcpy(cmd, BHP_MSG_CMD_MAGIC, BHP_MSG_MAGIC_LENGTH);
 
-	h = (struct bhp_command_header *) cmd;
+	h = (struct bhp_command_header *)cmd;
 	h->h.length = clen + dlen;
 	h->seq = seq;
 
 	ret = bh_transport_send(conn_idx, cmd, clen, seq);
 	if (!ret && dlen > 0)
-		ret = bh_transport_send(conn_idx, (void *) data, dlen, seq);
+		ret = bh_transport_send(conn_idx, (void *)data, dlen, seq);
 
 	if (ret)
 		rrmap_remove(conn_idx, seq, false);
@@ -453,7 +453,7 @@ static int bh_recv_message(int conn_idx, u64 *seq)
 	struct bh_response_record *rr = NULL;
 	int session_killed;
 
-	ret = bh_transport_recv(conn_idx, (char *) head,
+	ret = bh_transport_recv(conn_idx, (char *)head,
 				sizeof(struct bhp_response_header));
 	if (ret)
 		return ret;
@@ -479,7 +479,7 @@ static int bh_recv_message(int conn_idx, u64 *seq)
 		rr->length = dlen;
 
 		if (!ret)
-			rr->code = (int) head->code;
+			rr->code = (int)head->code;
 		else
 			rr->code = ret;
 
