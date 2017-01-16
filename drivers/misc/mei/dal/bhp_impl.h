@@ -171,9 +171,6 @@ int bh_request(int conn_idx, void *cmd, unsigned int clen,
 /* open vm connection for sdid and increase vm connection counter by 1 */
 int bh_do_open_vm(uuid_be sdid, int *conn_idx, int mode);
 
-/* decrease vm connection counter by 1 */
-int bh_do_close_vm(int conn_idx);
-
 /* returns hdr if msg is cmd hdr, otherwise returns NULL */
 const struct bhp_command_header *bh_msg_cmd_hdr(const void *msg, size_t len);
 

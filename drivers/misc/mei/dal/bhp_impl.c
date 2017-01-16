@@ -245,8 +245,6 @@ struct bh_response_record *session_enter(int conn_idx, u64 seq,
 void session_exit(int conn_idx, struct bh_response_record *session,
 		  u64 seq, int unlock_session)
 {
-	bool close_vm_conn = false;
-
 	mutex_enter(connections[conn_idx].bhm_rrmap);
 	session->count--;
 
@@ -257,27 +255,17 @@ void session_exit(int conn_idx, struct bh_response_record *session,
 			mutex_exit(session->session_lock);
 
 		destroy_session(session);
-		if (conn_idx >= CONN_IDX_SVM)
-			close_vm_conn = true;
 	} else {
 		if (unlock_session)
 			mutex_exit(session->session_lock);
 	}
 
 	mutex_exit(connections[conn_idx].bhm_rrmap);
-
-	/* remove the VM conn counter of
-	 * this session:only for connected SVM
-	 */
-	if (close_vm_conn)
-		bh_do_close_vm(conn_idx);
 }
 
 void session_close(int conn_idx, struct bh_response_record *session,
 		   u64 seq, int unlock_session)
 {
-	bool close_vm_conn = false;
-
 	mutex_enter(connections[conn_idx].bhm_rrmap);
 	session->count--;
 
@@ -286,9 +274,6 @@ void session_close(int conn_idx, struct bh_response_record *session,
 		if (unlock_session)
 			mutex_exit(session->session_lock);
 		destroy_session(session);
-
-		if (conn_idx >= CONN_IDX_SVM)
-			close_vm_conn = true;
 	} else {
 		session->killed = true;
 		if (unlock_session)
@@ -296,12 +281,6 @@ void session_close(int conn_idx, struct bh_response_record *session,
 	}
 
 	mutex_exit(connections[conn_idx].bhm_rrmap);
-
-	/* remove the VM conn counter of
-	 * this session:only for connected SVM
-	 */
-	if (close_vm_conn)
-		bh_do_close_vm(conn_idx);
 }
 
 static void session_kill(int conn_idx, struct bh_response_record *session,
@@ -323,9 +302,7 @@ static void session_kill(int conn_idx, struct bh_response_record *session,
 	 * only for connected SVM
 	 */
 	if (close_vm_conn) {
-		if (!is_caller_svm_recv_thread) {
-			bh_do_close_vm(conn_idx);
-		} else {
+		if (is_caller_svm_recv_thread) {
 			mutex_enter(connections[conn_idx].lock);
 			if (connections[conn_idx].conn_count != 1)
 				connections[conn_idx].conn_count--;
@@ -399,11 +376,6 @@ int bh_do_open_vm(uuid_be sdid, int *conn_idx, int mode)
 		return -EINVAL;
 
 	*conn_idx = CONN_IDX_IVM;
-	return 0;
-}
-
-int bh_do_close_vm(int conn_idx)
-{
 	return 0;
 }
 

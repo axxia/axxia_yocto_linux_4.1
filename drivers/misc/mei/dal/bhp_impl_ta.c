@@ -366,7 +366,6 @@ static int bh_proxy_openjtasession(int conn_idx,
 				   const char *init_buffer,
 				   unsigned int init_len,
 				   u64 *handle,
-				   int *vm_conn_closed,
 				   const char *ta_pkg,
 				   unsigned int pkg_len)
 {
@@ -430,12 +429,7 @@ static int bh_proxy_openjtasession(int conn_idx,
 	return 0;
 
 out_err:
-	/*
-	 * bh_do_closeVM() will be called in following
-	 * session_close(), as rr->count is 1
-	 */
 	session_close(conn_idx, rr, seq, 0);
-	*vm_conn_closed = 1;
 
 	return ret;
 }
@@ -447,7 +441,6 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 	int ret;
 	uuid_be ta_id;
 	int conn_idx = 0;
-	int vm_conn_closed = 0;
 	uuid_be sdid;
 	int ta_existed = 0;
 	int count = 0;
@@ -505,17 +498,9 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 	/* 3: send opensession cmd to VM */
 	ret = bh_proxy_openjtasession(conn_idx, ta_id,
 				      init_buffer, init_len,
-				      session, &vm_conn_closed,
-				      ta_pkg, pkg_len);
+				      session, ta_pkg, pkg_len);
 
 cleanup:
-	/*
-	 * closeVM only when this process failed and vm has not been closed
-	 * inside openjtasession, otherwise the session is created.
-	 */
-	if (ret && !vm_conn_closed)
-		bh_do_close_vm(conn_idx);
-
 	return ret;
 }
 
