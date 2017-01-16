@@ -152,4 +152,6 @@ int dal_set_ta_exclusive_access(uuid_be ta_id);
 
 int dal_unset_ta_exclusive_access(uuid_be ta_id);
 
+int dal_uuid_be_to_bin(const char *uuid_str, uuid_be *uuid);
+
 #endif /* _DAL_H_ */

@@ -69,6 +69,7 @@
 #include <linux/string.h>
 #include <linux/uuid.h>
 #include <linux/ctype.h>
+#include <linux/dal.h>
 
 #include "bh_errcode.h"
 #include "bhp_impl.h"
@@ -98,7 +99,7 @@ static void uuid_normalize_hyphenless(const char *uuid_hl, char *uuid_str)
 	uuid_str[i] = '\0';
 }
 
-static int __uuid_be_to_bin(const char *uuid_str, uuid_be *uuid)
+int dal_uuid_be_to_bin(const char *uuid_str, uuid_be *uuid)
 {
 	char __uuid_str[UUID_STRING_LEN + 1];
 
@@ -109,6 +110,7 @@ static int __uuid_be_to_bin(const char *uuid_str, uuid_be *uuid)
 
 	return uuid_be_to_bin(uuid_str, uuid);
 }
+EXPORT_SYMBOL(dal_uuid_be_to_bin);
 
 /*
  * 4 bytes array to identify BH headers
@@ -454,7 +456,7 @@ int bhp_open_ta_session(u64 *session, const char *app_id,
 	if (!init_buffer && init_len != 0)
 		return -EINVAL;
 
-	if (__uuid_be_to_bin(app_id, &ta_id))
+	if (dal_uuid_be_to_bin(app_id, &ta_id))
 		return -EINVAL;
 
 	*session = 0;
