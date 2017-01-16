@@ -394,9 +394,9 @@ int dal_unset_ta_exclusive_access(uuid_be ta_id)
 
 	dev = dal_find_dev(DAL_MEI_DEVICE_IVM);
 	if (!dev) {
-		mutex_unlock(&kdi_lock);
 		dev_err(dev, "can't find device\n");
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unlock;
 	}
 
 	ddev = to_dal_device(dev);
@@ -405,9 +405,8 @@ int dal_unset_ta_exclusive_access(uuid_be ta_id)
 	ret = dal_access_policy_remove(ddev, ta_id, dc);
 
 	put_device(dev);
-
+unlock:
 	mutex_unlock(&kdi_lock);
-
 	return ret;
 }
 EXPORT_SYMBOL(dal_unset_ta_exclusive_access);
