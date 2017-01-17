@@ -177,7 +177,7 @@ int kdi_recv(unsigned int handle, unsigned char *buf, size_t *count)
 	struct dal_device *ddev;
 	struct dal_client *dc;
 	struct device *dev;
-	ssize_t ret;
+	int ret;
 	size_t len;
 
 	mei_device = (enum dal_dev_type)handle;
@@ -200,7 +200,7 @@ int kdi_recv(unsigned int handle, unsigned char *buf, size_t *count)
 		goto out;
 	}
 
-	ret = dal_read(dc);
+	ret = dal_wait_for_read(dc);
 
 	if (ret)
 		goto out;
@@ -225,7 +225,7 @@ int kdi_recv(unsigned int handle, unsigned char *buf, size_t *count)
 
 	ret = kfifo_out(&dc->read_queue, buf, len);
 	if (ret != len) {
-		dev_err(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %zd\n",
+		dev_err(&ddev->dev, "could not copy buffer: src size = %zd, dest size = %d\n",
 			len, ret);
 		ret = -EFAULT;
 	}

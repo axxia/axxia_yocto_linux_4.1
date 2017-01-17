@@ -217,7 +217,7 @@ struct dal_client {
 };
 
 ssize_t dal_write(struct dal_client *dc, size_t count, u64 seq);
-ssize_t dal_read(struct  dal_client *dc);
+int dal_wait_for_read(struct  dal_client *dc);
 
 struct device *dal_find_dev(enum dal_dev_type device_id);
 

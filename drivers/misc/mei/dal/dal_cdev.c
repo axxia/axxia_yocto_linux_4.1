@@ -132,11 +132,11 @@ static ssize_t dal_dev_read(struct file *fp, char __user *buf,
 {
 	struct dal_client *dc = fp->private_data;
 	struct dal_device *ddev = dc->ddev;
-	ssize_t ret;
+	int ret;
 	size_t len;
 	unsigned int copied;
 
-	ret = dal_read(dc);
+	ret = dal_wait_for_read(dc);
 
 	if (ret != 0)
 		return ret;

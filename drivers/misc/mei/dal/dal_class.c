@@ -487,7 +487,7 @@ write_more:
  * blocking function, it waits until the caller (dc)
  * will have data on his read_queue
  */
-ssize_t dal_read(struct dal_client *dc)
+int dal_wait_for_read(struct dal_client *dc)
 {
 	struct dal_device *ddev = dc->ddev;
 	struct device *dev = &ddev->dev;
