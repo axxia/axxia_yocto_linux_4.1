@@ -164,9 +164,9 @@ void session_exit(int conn_idx, struct bh_response_record *session,
 void session_close(int conn_idx, struct bh_response_record *session,
 		   u64 seq, int unlock_session);
 
-/* send one message through mei */
-int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
-		    const void *data, unsigned int dlen, u64 seq);
+/* send and receive one message through mei */
+int bh_request(int conn_idx, void *cmd, unsigned int clen,
+	       const void *data, unsigned int dlen, u64 seq);
 
 /* open vm connection for sdid and increase vm connection counter by 1 */
 int bh_do_open_vm(uuid_be sdid, int *conn_idx, int mode);

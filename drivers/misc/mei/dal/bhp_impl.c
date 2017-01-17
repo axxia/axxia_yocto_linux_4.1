@@ -566,8 +566,8 @@ static void bh_connections_deinit(void)
 }
 
 #define MAX_RETRY_COUNT 3
-int bh_cmd_transfer(int conn_idx, void *cmd, unsigned int clen,
-		    const void *data, unsigned int dlen, u64 seq)
+int bh_request(int conn_idx, void *cmd, unsigned int clen,
+	       const void *data, unsigned int dlen, u64 seq)
 {
 	int ret;
 	u32 retry_count;
