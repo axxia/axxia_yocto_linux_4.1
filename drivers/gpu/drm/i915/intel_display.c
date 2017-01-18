@@ -3383,7 +3383,8 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	const struct skl_wm_values *wm = &dev_priv->wm.skl_results;
 	int pipe = intel_crtc->pipe;
-	u32 plane_ctl;
+	u32 plane_ctl, stride_div;
+	u32 tile_height;
 	unsigned int rotation = plane_state->base.rotation;
 	unsigned int render_comp;
 	u32 stride = skl_plane_stride(fb, 0, rotation);
@@ -3415,11 +3416,15 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 		 * FIXME: This calculation may change based on HW team's
 		 * confirmation.
 		 */
+		stride_div = intel_fb_stride_alignment(dev_priv, fb->modifier[0],
+                                                  fb->pixel_format);
+		tile_height = PAGE_SIZE / stride_div;
+		height_in_mem = (fb->offsets[1]/fb->pitches[0]);
+		tile_row_adjustment = height_in_mem % tile_height;
+
 		aux_dist = (fb->pitches[0] *
 			   (height_in_mem - tile_row_adjustment));
-		aux_stride = fb->pitches[1] /
-			intel_fb_stride_alignment(dev_priv, fb->modifier[0],
-						  fb->pixel_format);
+		aux_stride = fb->pitches[1] / stride_div;
 
 		plane_ctl |= PLANE_CTL_DECOMPRESSION_ENABLE;
 	} else {
