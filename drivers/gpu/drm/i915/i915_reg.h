@@ -4696,6 +4696,16 @@ enum {
 #define   PIPEMISC_DITHER_TYPE_SP	(0<<2)
 #define PIPEMISC(pipe)			_MMIO_PIPE2(pipe, _PIPE_MISC_A)
 
+#define _PIPE_BOTTOM_COLOR_A           0x70034
+#define _PIPE_BOTTOM_COLOR_B           0x71034
+#define _PIPE_BOTTOM_COLOR_C           0x72034
+#define   PIPE_BOTTOM_GAMMA_ENABLE     (1<<31)
+#define   PIPE_BOTTOM_CSC_ENABLE       (1<<30)
+#define   PIPE_BOTTOM_COLOR_MASK       0x3FFFFFFF
+#define PIPE_BOTTOM_COLOR(pipe) _MMIO_PIPE3(pipe, _PIPE_BOTTOM_COLOR_A, \
+					    _PIPE_BOTTOM_COLOR_B, \
+					    _PIPE_BOTTOM_COLOR_C)
+
 #define VLV_DPFLIPSTAT				_MMIO(VLV_DISPLAY_BASE + 0x70028)
 #define   PIPEB_LINE_COMPARE_INT_EN		(1<<29)
 #define   PIPEB_HLINE_INT_EN			(1<<28)
@@ -6139,6 +6149,7 @@ enum {
 #define  DISP_FBC_WM_DIS		(1<<15)
 #define DISP_ARB_CTL2	_MMIO(0x45004)
 #define  DISP_DATA_PARTITION_5_6	(1<<6)
+#define  DISP_ENABLE_IPC		(1<<3)
 #define DBUF_CTL	_MMIO(0x45008)
 #define  DBUF_POWER_REQUEST		(1<<31)
 #define  DBUF_POWER_STATE		(1<<30)
@@ -7052,6 +7063,7 @@ enum {
 #define GEN6_RPDEUC				_MMIO(0xA084)
 #define GEN6_RPDEUCSW				_MMIO(0xA088)
 #define GEN6_RC_STATE				_MMIO(0xA094)
+#define   RC6_STATE                             (1 << 18)
 #define   RC_SW_TARGET_STATE_SHIFT		16
 #define   RC_SW_TARGET_STATE_MASK		(7 << RC_SW_TARGET_STATE_SHIFT)
 #define GEN6_RC1_WAKE_RATE_LIMIT		_MMIO(0xA098)

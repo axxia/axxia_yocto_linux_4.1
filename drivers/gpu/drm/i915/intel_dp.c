@@ -4495,6 +4495,8 @@ intel_dp_force(struct drm_connector *connector)
 	power_domain = intel_display_port_aux_power_domain(intel_encoder);
 	intel_display_power_get(dev_priv, power_domain);
 
+	intel_dp_detect_dpcd(intel_dp);
+
 	intel_dp_set_edid(intel_dp);
 
 	intel_display_power_put(dev_priv, power_domain);

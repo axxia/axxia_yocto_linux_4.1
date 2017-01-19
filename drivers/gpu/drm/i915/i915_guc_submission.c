@@ -153,10 +153,9 @@ static int host2guc_release_doorbell(struct intel_guc *guc,
 	return host2guc_action(guc, data, 2);
 }
 
-static int host2guc_sample_forcewake(struct intel_guc *guc,
-				     struct i915_guc_client *client)
+int i915_guc_sample_forcewake(struct drm_i915_private *dev_priv)
 {
-	struct drm_i915_private *dev_priv = guc_to_i915(guc);
+	struct intel_guc *guc = &dev_priv->guc;
 	u32 data[2];
 
 	data[0] = HOST2GUC_ACTION_SAMPLE_FORCEWAKE;
@@ -1035,7 +1034,15 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 	}
 
 	guc->execbuf_client = client;
-	host2guc_sample_forcewake(guc, client);
+
+	/*
+	 * During reset, RC6 gets enabled prior to GuC load hence i915
+	 * will not be able to send guc action to sample forcewake then.
+	 * Send it now.
+	 */
+	if (test_bit(I915_RESET_IN_PROGRESS, &dev_priv->gpu_error.flags))
+		i915_guc_sample_forcewake(dev_priv);
+
 	guc_init_doorbell_hw(guc);
 
 	/* Take over from manual control of ELSP (execlists) */
