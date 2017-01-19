@@ -55,6 +55,7 @@
 #include "intel_bios.h"
 #include "intel_dpll_mgr.h"
 #include "intel_guc.h"
+#include "intel_huc.h"
 #include "intel_lrc.h"
 #include "intel_ringbuffer.h"
 
@@ -1788,6 +1789,7 @@ struct drm_i915_private {
 
 	struct intel_gvt gvt;
 
+	struct intel_huc huc;
 	struct intel_guc guc;
 
 	struct intel_csr csr;
@@ -2856,6 +2858,7 @@ struct drm_i915_cmd_table {
  */
 #define HAS_GUC(dev)		(INTEL_INFO(dev)->has_guc)
 #define HAS_GUC_UCODE(dev)	(HAS_GUC(dev))
+#define HAS_HUC_UCODE(dev)	(HAS_GUC_UCODE(dev))
 #define HAS_GUC_SCHED(dev)	(HAS_GUC(dev))
 
 #define HAS_RESOURCE_STREAMER(dev) (INTEL_INFO(dev)->has_resource_streamer)
