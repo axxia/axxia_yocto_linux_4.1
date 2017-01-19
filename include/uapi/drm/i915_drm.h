@@ -275,9 +275,13 @@ struct i915_ext_ioctl_data {
 
 /* Extended ioctl definitions */
 #define DRM_I915_EXT_USERDATA		0x0
+#define DRM_I915_GEM_GET_APERTURE2	0x1
 
 #define DRM_IOCTL_I915_EXT_USERDATA \
 	DRM_IOWR(DRM_I915_EXT_USERDATA, struct drm_i915_gem_userdata_blk)
+#define DRM_IOCTL_I915_GEM_GET_APERTURE2 \
+	DRM_IOR(DRM_I915_GEM_GET_APERTURE2, struct drm_i915_gem_get_aperture2)
+
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -413,6 +417,10 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_HAS_POOLED_EU	 38
 #define I915_PARAM_MIN_EU_IN_POOL	 39
 #define I915_PARAM_MMAP_GTT_VERSION	 40
+
+/* Private (not upstreamed) parameters start from 0x800   */
+/* This helps to avoid conflicts with new upstream values */
+#define I915_PARAM_HAS_GET_APERTURE2     0x802
 
 typedef struct drm_i915_getparam {
 	s32 param;
@@ -1077,6 +1085,32 @@ struct drm_i915_gem_get_aperture {
 	 * bytes
 	 */
 	__u64 aper_available_size;
+};
+
+struct drm_i915_gem_get_aperture2 {
+	/** Total size of the aperture used by i915_gem_execbuffer, in bytes */
+	__u64 aper_size;
+
+	/**
+	 * Available space in the aperture used by i915_gem_execbuffer, in
+	 * bytes
+	 */
+	__u64 aper_available_size;
+
+	/**
+	 * Total space in the mappable region of the aperture, in bytes
+	 */
+	__u64 map_total_size;
+
+	/**
+	 * Available space in the mappable region of the aperture, in bytes
+	 */
+	__u64 map_available_size;
+
+	/**
+	 * Single largest available region inside the mappable region, in bytes.
+	 */
+	__u64 map_largest_size;
 };
 
 struct drm_i915_get_pipe_from_crtc_id {
