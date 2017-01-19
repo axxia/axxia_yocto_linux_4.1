@@ -159,6 +159,7 @@ void i915_gem_context_free(struct kref *ctx_ref)
 	}
 
 	put_pid(ctx->pid);
+	i915_perfmon_ctx_cleanup(ctx);
 	list_del(&ctx->link);
 
 	ida_simple_remove(&ctx->i915->context_hw_ida, ctx->hw_id);
@@ -367,6 +368,8 @@ i915_gem_create_context(struct drm_device *dev,
 	}
 
 	trace_i915_context_create(ctx);
+
+	i915_perfmon_ctx_setup(ctx);
 
 	return ctx;
 }

@@ -2056,6 +2056,9 @@ enum skl_disp_power_wells {
 #define GEN9_EU_DISABLE(slice)		_MMIO(0x9134 + (slice)*0x4)
 
 #define GEN6_BSD_SLEEP_PSMI_CONTROL	_MMIO(0x12050)
+#define GEN8_RC6_WA_BB			_MMIO(0x2058)
+#define GEN8_OA_CTX_CONTROL		0x2360
+
 #define   GEN6_BSD_SLEEP_MSG_DISABLE	(1 << 0)
 #define   GEN6_BSD_SLEEP_FLUSH_DISABLE	(1 << 2)
 #define   GEN6_BSD_SLEEP_INDICATOR	(1 << 3)
@@ -6102,6 +6105,8 @@ enum {
 #define GEN8_PCU_IMR _MMIO(0x444e4)
 #define GEN8_PCU_IIR _MMIO(0x444e8)
 #define GEN8_PCU_IER _MMIO(0x444ec)
+
+#define GEN8_OA_IMR  0x2b20
 
 #define ILK_DISPLAY_CHICKEN2	_MMIO(0x42004)
 /* Required on all Ironlake and Sandybridge according to the B-Spec. */
