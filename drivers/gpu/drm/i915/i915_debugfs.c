@@ -2387,6 +2387,43 @@ static int i915_rps_boost_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int i915_timing_info(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = m->private;
+	struct drm_device *dev = node->minor->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	seq_printf(m, "Timing info\n");
+	seq_printf(m, "  Total driver load time:      %lldms\n",
+		   (dev_priv->profile.driver_load / 1000000));
+	seq_printf(m, "    Hardware init time:                 %4lldms\n",
+		   (dev_priv->profile.hardware_init / 1000000));
+	seq_printf(m, "    Modeset init time:                  %4lldms\n",
+		   (dev_priv->profile.modeset_init / 1000000));
+	seq_printf(m, "        GMBUS init time:                    %4lldms\n",
+		   (dev_priv->profile.gmbus_init / 1000000));
+	seq_printf(m, "        Modeset init time:                  %4lldms\n",
+		   (dev_priv->profile.modeset_init_2 / 1000000));
+	seq_printf(m, "        HUC firmware init time:             %4lldms\n",
+		   (dev_priv->profile.huc_init / 1000000));
+	seq_printf(m, "        GUC firmware init time:             %4lldms\n",
+		   (dev_priv->profile.guc_init / 1000000));
+	seq_printf(m, "        GUC/HUC firmware load time:         %4lldms\n",
+		   (dev_priv->profile.guc_huc_load / 1000000));
+	seq_printf(m, "        Global GTT init time:               %4lldms\n",
+		   (dev_priv->profile.gtt_init / 1000000));
+	seq_printf(m, "        Modeset GEM init time:              %4lldms\n",
+		   (dev_priv->profile.modeset_gem_init / 1000000));
+	seq_printf(m, "    Register driver time:               %4lldms\n",
+		   (dev_priv->profile.driver_register / 1000000));
+	seq_printf(m, "  Frambuffer device load time: %4lldms\n",
+		   (dev_priv->profile.fbdev_load / 1000000));
+	seq_printf(m, "  CSR firmware load time:      %4lldms\n",
+		   (dev_priv->profile.csr_load / 1000000));
+
+	return 0;
+}
+
 static int i915_llc(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
@@ -5295,6 +5332,7 @@ static const struct drm_info_list i915_debugfs_list[] = {
 	{"i915_sseu_status", i915_sseu_status, 0},
 	{"i915_drrs_status", i915_drrs_status, 0},
 	{"i915_rps_boost_info", i915_rps_boost_info, 0},
+	{"i915_timing_info", i915_timing_info, 0},
 };
 #define I915_DEBUGFS_ENTRIES ARRAY_SIZE(i915_debugfs_list)
 

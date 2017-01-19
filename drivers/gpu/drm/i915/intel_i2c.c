@@ -632,6 +632,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	struct intel_gmbus *bus;
 	unsigned int pin;
 	int ret;
+	unsigned long long start = sched_clock();
 
 	if (HAS_PCH_NOP(dev))
 		return 0;
@@ -685,6 +686,7 @@ int intel_setup_gmbus(struct drm_device *dev)
 	}
 
 	intel_i2c_reset(&dev_priv->drm);
+	dev_priv->profile.gmbus_init = sched_clock() - start;
 
 	return 0;
 

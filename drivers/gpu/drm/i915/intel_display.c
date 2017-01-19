@@ -16500,6 +16500,7 @@ void intel_modeset_init(struct drm_device *dev)
 	int sprite, ret;
 	enum pipe pipe;
 	struct intel_crtc *crtc;
+	unsigned long long start = sched_clock();
 
 	drm_mode_config_init(dev);
 
@@ -16621,6 +16622,7 @@ void intel_modeset_init(struct drm_device *dev)
 	 * since the watermark calculation done here will use pstate->fb.
 	 */
 	sanitize_watermarks(dev);
+	dev_priv->profile.modeset_init_2 = sched_clock() - start;
 }
 
 static void intel_enable_pipe_a(struct drm_device *dev)
@@ -17136,6 +17138,7 @@ void intel_modeset_gem_init(struct drm_device *dev)
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct drm_crtc *c;
 	struct drm_i915_gem_object *obj;
+	unsigned long long start = sched_clock();
 
 	intel_init_gt_powersave(dev_priv);
 
@@ -17169,6 +17172,8 @@ void intel_modeset_gem_init(struct drm_device *dev)
 			c->state->plane_mask &= ~(1 << drm_plane_index(c->primary));
 		}
 	}
+
+	dev_priv->profile.modeset_gem_init = sched_clock() - start;
 }
 
 int intel_connector_register(struct drm_connector *connector)

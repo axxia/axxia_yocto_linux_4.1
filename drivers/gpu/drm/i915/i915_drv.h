@@ -1702,6 +1702,22 @@ struct intel_pipe_crc {
 	wait_queue_head_t wq;
 };
 
+struct intel_load_profiles {
+	unsigned long long driver_load;
+	unsigned long long hardware_init;
+	unsigned long long modeset_init;
+	unsigned long long gmbus_init;
+	unsigned long long modeset_init_2;
+	unsigned long long gtt_init;
+	unsigned long long modeset_gem_init;
+	unsigned long long driver_register;
+	unsigned long long fbdev_load;
+	unsigned long long huc_init;
+	unsigned long long guc_init;
+	unsigned long long guc_huc_load;
+	unsigned long long csr_load;
+};
+
 struct i915_frontbuffer_tracking {
 	spinlock_t lock;
 
@@ -1902,6 +1918,7 @@ struct drm_i915_private {
 #ifdef CONFIG_DEBUG_FS
 	struct intel_pipe_crc pipe_crc[I915_MAX_PIPES];
 #endif
+	struct intel_load_profiles profile;
 
 	/* dpll and cdclk state is protected by connection_mutex */
 	int num_shared_dpll;
