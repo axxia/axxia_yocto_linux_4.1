@@ -273,6 +273,16 @@ static int framebuffer_check(const struct drm_mode_fb_cmd2 *r)
 		}
 	}
 
+	if (r->flags & DRM_MODE_FB_AUX_PLANE) {
+		num_planes++;
+
+		if (num_planes == 4) {
+			DRM_DEBUG_KMS("num_planes cannot exceed 3 including aux plane\n");
+			return -EINVAL;
+		}
+	}
+
+
 	for (i = num_planes; i < 4; i++) {
 		if (r->modifier[i]) {
 			DRM_DEBUG_KMS("non-zero modifier for unused plane %d\n", i);
@@ -311,7 +321,8 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 	struct drm_framebuffer *fb;
 	int ret;
 
-	if (r->flags & ~(DRM_MODE_FB_INTERLACED | DRM_MODE_FB_MODIFIERS)) {
+	if (r->flags & ~(DRM_MODE_FB_INTERLACED | DRM_MODE_FB_MODIFIERS |
+			 DRM_MODE_FB_AUX_PLANE)) {
 		DRM_DEBUG_KMS("bad framebuffer flags 0x%08x\n", r->flags);
 		return ERR_PTR(-EINVAL);
 	}
@@ -330,6 +341,12 @@ drm_internal_framebuffer_create(struct drm_device *dev,
 	if (r->flags & DRM_MODE_FB_MODIFIERS &&
 	    !dev->mode_config.allow_fb_modifiers) {
 		DRM_DEBUG_KMS("driver does not support fb modifiers\n");
+		return ERR_PTR(-EINVAL);
+	}
+
+	if (r->flags & DRM_MODE_FB_AUX_PLANE &&
+	    !dev->mode_config.allow_aux_plane) {
+		DRM_DEBUG_KMS("driver does not support render compression\n");
 		return ERR_PTR(-EINVAL);
 	}
 

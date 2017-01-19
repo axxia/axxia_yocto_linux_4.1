@@ -115,6 +115,12 @@ endif
 # perfmon
 i915-y += i915_perfmon.o
 
+# Extended ioctl interface
+# Note that these are separated out to reduce the chance of conflicts
+# with the upstream Linux
+i915-y += i915_ext_ioctl.o
+i915-y += i915_gem_userdata.o
+
 obj-$(CONFIG_DRM_I915)  += i915.o
 
 CFLAGS_i915_trace_points.o := -I$(src)

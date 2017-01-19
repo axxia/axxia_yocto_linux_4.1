@@ -213,6 +213,7 @@ skl_update_plane(struct drm_plane *drm_plane,
 	u32 surf_addr = plane_state->main.offset;
 	unsigned int rotation = plane_state->base.rotation;
 	u32 stride = skl_plane_stride(fb, 0, rotation);
+	unsigned int render_comp;
 	int crtc_x = plane_state->base.dst.x1;
 	int crtc_y = plane_state->base.dst.y1;
 	uint32_t crtc_w = drm_rect_width(&plane_state->base.dst);
@@ -221,6 +222,8 @@ skl_update_plane(struct drm_plane *drm_plane,
 	uint32_t y = plane_state->main.y;
 	uint32_t src_w = drm_rect_width(&plane_state->base.src) >> 16;
 	uint32_t src_h = drm_rect_height(&plane_state->base.src) >> 16;
+	unsigned long aux_dist = 0;
+	u32 tile_row_adjustment = 0, height_in_mem = 0, aux_stride = 0;
 
 	plane_ctl = PLANE_CTL_ENABLE |
 		PLANE_CTL_PIPE_GAMMA_ENABLE |
@@ -230,6 +233,20 @@ skl_update_plane(struct drm_plane *drm_plane,
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
+
+	render_comp =
+		to_intel_plane_state(drm_plane->state)->render_comp_enable;
+	if (render_comp) {
+		aux_dist = (fb->pitches[0] *
+				(height_in_mem - tile_row_adjustment));
+		aux_stride = fb->pitches[1] /
+			intel_fb_stride_alignment(dev_priv, fb->modifier[0],
+						  fb->pixel_format);
+
+		plane_ctl |= PLANE_CTL_DECOMPRESSION_ENABLE;
+	} else {
+		plane_ctl &= ~PLANE_CTL_DECOMPRESSION_ENABLE;
+	}
 
 	if (wm->dirty_pipes & drm_crtc_mask(crtc))
 		skl_write_plane_wm(intel_crtc, wm, plane);
@@ -254,6 +271,21 @@ skl_update_plane(struct drm_plane *drm_plane,
 	I915_WRITE(PLANE_OFFSET(pipe, plane), (y << 16) | x);
 	I915_WRITE(PLANE_STRIDE(pipe, plane), stride);
 	I915_WRITE(PLANE_SIZE(pipe, plane), (src_h << 16) | src_w);
+	I915_WRITE(PLANE_AUX_DIST(pipe, plane), aux_dist | aux_stride);
+	I915_WRITE(PLANE_AUX_OFFSET(pipe, 0), 0);
+
+	/*
+	 * Per bspec, for SKL C and BXT A steppings, when render compression
+	 * is enabled, the CHICKEN_PIPESL_1 register bit 22 must be set to 0.
+	 */
+	if ((IS_SKL_REVID(dev, 0, SKL_REVID_C0) ||
+	     IS_BXT_REVID(dev, 0, BXT_REVID_A1)) && render_comp) {
+		u32 temp = I915_READ(CHICKEN_PIPESL_1(pipe));
+
+		if ((temp & HSW_FBCQ_DIS) == HSW_FBCQ_DIS)
+			I915_WRITE(CHICKEN_PIPESL_1(pipe),
+				   temp & ~HSW_FBCQ_DIS);
+	}
 
 	/* program plane scaler */
 	if (plane_state->scaler_id >= 0) {
@@ -1144,6 +1176,9 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		goto fail;
 
 	intel_create_rotation_property(dev, intel_plane);
+
+	if (INTEL_INFO(dev)->gen >= 9)
+		intel_create_render_comp_property(dev, intel_plane);
 
 	drm_plane_helper_add(&intel_plane->base, &intel_plane_helper_funcs);
 

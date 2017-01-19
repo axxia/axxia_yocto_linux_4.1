@@ -364,6 +364,10 @@ struct intel_atomic_state {
 	struct skl_wm_values wm_results;
 };
 
+/* render compression property bits */
+#define COMP_UNCOMPRESSED          0
+#define COMP_RENDER                1
+
 struct intel_plane_state {
 	struct drm_plane_state base;
 	struct drm_rect clip;
@@ -401,6 +405,9 @@ struct intel_plane_state {
 
 	/* async flip related structures */
 	struct drm_i915_gem_request *wait_req;
+
+	/* Render compression */
+	unsigned int render_comp_enable;
 };
 
 struct intel_initial_plane_config {
@@ -1293,6 +1300,9 @@ intel_rotation_90_or_270(unsigned int rotation)
 
 void intel_create_rotation_property(struct drm_device *dev,
 					struct intel_plane *plane);
+
+void intel_create_render_comp_property(struct drm_device *dev,
+				       struct intel_plane *plane);
 
 void assert_pch_transcoder_disabled(struct drm_i915_private *dev_priv,
 				    enum pipe pipe);

@@ -125,6 +125,9 @@ static void intel_modeset_setup_hw_state(struct drm_device *dev);
 static void intel_pre_disable_primary_noatomic(struct drm_crtc *crtc);
 static int ilk_max_pixel_rate(struct drm_atomic_state *state);
 static int bxt_calc_cdclk(int max_pixclk);
+static int skl_check_compression(struct drm_device *dev,
+				 struct intel_plane_state *plane_state,
+				 enum pipe pipe, int x, int y);
 
 struct intel_limit {
 	struct {
@@ -3383,8 +3386,10 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->base.fb;
 	const struct skl_wm_values *wm = &dev_priv->wm.skl_results;
 	int pipe = intel_crtc->pipe;
-	u32 plane_ctl;
+	u32 plane_ctl, stride_div;
+	u32 tile_height;
 	unsigned int rotation = plane_state->base.rotation;
+	unsigned int render_comp;
 	u32 stride = skl_plane_stride(fb, 0, rotation);
 	u32 surf_addr = plane_state->main.offset;
 	int scaler_id = plane_state->scaler_id;
@@ -3396,6 +3401,8 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	int dst_y = plane_state->base.dst.y1;
 	int dst_w = drm_rect_width(&plane_state->base.dst);
 	int dst_h = drm_rect_height(&plane_state->base.dst);
+	unsigned long aux_dist = 0;
+	u32 tile_row_adjustment = 0, height_in_mem = 0, aux_stride = 0;
 
 	plane_ctl = PLANE_CTL_ENABLE |
 		    PLANE_CTL_PIPE_GAMMA_ENABLE |
@@ -3405,6 +3412,27 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 	plane_ctl |= PLANE_CTL_PLANE_GAMMA_DISABLE;
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
+
+	render_comp = to_intel_plane_state(plane->state)->render_comp_enable;
+	if (render_comp) {
+		/*
+		 * FIXME: This calculation may change based on HW team's
+		 * confirmation.
+		 */
+		stride_div = intel_fb_stride_alignment(dev_priv, fb->modifier[0],
+                                                  fb->pixel_format);
+		tile_height = PAGE_SIZE / stride_div;
+		height_in_mem = (fb->offsets[1]/fb->pitches[0]);
+		tile_row_adjustment = height_in_mem % tile_height;
+
+		aux_dist = (fb->pitches[0] *
+			   (height_in_mem - tile_row_adjustment));
+		aux_stride = fb->pitches[1] / stride_div;
+
+		plane_ctl |= PLANE_CTL_DECOMPRESSION_ENABLE;
+	} else {
+		plane_ctl &= ~PLANE_CTL_DECOMPRESSION_ENABLE;
+	}
 
 	/* Sizes are 0 based */
 	src_w--;
@@ -3424,6 +3452,21 @@ static void skylake_update_primary_plane(struct drm_plane *plane,
 	I915_WRITE(PLANE_OFFSET(pipe, 0), (src_y << 16) | src_x);
 	I915_WRITE(PLANE_STRIDE(pipe, 0), stride);
 	I915_WRITE(PLANE_SIZE(pipe, 0), (src_h << 16) | src_w);
+	I915_WRITE(PLANE_AUX_DIST(pipe, 0), aux_dist | aux_stride);
+	I915_WRITE(PLANE_AUX_OFFSET(pipe, 0), 0);
+
+	/*
+	 * Per bspec, for SKL C and BXT A steppings, when render compression
+	 * is enabled, the CHICKEN_PIPESL_1 register bit 22 must be set to 0.
+	 */
+	if ((IS_SKL_REVID(dev, 0, SKL_REVID_C0) ||
+	     IS_BXT_REVID(dev, 0, BXT_REVID_A1)) && render_comp) {
+		u32 temp = I915_READ(CHICKEN_PIPESL_1(pipe));
+
+		if ((temp & HSW_FBCQ_DIS) == HSW_FBCQ_DIS)
+			I915_WRITE(CHICKEN_PIPESL_1(pipe),
+				   temp & ~HSW_FBCQ_DIS);
+	}
 
 	if (scaler_id >= 0) {
 		uint32_t ps_ctrl = 0;
@@ -12484,6 +12527,21 @@ int intel_plane_atomic_calc_changes(struct drm_crtc_state *crtc_state,
 			to_intel_plane_state(plane_state));
 		if (ret)
 			return ret;
+
+		if (fb && to_intel_plane_state(plane_state)->
+				render_comp_enable) {
+			if (to_intel_plane(plane)->plane != PLANE_A) {
+				DRM_DEBUG_KMS("RC supported only on planes 1 & 2\n");
+				return -EINVAL;
+			}
+			ret = skl_check_compression(dev,
+					to_intel_plane_state(plane_state),
+					intel_crtc->pipe, crtc->x, crtc->y);
+			if (ret) {
+				DRM_DEBUG_KMS("Render compr checks failed\n");
+				return ret;
+			}
+		}
 	}
 
 	was_visible = old_plane_state->base.visible;
@@ -14819,6 +14877,86 @@ skl_max_scale(struct intel_crtc *intel_crtc, struct intel_crtc_state *crtc_state
 	return max_scale;
 }
 
+static int skl_check_compression(struct drm_device *dev,
+		struct intel_plane_state *plane_state,
+		enum pipe pipe, int x, int y)
+{
+	struct drm_framebuffer *fb = plane_state->base.fb;
+	int x_offset;
+	int src_w = drm_rect_width(&plane_state->base.src) >> 16;
+
+	if (!IS_SKYLAKE(dev) && !IS_BROXTON(dev)) {
+		DRM_DEBUG_KMS("RC support on CNL+ needs to be revisited\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * TODO:
+	 * 1. Disable stereo 3D when render decomp is enabled (bit 7:6)
+	 * 2. Render decompression must not be used in VTd pass-through mode
+	 * 3. Program hashing select CHICKEN_MISC1 bit 15
+	 */
+
+	/*
+	 * On SKL A and SKL B,
+	 * Do not enable render decompression when the plane
+	 * width is smaller than 32 pixels or greater than
+	 * 2048 pixels
+	 */
+	if ((IS_SKYLAKE(dev) && INTEL_REVID(dev) < SKL_REVID_C0)
+			&& ((src_w < 32) || (src_w > 2048))) {
+		DRM_DEBUG_KMS("SKL-A, SKL-B RC: width > 2048 or < 32\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * Conditions to satisfy before enabling render decomp.
+	 * SKL+
+	 * Pipe A & B, Planes 1 & 2
+	 * RGB8888 Tile-Y format
+	 * 0/180 rotation
+	 */
+	if (pipe == PIPE_C) {
+		DRM_DEBUG_KMS("RC supported only on pipe A & B\n");
+		return -EINVAL;
+	}
+
+	if (intel_rotation_90_or_270(plane_state->base.rotation)) {
+		DRM_DEBUG_KMS("RC support only with 0/180 degree rotation\n");
+		return -EINVAL;
+	}
+
+	if ((fb->modifier[0] == DRM_FORMAT_MOD_NONE) ||
+			(fb->modifier[0] == I915_FORMAT_MOD_X_TILED)) {
+		DRM_DEBUG_KMS("RC supported only with Y-tile\n");
+		return -EINVAL;
+	}
+
+	if ((fb->pixel_format != DRM_FORMAT_XBGR8888) &&
+	    (fb->pixel_format != DRM_FORMAT_ABGR8888) &&
+	    (fb->pixel_format != DRM_FORMAT_ARGB8888) &&
+	    (fb->pixel_format != DRM_FORMAT_XRGB8888)) {
+		DRM_DEBUG_KMS("RC supported only with RGB8888 formats\n");
+		return -EINVAL;
+	}
+
+	/*
+	 * For SKL & BXT,
+	 * When the render compression is enabled with plane
+	 * width greater than 3840 and horizontal panning,
+	 * the stride programmed in the PLANE_STRIDE register
+	 * must be multiple of 4.
+	 */
+	x_offset = x;
+
+	if (src_w > 3840 && x_offset != 0) {
+		DRM_DEBUG_KMS("RC: width > 3840, horizontal panning\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int
 intel_check_primary_plane(struct drm_plane *plane,
 			  struct intel_crtc_state *crtc_state,
@@ -15138,6 +15276,9 @@ static struct drm_plane *intel_primary_plane_create(struct drm_device *dev,
 	if (INTEL_INFO(dev)->gen >= 4)
 		intel_create_rotation_property(dev, primary);
 
+	if (INTEL_INFO(dev)->gen >= 9)
+		intel_create_render_comp_property(dev, primary);
+
 	drm_plane_helper_add(&primary->base, &intel_plane_helper_funcs);
 
 	return &primary->base;
@@ -15147,6 +15288,36 @@ fail:
 	kfree(primary);
 
 	return NULL;
+}
+
+void intel_create_render_comp_property(struct drm_device *dev,
+		struct intel_plane *plane)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	static const struct drm_prop_enum_list rc_status[] = {
+		{ COMP_UNCOMPRESSED,   "Uncompressed/not capable" },
+		{ COMP_RENDER,  "Only render decompression" },
+	};
+
+	if (!dev_priv->render_comp_property) {
+		dev_priv->render_comp_property =
+			drm_property_create_bitmask(dev, 0,
+					"render compression",
+					rc_status, ARRAY_SIZE(rc_status),
+					BIT(COMP_UNCOMPRESSED) |
+					BIT(COMP_RENDER));
+		if (!dev_priv->render_comp_property) {
+			DRM_ERROR("RC: Failed to create property\n");
+			return;
+		}
+	}
+
+	if (dev_priv->render_comp_property) {
+		drm_object_attach_property(&plane->base.base,
+				dev_priv->render_comp_property, 0);
+	}
+	dev->mode_config.allow_aux_plane = true;
 }
 
 void intel_create_rotation_property(struct drm_device *dev, struct intel_plane *plane)

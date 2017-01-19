@@ -4231,6 +4231,8 @@ void i915_gem_free_object(struct drm_gem_object *gem_obj)
 
 	trace_i915_gem_object_destroy(obj);
 
+	kfree(obj->userdata_blk);
+
 	/* All file-owned VMA should have been released by this point through
 	 * i915_gem_close_object(), or earlier by i915_gem_context_close().
 	 * However, the object may also be bound into the global GTT (e.g.

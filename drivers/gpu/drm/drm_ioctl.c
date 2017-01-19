@@ -280,6 +280,9 @@ static int drm_getcap(struct drm_device *dev, void *data, struct drm_file *file_
 	case DRM_CAP_ADDFB2_MODIFIERS:
 		req->value = dev->mode_config.allow_fb_modifiers;
 		break;
+	case DRM_CAP_RENDER_COMPRESSION:
+		req->value = dev->mode_config.allow_aux_plane;
+		break;
 	default:
 		return -EINVAL;
 	}

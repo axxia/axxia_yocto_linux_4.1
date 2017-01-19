@@ -66,6 +66,7 @@
 #include "intel_gvt.h"
 
 #include "i915_perfmon_defs.h"
+#include "i915_gem_userdata.h"
 
 /* General customization:
  */
@@ -1991,6 +1992,7 @@ struct drm_i915_private {
 
 	struct drm_property *broadcast_rgb_property;
 	struct drm_property *force_audio_property;
+	struct drm_property *render_comp_property;
 
 	/* hda/i915 audio component */
 	struct i915_audio_component *audio_component;
@@ -2313,6 +2315,9 @@ struct drm_i915_gem_object {
 
 	/** Record of address bit 17 of each page at last unbind. */
 	unsigned long *bit_17;
+
+	/** Optional object userdata block */
+	struct i915_gem_userdata *userdata_blk;
 
 	struct i915_gem_userptr {
 		uintptr_t ptr;
