@@ -56,6 +56,10 @@ intel_create_plane_state(struct drm_plane *plane)
 
 	state->base.plane = plane;
 	state->base.rotation = DRM_ROTATE_0;
+	state->base.blend_mode.func = DRM_BLEND_FUNC(AUTO, AUTO);
+	state->base.blend_mode.color = drm_rgba(16,
+						0xffff, 0xffff,
+						0xffff, 0xffff);
 	state->ckey.flags = I915_SET_COLORKEY_NONE;
 
 	return state;
@@ -111,6 +115,7 @@ int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
 	struct drm_plane *plane = intel_state->base.plane;
 	struct drm_plane_state *state = &intel_state->base;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
+	enum drm_blend_factor src_factor, dst_factor;
 	int ret;
 
 	/*
@@ -160,6 +165,20 @@ int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
 	ret = intel_plane->check_plane(plane, crtc_state, intel_state);
 	if (ret)
 		return ret;
+
+	if (state->blend_mode.func & ~GENMASK_ULL(31, 0)) {
+		DRM_DEBUG_KMS("Invalid bits in blend mode function (0x%llx)!\n",
+			      state->blend_mode.func);
+		return -EINVAL;
+	}
+
+	src_factor = DRM_BLEND_FUNC_SRC_FACTOR(state->blend_mode.func);
+	dst_factor = DRM_BLEND_FUNC_DST_FACTOR(state->blend_mode.func);
+	if ((src_factor == DRM_BLEND_FACTOR_AUTO) ^
+	    (dst_factor == DRM_BLEND_FACTOR_AUTO)) {
+		DRM_DEBUG_KMS("Invalid mix of auto and non-auto blend factors!");
+		return -EINVAL;
+	}
 
 	return intel_plane_atomic_calc_changes(&crtc_state->base, state);
 }

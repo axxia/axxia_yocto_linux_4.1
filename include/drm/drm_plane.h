@@ -25,9 +25,15 @@
 
 #include <linux/list.h>
 #include <linux/ctype.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_mode_object.h>
 
 struct drm_crtc;
+
+struct drm_blend_mode {
+	struct drm_rgba color;
+	uint64_t func;
+};
 
 /**
  * struct drm_plane_state - mutable plane state
@@ -77,6 +83,9 @@ struct drm_plane_state {
 
 	/* Plane rotation */
 	unsigned int rotation;
+
+	/* GL-style plane blending factors */
+	struct drm_blend_mode blend_mode;
 
 	/* Plane zpos */
 	unsigned int zpos;

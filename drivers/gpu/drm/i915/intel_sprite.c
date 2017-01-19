@@ -229,7 +229,8 @@ skl_update_plane(struct drm_plane *drm_plane,
 		PLANE_CTL_PIPE_GAMMA_ENABLE |
 		PLANE_CTL_PIPE_CSC_ENABLE;
 
-	plane_ctl |= skl_plane_ctl_format(fb->pixel_format);
+	plane_ctl |= skl_plane_ctl_format(fb->pixel_format,
+					plane_state->alpha);
 	plane_ctl |= skl_plane_ctl_tiling(fb->modifier[0]);
 
 	plane_ctl |= skl_plane_ctl_rotation(rotation);
@@ -251,12 +252,14 @@ skl_update_plane(struct drm_plane *drm_plane,
 	if (wm->dirty_pipes & drm_crtc_mask(crtc))
 		skl_write_plane_wm(intel_crtc, wm, plane);
 
-	if (key->flags) {
+	I915_WRITE(PLANE_KEYMAX(pipe, plane),
+		   (DRM_RGBA_ALPHABITS(plane_state->base.blend_mode.color, 8)
+			<< 24) | (key->max_value & 0x00ffffff));
+	I915_WRITE(PLANE_KEYMSK(pipe, plane),
+		   (plane_state->use_plane_alpha << 31) |
+		   (key->channel_mask & GENMASK(0, 26)));
+	if (key->flags)
 		I915_WRITE(PLANE_KEYVAL(pipe, plane), key->min_value);
-		I915_WRITE(PLANE_KEYMAX(pipe, plane), key->max_value);
-		I915_WRITE(PLANE_KEYMSK(pipe, plane), key->channel_mask);
-	}
-
 	if (key->flags & I915_SET_COLORKEY_DESTINATION)
 		plane_ctl |= PLANE_CTL_KEY_ENABLE_DESTINATION;
 	else if (key->flags & I915_SET_COLORKEY_SOURCE)
@@ -1176,6 +1179,7 @@ intel_plane_init(struct drm_device *dev, enum pipe pipe, int plane)
 		goto fail;
 
 	intel_create_rotation_property(dev, intel_plane);
+	intel_plane_add_blend_properties(intel_plane);
 
 	if (INTEL_INFO(dev)->gen >= 9)
 		intel_create_render_comp_property(dev, intel_plane);
