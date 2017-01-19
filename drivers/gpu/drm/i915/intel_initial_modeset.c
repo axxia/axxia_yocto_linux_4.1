@@ -534,6 +534,8 @@ static void modeset_config_fn(struct work_struct *work)
 
 	intel_splash_screen_init(dev);
 
+	memset(connector_mode, 0, sizeof(connector_mode));
+	mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
 		if (use_connector(connector)) {
 			if (!(encoder = connector->encoder))
@@ -572,6 +574,7 @@ static void modeset_config_fn(struct work_struct *work)
 			}
 		}
 	}
+	mutex_unlock(&dev->mode_config.mutex);
 
 	if (!found)
 		return;
