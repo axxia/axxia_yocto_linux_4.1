@@ -1049,41 +1049,6 @@ int drm_atomic_helper_wait_for_fences(struct drm_device *dev,
 EXPORT_SYMBOL(drm_atomic_helper_wait_for_fences);
 
 /**
- * drm_atomic_helper_framebuffer_changed - check if framebuffer has changed
- * @dev: DRM device
- * @old_state: atomic state object with old state structures
- * @crtc: DRM crtc
- *
- * Checks whether the framebuffer used for this CRTC changes as a result of
- * the atomic update.  This is useful for drivers which cannot use
- * drm_atomic_helper_wait_for_vblanks() and need to reimplement its
- * functionality.
- *
- * Returns:
- * true if the framebuffer changed.
- */
-bool drm_atomic_helper_framebuffer_changed(struct drm_device *dev,
-					   struct drm_atomic_state *old_state,
-					   struct drm_crtc *crtc)
-{
-	struct drm_plane *plane;
-	struct drm_plane_state *old_plane_state;
-	int i;
-
-	for_each_plane_in_state(old_state, plane, old_plane_state, i) {
-		if (plane->state->crtc != crtc &&
-		    old_plane_state->crtc != crtc)
-			continue;
-
-		if (plane->state->fb != old_plane_state->fb)
-			return true;
-	}
-
-	return false;
-}
-EXPORT_SYMBOL(drm_atomic_helper_framebuffer_changed);
-
-/**
  * drm_atomic_helper_wait_for_vblanks - wait for vblank on crtcs
  * @dev: DRM device
  * @old_state: atomic state object with old state structures
@@ -1101,39 +1066,35 @@ drm_atomic_helper_wait_for_vblanks(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *old_crtc_state;
 	int i, ret;
+	unsigned crtc_mask = 0;
+
+	 /*
+	  * Legacy cursor ioctls are completely unsynced, and userspace
+	  * relies on that (by doing tons of cursor updates).
+	  */
+	if (old_state->legacy_cursor_update)
+		return;
 
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		/* No one cares about the old state, so abuse it for tracking
-		 * and store whether we hold a vblank reference (and should do a
-		 * vblank wait) in the ->enable boolean. */
-		old_crtc_state->enable = false;
+		struct drm_crtc_state *new_crtc_state = crtc->state;
 
-		if (!crtc->state->enable)
-			continue;
-
-		/* Legacy cursor ioctls are completely unsynced, and userspace
-		 * relies on that (by doing tons of cursor updates). */
-		if (old_state->legacy_cursor_update)
-			continue;
-
-		if (!drm_atomic_helper_framebuffer_changed(dev,
-				old_state, crtc))
+		if (!new_crtc_state->active || !new_crtc_state->planes_changed)
 			continue;
 
 		ret = drm_crtc_vblank_get(crtc);
 		if (ret != 0)
 			continue;
 
-		old_crtc_state->enable = true;
-		old_crtc_state->last_vblank_count = drm_crtc_vblank_count(crtc);
+		crtc_mask |= drm_crtc_mask(crtc);
+		old_state->crtcs[i].last_vblank_count = drm_crtc_vblank_count(crtc);
 	}
 
 	for_each_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		if (!old_crtc_state->enable)
+		if (!(crtc_mask & drm_crtc_mask(crtc)))
 			continue;
 
 		ret = wait_event_timeout(dev->vblank[i].queue,
-				old_crtc_state->last_vblank_count !=
+				old_state->crtcs[i].last_vblank_count !=
 					drm_crtc_vblank_count(crtc),
 				msecs_to_jiffies(50));
 
@@ -1657,9 +1618,6 @@ int drm_atomic_helper_prepare_planes(struct drm_device *dev,
 
 		funcs = plane->helper_private;
 
-		if (!drm_atomic_helper_framebuffer_changed(dev, state, plane_state->crtc))
-			continue;
-
 		if (funcs->prepare_fb) {
 			ret = funcs->prepare_fb(plane, plane_state);
 			if (ret)
@@ -1674,9 +1632,6 @@ fail:
 		const struct drm_plane_helper_funcs *funcs;
 
 		if (j >= i)
-			continue;
-
-		if (!drm_atomic_helper_framebuffer_changed(dev, state, plane_state->crtc))
 			continue;
 
 		funcs = plane->helper_private;
@@ -1944,9 +1899,6 @@ void drm_atomic_helper_cleanup_planes(struct drm_device *dev,
 
 	for_each_plane_in_state(old_state, plane, plane_state, i) {
 		const struct drm_plane_helper_funcs *funcs;
-
-		if (!drm_atomic_helper_framebuffer_changed(dev, old_state, plane_state->crtc))
-			continue;
 
 		funcs = plane->helper_private;
 

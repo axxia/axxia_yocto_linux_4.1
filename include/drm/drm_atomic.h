@@ -144,6 +144,7 @@ struct __drm_crtcs_state {
 	struct drm_crtc *ptr;
 	struct drm_crtc_state *state;
 	struct drm_crtc_commit *commit;
+	unsigned last_vblank_count;
 };
 
 struct __drm_connnectors_state {

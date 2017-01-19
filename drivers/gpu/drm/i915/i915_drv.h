@@ -972,6 +972,9 @@ struct intel_fbc {
 	bool enabled;
 	bool active;
 
+	bool underrun_detected;
+	struct work_struct underrun_work;
+
 	struct intel_fbc_state_cache {
 		struct {
 			unsigned int mode_flags;
@@ -1532,6 +1535,7 @@ struct intel_vbt_data {
 		bool present;
 		bool active_low_pwm;
 		u8 min_brightness;	/* min_brightness/255 of max */
+		u8 controller;		/* brightness controller number */
 		enum intel_backlight_type type;
 	} backlight;
 

@@ -1513,6 +1513,7 @@ void intel_fbc_invalidate(struct drm_i915_private *dev_priv,
 void intel_fbc_flush(struct drm_i915_private *dev_priv,
 		     unsigned int frontbuffer_bits, enum fb_op_origin origin);
 void intel_fbc_cleanup_cfb(struct drm_i915_private *dev_priv);
+void intel_fbc_handle_fifo_underrun_irq(struct drm_i915_private *dev_priv);
 
 /* intel_hdmi.c */
 void intel_hdmi_init(struct drm_device *dev, i915_reg_t hdmi_reg, enum port port);
@@ -1828,6 +1829,8 @@ struct drm_plane_state *intel_plane_duplicate_state(struct drm_plane *plane);
 void intel_plane_destroy_state(struct drm_plane *plane,
 			       struct drm_plane_state *state);
 extern const struct drm_plane_helper_funcs intel_plane_helper_funcs;
+int intel_plane_atomic_check_with_state(struct intel_crtc_state *crtc_state,
+					struct intel_plane_state *intel_state);
 
 /* intel_color.c */
 void intel_color_init(struct drm_crtc *crtc);
