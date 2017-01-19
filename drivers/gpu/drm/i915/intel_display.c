@@ -3768,6 +3768,38 @@ static void intel_update_pipe_config(struct intel_crtc *crtc,
 		else if (old_crtc_state->pch_pfit.enabled)
 			ironlake_pfit_disable(crtc, true);
 	}
+
+}
+
+
+static void intel_update_background_color(struct intel_crtc *crtc)
+{
+	struct drm_device *dev = crtc->base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	struct intel_crtc_state *pipe_config =
+		to_intel_crtc_state(crtc->base.state);
+	struct drm_rgba background = pipe_config->base.background_color;
+	uint32_t val;
+
+	if (INTEL_INFO(dev)->gen >= 9) {
+		/* BGR 16bpc ==> RGB 10bpc */
+		val = DRM_RGBA_REDBITS(background, 10) << 20
+		    | DRM_RGBA_GREENBITS(background, 10) << 10
+		    | DRM_RGBA_BLUEBITS(background, 10);
+
+		/*
+		 * Set CSC and gamma for bottom color.
+		 *
+		 * FIXME:  We turn these on unconditionally for now to match
+		 * how we've setup the various planes.  Once the color
+		 * management framework lands, it may or may not choose to
+		 * set these bits.
+		 */
+		val |= PIPE_BOTTOM_CSC_ENABLE;
+		val |= PIPE_BOTTOM_GAMMA_ENABLE;
+
+		I915_WRITE(PIPE_BOTTOM_COLOR(crtc->pipe), val);
+	}
 }
 
 static void intel_fdi_normal_train(struct drm_crtc *crtc)
@@ -12732,6 +12764,11 @@ static int intel_crtc_atomic_check(struct drm_crtc *crtc,
 							 pipe_config);
 	}
 
+	if (crtc->state->background_color.v != crtc_state->background_color.v) {
+		pipe_config->update_pipe = true;
+		crtc_state->planes_changed = true;
+	}
+
 	return ret;
 }
 
@@ -14727,6 +14764,7 @@ static const struct drm_crtc_funcs intel_crtc_funcs = {
 	.set_property = drm_atomic_helper_crtc_set_property,
 	.destroy = intel_crtc_destroy,
 	.page_flip = intel_crtc_page_flip,
+	.set_property = drm_atomic_helper_crtc_set_property,
 	.atomic_duplicate_state = intel_crtc_duplicate_state,
 	.atomic_destroy_state = intel_crtc_destroy_state,
 };
@@ -15013,6 +15051,9 @@ static void intel_begin_crtc_commit(struct drm_crtc *crtc,
 
 	/* Perform vblank evasion around commit operation */
 	intel_pipe_update_start(intel_crtc);
+
+	if (to_intel_crtc_state(crtc->state)->update_pipe)
+		intel_update_background_color(intel_crtc);
 
 	if (modeset)
 		return;
@@ -15509,6 +15550,20 @@ static void skl_init_scalers(struct drm_device *dev, struct intel_crtc *intel_cr
 	scaler_state->scaler_id = -1;
 }
 
+static void intel_create_background_color_property(struct drm_device *dev,
+						   struct intel_crtc *crtc)
+{
+	if (!dev->mode_config.prop_background_color)
+		dev->mode_config.prop_background_color =
+			drm_mode_create_background_color_property(dev);
+	if (!dev->mode_config.prop_background_color)
+		return;
+
+	drm_object_attach_property(&crtc->base.base,
+				   dev->mode_config.prop_background_color,
+				   crtc->base.state->background_color.v);
+}
+
 static void intel_crtc_init(struct drm_device *dev, int pipe)
 {
 	struct drm_i915_private *dev_priv = to_i915(dev);
@@ -15580,6 +15635,12 @@ static void intel_crtc_init(struct drm_device *dev, int pipe)
 	intel_color_init(&intel_crtc->base);
 
 	WARN_ON(drm_crtc_index(&intel_crtc->base) != intel_crtc->pipe);
+
+	if (INTEL_INFO(dev)->gen >= 9) {
+		crtc_state->base.background_color = drm_rgba(16, 0, 0, 0, 0);
+		intel_create_background_color_property(dev, intel_crtc);
+	}
+
 	return;
 
 fail:
