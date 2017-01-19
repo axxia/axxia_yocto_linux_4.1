@@ -36,6 +36,7 @@ i915-y += i915_cmd_parser.o \
 	  i915_gem_request.o \
 	  i915_gem_shrinker.o \
 	  i915_gem_stolen.o \
+	  i915_gem_splash.o \
 	  i915_gem_tiling.o \
 	  i915_gem_userptr.o \
 	  i915_gpu_error.o \
@@ -121,6 +122,9 @@ i915-y += i915_perfmon.o
 # with the upstream Linux
 i915-y += i915_ext_ioctl.o
 i915-y += i915_gem_userdata.o
+
+# initial modeset
+i915-y += intel_initial_modeset.o
 
 obj-$(CONFIG_DRM_I915)  += i915.o
 
