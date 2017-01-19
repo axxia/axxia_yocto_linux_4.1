@@ -2698,10 +2698,13 @@ intel_alloc_initial_plane_obj(struct intel_crtc *crtc,
 							     base_aligned,
 							     base_aligned,
 							     size_aligned);
-	if (!obj) {
+	if (IS_ERR(obj)) {
 		mutex_unlock(&dev->struct_mutex);
 		return false;
 	}
+
+	/* Not to be preserved across hibernation */
+	obj->internal_volatile = true;
 
 	if (plane_config->tiling == I915_TILING_X)
 		obj->tiling_and_stride = fb->pitches[0] | I915_TILING_X;

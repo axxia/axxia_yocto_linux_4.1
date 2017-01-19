@@ -1334,6 +1334,12 @@ struct intel_l3_parity {
 	int which_slice;
 };
 
+struct i915_stolen_node {
+	struct drm_mm_node base;
+	struct list_head mm_link;
+	struct drm_i915_gem_object *obj;
+};
+
 struct i915_gem_mm {
 	/** Memory allocator for GTT stolen memory */
 	struct drm_mm stolen;
@@ -1350,6 +1356,13 @@ struct i915_gem_mm {
 	 * (presumably uncached) pages still attached.
 	 */
 	struct list_head unbound_list;
+
+	/**
+	 * List of stolen objects that have been marked as purgeable and
+	 * thus available for reaping if we need more space for a new
+	 * allocation. Ordered by time of marking purgeable.
+	 */
+	struct list_head stolen_list;
 
 	/** Usable portion of the GTT for GEM */
 	unsigned long stolen_base; /* limited to low memory (32-bit) */
@@ -1368,6 +1381,16 @@ struct i915_gem_mm {
 	 * modesetting?
 	 */
 	bool interruptible;
+
+	/**
+	 * Stolen will be lost upon hibernate (as the memory is unpowered).
+	 * Across resume, we expect stolen to be intact - however, it may
+	 * also be utililised by third parties (e.g. Intel RapidStart
+	 * Technology) and if so we have to assume that any data stored in
+	 * stolen across resume is lost and we set this flag to indicate that
+	 * the stolen memory is volatile.
+	 */
+	bool volatile_stolen;
 
 	/* the indicator for dispatch video commands on two BSD rings */
 	unsigned int bsd_engine_dispatch_index;
@@ -2233,13 +2256,15 @@ struct drm_i915_gem_object {
 	struct list_head vma_list;
 
 	/** Stolen memory for this object, instead of being backed by shmem. */
-	struct drm_mm_node *stolen;
+	struct i915_stolen_node *stolen;
 	struct list_head global_list;
 
 	/** Used in execbuf to temporarily hold a ref */
 	struct list_head obj_exec_link;
 
 	struct list_head batch_pool_link;
+	/** Used to link an object to a list temporarily */
+	struct list_head tmp_link;
 
 	unsigned long flags;
 	/**
@@ -2262,6 +2287,12 @@ struct drm_i915_gem_object {
 	 * Advice: are the backing pages purgeable?
 	 */
 	unsigned int madv:2;
+	/**
+	 * Whereas madv is for userspace, there are certain situations
+	 * where we want I915_MADV_DONTNEED behaviour on internal objects
+	 * without conflating the userspace setting.
+	 */
+	unsigned int internal_volatile:1;
 
 	/**
 	 * Whether the current gtt mapping needs to be mappable (and isn't just
@@ -3161,6 +3192,7 @@ void i915_gem_release_all_mmaps(struct drm_i915_private *dev_priv);
 void i915_gem_release_mmap(struct drm_i915_gem_object *obj);
 
 int __must_check i915_gem_object_get_pages(struct drm_i915_gem_object *obj);
+int i915_gem_object_clear(struct drm_i915_gem_object *obj);
 
 static inline int __sg_page_count(struct scatterlist *sg)
 {
@@ -3325,6 +3357,8 @@ void i915_gem_init_swizzling(struct drm_device *dev);
 void i915_gem_cleanup_engines(struct drm_device *dev);
 int __must_check i915_gem_wait_for_idle(struct drm_i915_private *dev_priv,
 					unsigned int flags);
+int __must_check
+i915_gem_object_migrate_stolen_to_shmemfs(struct drm_i915_gem_object *obj);
 int __must_check i915_gem_suspend(struct drm_device *dev);
 void i915_gem_resume(struct drm_device *dev);
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
@@ -3529,12 +3563,16 @@ void i915_gem_stolen_remove_node(struct drm_i915_private *dev_priv,
 int i915_gem_init_stolen(struct drm_device *dev);
 void i915_gem_cleanup_stolen(struct drm_device *dev);
 struct drm_i915_gem_object *
-i915_gem_object_create_stolen(struct drm_device *dev, u32 size);
+i915_gem_object_create_stolen(struct drm_device *dev, u64 size);
 struct drm_i915_gem_object *
 i915_gem_object_create_stolen_for_preallocated(struct drm_device *dev,
 					       u32 stolen_offset,
 					       u32 gtt_offset,
 					       u32 size);
+int __must_check i915_gem_stolen_freeze(struct drm_i915_private *i915);
+void i915_gem_stolen_size_info(struct drm_i915_private *dev_priv,
+			       uint64_t *stolen_free,
+			       uint64_t *stolen_largest);
 
 /* i915_gem_shrinker.c */
 unsigned long i915_gem_shrink(struct drm_i915_private *dev_priv,
@@ -3679,6 +3717,7 @@ static inline int intel_opregion_get_panel_type(struct drm_i915_private *dev)
 #endif
 
 /* intel_acpi.c */
+bool intel_detect_acpi_rst(void);
 #ifdef CONFIG_ACPI
 extern void intel_register_dsm_handler(void);
 extern void intel_unregister_dsm_handler(void);

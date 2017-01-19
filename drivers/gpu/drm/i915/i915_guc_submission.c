@@ -776,7 +776,7 @@ static void guc_init_doorbell_hw(struct intel_guc *guc)
  * @ctx:	the context that owns the client (we use the default render
  * 		context)
  *
- * Return:	An i915_guc_client object if success, else NULL.
+ * Return:	An i915_guc_client object if success, error pointer on failure.
  */
 static struct i915_guc_client *
 guc_client_alloc(struct drm_i915_private *dev_priv,
@@ -788,10 +788,11 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	struct intel_guc *guc = &dev_priv->guc;
 	struct i915_vma *vma;
 	uint16_t db_id;
+	int ret = 0;
 
 	client = kzalloc(sizeof(*client), GFP_KERNEL);
 	if (!client)
-		return NULL;
+		return ERR_PTR(-ENOMEM);
 
 	client->owner = ctx;
 	client->guc = guc;
@@ -803,13 +804,16 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 			GUC_MAX_GPU_CONTEXTS, GFP_KERNEL);
 	if (client->ctx_index >= GUC_MAX_GPU_CONTEXTS) {
 		client->ctx_index = GUC_INVALID_CTX_ID;
+		ret = -EINVAL;
 		goto err;
 	}
 
 	/* The first page is doorbell/proc_desc. Two followed pages are wq. */
 	vma = guc_allocate_vma(guc, GUC_DB_SIZE + GUC_WQ_SIZE);
-	if (IS_ERR(vma))
+	if (IS_ERR(vma)) {
+		ret = PTR_ERR(vma);
 		goto err;
+	}
 
 	/* We'll keep just the first (doorbell/proc) page permanently kmap'd. */
 	client->vma = vma;
@@ -820,9 +824,11 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 	client->wq_size = GUC_WQ_SIZE;
 
 	db_id = select_doorbell_register(guc, client->priority);
-	if (db_id == GUC_INVALID_DOORBELL_ID)
+	if (db_id == GUC_INVALID_DOORBELL_ID) {
 		/* XXX: evict a doorbell instead? */
+		ret = -EINVAL;
 		goto err;
+	}
 
 	client->doorbell_offset = select_doorbell_cacheline(guc);
 
@@ -850,7 +856,7 @@ guc_client_alloc(struct drm_i915_private *dev_priv,
 
 err:
 	guc_client_free(dev_priv, client);
-	return NULL;
+	return ERR_PTR(ret);
 }
 
 static void guc_log_create(struct intel_guc *guc)
@@ -858,6 +864,7 @@ static void guc_log_create(struct intel_guc *guc)
 	struct i915_vma *vma;
 	unsigned long offset;
 	uint32_t size, flags;
+	int ret;
 
 	if (i915.guc_log_level < GUC_LOG_VERBOSITY_MIN)
 		return;
@@ -875,6 +882,7 @@ static void guc_log_create(struct intel_guc *guc)
 	if (!vma) {
 		vma = guc_allocate_vma(guc, size);
 		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
 			/* logging will be off */
 			i915.guc_log_level = -1;
 			return;
@@ -1006,8 +1014,10 @@ int i915_guc_submission_init(struct drm_i915_private *dev_priv)
 		return 0; /* already allocated */
 
 	vma = guc_allocate_vma(guc, gemsize);
-	if (IS_ERR(vma))
+	if (IS_ERR(vma)) {
+		guc->ctx_pool_vma = NULL;
 		return PTR_ERR(vma);
+	}
 
 	guc->ctx_pool_vma = vma;
 	ida_init(&guc->ctx_ids);
@@ -1029,9 +1039,9 @@ int i915_guc_submission_enable(struct drm_i915_private *dev_priv)
 				  INTEL_INFO(dev_priv)->ring_mask,
 				  GUC_CTX_PRIORITY_KMD_NORMAL,
 				  dev_priv->kernel_context);
-	if (!client) {
+	if (IS_ERR(client)) {
 		DRM_ERROR("Failed to create normal GuC client!\n");
-		return -ENOMEM;
+		return PTR_ERR(client);
 	}
 
 	guc->execbuf_client = client;

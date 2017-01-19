@@ -164,6 +164,10 @@ i915_gem_get_aperture_ioctl(struct drm_device *dev, void *data,
 
 	args->aper_size = ggtt->base.total;
 	args->aper_available_size = args->aper_size - pinned;
+	args->version = 1;
+	args->map_total_size = ggtt->mappable_end;
+	args->stolen_total_size =
+		dev_priv->mm.volatile_stolen ? 0 : ggtt->stolen_usable_size;
 
 	return 0;
 }
@@ -627,10 +631,43 @@ void i915_gem_object_free(struct drm_i915_gem_object *obj)
 	kmem_cache_free(dev_priv->objects, obj);
 }
 
+static struct drm_i915_gem_object *
+i915_gem_alloc_object_stolen(struct drm_device *dev, size_t size)
+{
+	struct drm_i915_gem_object *obj;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	int ret;
+
+	if (dev_priv->mm.volatile_stolen) {
+		/* Stolen may be overwritten by external parties
+		 * so unsuitable for persistent user data.
+		 */
+		return ERR_PTR(-ENODEV);
+	}
+
+	mutex_lock(&dev->struct_mutex);
+	obj = i915_gem_object_create_stolen(dev, size);
+	if (IS_ERR(obj))
+		goto out;
+
+	/* Always clear fresh buffers before handing to userspace */
+	ret = i915_gem_object_clear(obj);
+	if (ret) {
+		i915_gem_object_put(obj);
+		obj = ERR_PTR(ret);
+		goto out;
+	}
+
+out:
+	mutex_unlock(&dev->struct_mutex);
+	return obj;
+}
+
 static int
 i915_gem_create(struct drm_file *file,
 		struct drm_device *dev,
 		uint64_t size,
+		uint64_t flags,
 		uint32_t *handle_p)
 {
 	struct drm_i915_gem_object *obj;
@@ -641,8 +678,21 @@ i915_gem_create(struct drm_file *file,
 	if (size == 0)
 		return -EINVAL;
 
+	if (flags & __I915_CREATE_UNKNOWN_FLAGS)
+		return -EINVAL;
+
 	/* Allocate the new object */
-	obj = i915_gem_object_create(dev, size);
+	switch (flags & I915_CREATE_PLACEMENT_MASK) {
+	case I915_CREATE_PLACEMENT_NORMAL:
+		obj = i915_gem_object_create(dev, size);
+		break;
+	case I915_CREATE_PLACEMENT_STOLEN:
+		obj = i915_gem_alloc_object_stolen(dev, size);
+		break;
+	default:
+		return -EINVAL;
+	}
+
 	if (IS_ERR(obj))
 		return PTR_ERR(obj);
 
@@ -665,7 +715,7 @@ i915_gem_dumb_create(struct drm_file *file,
 	args->pitch = ALIGN(args->width * DIV_ROUND_UP(args->bpp, 8), 64);
 	args->size = args->pitch * args->height;
 	return i915_gem_create(file, dev,
-			       args->size, &args->handle);
+			       args->size, 0, &args->handle);
 }
 
 /**
@@ -681,7 +731,7 @@ i915_gem_create_ioctl(struct drm_device *dev, void *data,
 	struct drm_i915_gem_create *args = data;
 
 	return i915_gem_create(file, dev,
-			       args->size, &args->handle);
+			       args->size, args->flags, &args->handle);
 }
 
 static inline int
@@ -4233,6 +4283,20 @@ i915_gem_madvise_ioctl(struct drm_device *dev, void *data,
 	if (obj->madv == I915_MADV_DONTNEED && obj->pages == NULL)
 		i915_gem_object_truncate(obj);
 
+	if (obj->stolen) {
+		switch (obj->madv) {
+		case I915_MADV_WILLNEED:
+			list_del_init(&obj->stolen->mm_link);
+			break;
+		case I915_MADV_DONTNEED:
+			list_move(&obj->stolen->mm_link,
+				  &dev_priv->mm.stolen_list);
+			break;
+		default:
+			break;
+		}
+	}
+
 	args->retained = obj->madv != __I915_MADV_PURGED;
 
 	i915_gem_object_put(obj);
@@ -4270,12 +4334,27 @@ static const struct drm_i915_gem_object_ops i915_gem_object_ops = {
 	.put_pages = i915_gem_object_put_pages_gtt,
 };
 
+static struct address_space *
+i915_gem_set_inode_gfp(struct drm_device *dev, struct file *file)
+{
+	struct address_space *mapping = file_inode(file)->i_mapping;
+	gfp_t mask;
+
+	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
+	if (IS_CRESTLINE(dev) || IS_BROADWATER(dev)) {
+		/* 965gm cannot relocate objects above 4GiB. */
+		mask &= ~__GFP_HIGHMEM;
+		mask |= __GFP_DMA32;
+	}
+	mapping_set_gfp_mask(mapping, mask);
+
+	return mapping;
+}
+
 struct drm_i915_gem_object *i915_gem_object_create(struct drm_device *dev,
 						  size_t size)
 {
 	struct drm_i915_gem_object *obj;
-	struct address_space *mapping;
-	gfp_t mask;
 	int ret;
 
 	obj = i915_gem_object_alloc(dev);
@@ -4286,15 +4365,7 @@ struct drm_i915_gem_object *i915_gem_object_create(struct drm_device *dev,
 	if (ret)
 		goto fail;
 
-	mask = GFP_HIGHUSER | __GFP_RECLAIMABLE;
-	if (IS_CRESTLINE(dev) || IS_BROADWATER(dev)) {
-		/* 965gm cannot relocate objects above 4GiB. */
-		mask &= ~__GFP_HIGHMEM;
-		mask |= __GFP_DMA32;
-	}
-
-	mapping = obj->base.filp->f_mapping;
-	mapping_set_gfp_mask(mapping, mask);
+	i915_gem_set_inode_gfp(dev, obj->base.filp);
 
 	i915_gem_object_init(obj, &i915_gem_object_ops);
 
@@ -4748,6 +4819,7 @@ i915_gem_load_init(struct drm_device *dev)
 	INIT_LIST_HEAD(&dev_priv->context_list);
 	INIT_LIST_HEAD(&dev_priv->mm.unbound_list);
 	INIT_LIST_HEAD(&dev_priv->mm.bound_list);
+	INIT_LIST_HEAD(&dev_priv->mm.stolen_list);
 	INIT_LIST_HEAD(&dev_priv->mm.fence_list);
 	for (i = 0; i < I915_NUM_ENGINES; i++)
 		init_engine_lists(&dev_priv->engine[i]);
@@ -4777,6 +4849,158 @@ void i915_gem_load_cleanup(struct drm_device *dev)
 
 	/* And ensure that our DESTROY_BY_RCU slabs are truly destroyed */
 	rcu_barrier();
+}
+
+static int
+copy_content(struct drm_i915_gem_object *obj,
+		struct drm_i915_private *i915,
+		struct address_space *mapping)
+{
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct drm_mm_node node;
+	int ret, i;
+
+	ret = i915_gem_object_set_to_gtt_domain(obj, false);
+	if (ret)
+		return ret;
+
+	/* stolen objects are already pinned to prevent shrinkage */
+	memset(&node, 0, sizeof(node));
+	ret = insert_mappable_node(i915, &node, PAGE_SIZE);
+	if (ret)
+		return ret;
+
+	for (i = 0; i < obj->base.size / PAGE_SIZE; i++) {
+		struct page *page;
+		void *__iomem src;
+		void *dst;
+
+		ggtt->base.insert_page(&ggtt->base,
+				       i915_gem_object_get_dma_address(obj, i),
+				       node.start,
+				       I915_CACHE_NONE, 0);
+
+		page = shmem_read_mapping_page(mapping, i);
+		if (IS_ERR(page)) {
+			ret = PTR_ERR(page);
+			break;
+		}
+
+		src = io_mapping_map_atomic_wc(&ggtt->mappable, node.start);
+		dst = kmap_atomic(page);
+		wmb(); /* flush modifications to the GGTT (insert_page) */
+		memcpy_fromio(dst, src, PAGE_SIZE);
+		wmb(); 	/* flush the write before we modify the GGTT */
+		kunmap_atomic(dst);
+		io_mapping_unmap_atomic(src);
+
+		put_page(page);
+	}
+
+	ggtt->base.clear_range(&ggtt->base,
+			       node.start, node.size,
+			       true);
+	remove_mappable_node(&node);
+	if (ret)
+		return ret;
+
+	return i915_gem_object_set_to_cpu_domain(obj, true);
+}
+
+/**
+ * i915_gem_object_migrate_stolen_to_shmemfs() - migrates a stolen backed
+ * object to shmemfs
+ * @obj: stolen backed object to be migrated
+ *
+ * Returns: 0 on successful migration, errno on failure
+ */
+
+int
+i915_gem_object_migrate_stolen_to_shmemfs(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_vma *vma, *vn;
+	struct file *file;
+	struct address_space *mapping;
+	struct sg_table *stolen_pages, *shmemfs_pages;
+	int ret;
+
+	if (WARN_ON_ONCE(i915_gem_object_needs_bit17_swizzle(obj)))
+		return -EINVAL;
+
+	file = shmem_file_setup("drm mm object", obj->base.size, VM_NORESERVE);
+	if (IS_ERR(file))
+		return PTR_ERR(file);
+	mapping = i915_gem_set_inode_gfp(obj->base.dev, file);
+
+	list_for_each_entry_safe(vma, vn, &obj->vma_list, obj_link)
+		if (i915_vma_unbind(vma))
+			continue;
+
+	if (obj->madv != I915_MADV_WILLNEED && list_empty(&obj->vma_list)) {
+		/* Discard the stolen reservation, and replace with
+		 * an unpopulated shmemfs object.
+		 */
+		obj->madv = __I915_MADV_PURGED;
+	} else {
+		ret = copy_content(obj, i915, mapping);
+		if (ret)
+			goto err_file;
+	}
+
+	stolen_pages = obj->pages;
+	obj->pages = NULL;
+
+	obj->base.filp = file;
+
+	/* Recreate any pinned binding with pointers to the new storage */
+	if (!list_empty(&obj->vma_list)) {
+		ret = i915_gem_object_get_pages_gtt(obj);
+		if (ret) {
+			obj->pages = stolen_pages;
+			goto err_file;
+		}
+
+		obj->get_page.sg = obj->pages->sgl;
+		obj->get_page.last = 0;
+
+		list_for_each_entry(vma, &obj->vma_list, obj_link) {
+			if (!drm_mm_node_allocated(&vma->node))
+				continue;
+
+			/* As vma is already allocated and only the PTEs
+			 * have to be reprogrammed, makes this vma_bind
+			 * call extremely unlikely to fail.
+			 */
+			BUG_ON(i915_vma_bind(vma,
+					      obj->cache_level,
+					      PIN_UPDATE));
+		}
+	} else {
+		/* Remove object from global list if no reference to the
+		 * pages is held.
+		 */
+		list_del(&obj->global_list);
+	}
+
+	/* drop the stolen pin and backing */
+	shmemfs_pages = obj->pages;
+	obj->pages = stolen_pages;
+
+	i915_gem_object_unpin_pages(obj);
+	obj->ops->put_pages(obj);
+	if (obj->ops->release)
+		obj->ops->release(obj);
+
+	obj->ops = &i915_gem_object_ops;
+	obj->pages = shmemfs_pages;
+
+	return 0;
+
+err_file:
+	fput(file);
+	obj->base.filp = NULL;
+	return ret;
 }
 
 int i915_gem_freeze(struct drm_i915_private *dev_priv)
@@ -4965,4 +5189,51 @@ i915_gem_object_create_from_data(struct drm_device *dev,
 fail:
 	i915_gem_object_put(obj);
 	return ERR_PTR(ret);
+}
+
+/**
+ * i915_gem_object_clear() - Clear buffer object via CPU/GTT
+ * @obj: Buffer object to be cleared
+ *
+ * Return: 0 - success, non-zero - failure
+ */
+int i915_gem_object_clear(struct drm_i915_gem_object *obj)
+{
+	struct drm_i915_private *i915 = to_i915(obj->base.dev);
+	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct drm_mm_node node;
+	char __iomem *base;
+	uint64_t size = obj->base.size;
+	int ret, i;
+
+	lockdep_assert_held(&obj->base.dev->struct_mutex);
+	ret = insert_mappable_node(i915, &node, PAGE_SIZE);
+	if (ret)
+		return ret;
+
+	ret = i915_gem_object_get_pages(obj);
+	if (ret)
+		goto err_remove_node;
+
+	i915_gem_object_pin_pages(obj);
+	base = io_mapping_map_wc(&i915->ggtt.mappable, node.start, PAGE_SIZE);
+
+	intel_runtime_pm_get(i915);
+	for (i = 0; i < size/PAGE_SIZE; i++) {
+		ggtt->base.insert_page(&ggtt->base,
+				       i915_gem_object_get_dma_address(obj, i),
+				       node.start, I915_CACHE_NONE, 0);
+		wmb(); /* flush modifications to the GGTT (insert_page) */
+		memset_io(base, 0, PAGE_SIZE);
+		wmb(); /* flush the write before we modify the GGTT */
+	}
+
+	io_mapping_unmap(base);
+	ggtt->base.clear_range(&ggtt->base, node.start, node.size, true);
+	intel_runtime_pm_put(i915);
+	i915_gem_object_unpin_pages(obj);
+
+err_remove_node:
+	remove_mappable_node(&node);
+	return ret;
 }
