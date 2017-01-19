@@ -56,11 +56,6 @@ intel_create_plane_state(struct drm_plane *plane)
 
 	state->base.plane = plane;
 	state->base.rotation = BIT(DRM_ROTATE_0);
-	state->base.blend_mode.func = DRM_BLEND_FUNC(AUTO, AUTO);
-	state->base.blend_mode.color = drm_rgba(16,
-						0xffff, 0xffff,
-						0xffff, 0xffff);
-	state->ckey.flags = I915_SET_COLORKEY_NONE;
 
 	return state;
 }
@@ -80,15 +75,18 @@ intel_plane_duplicate_state(struct drm_plane *plane)
 	struct drm_plane_state *state;
 	struct intel_plane_state *intel_state;
 
-	intel_state = kmemdup(plane->state, sizeof(*intel_state), GFP_KERNEL);
+	if (WARN_ON(!plane->state))
+		intel_state = intel_create_plane_state(plane);
+	else
+		intel_state = kmemdup(plane->state, sizeof(*intel_state),
+				      GFP_KERNEL);
 
 	if (!intel_state)
 		return NULL;
 
 	state = &intel_state->base;
-
-	__drm_atomic_helper_plane_duplicate_state(plane, state);
-	intel_state->wait_req = NULL;
+	if (state->fb)
+		drm_framebuffer_reference(state->fb);
 
 	return state;
 }
@@ -105,7 +103,6 @@ void
 intel_plane_destroy_state(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
-	WARN_ON(state && to_intel_plane_state(state)->wait_req);
 	drm_atomic_helper_plane_destroy_state(plane, state);
 }
 
@@ -114,14 +111,10 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 {
 	struct drm_crtc *crtc = state->crtc;
 	struct intel_crtc *intel_crtc;
-	struct intel_crtc_state *crtc_state;
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *intel_state = to_intel_plane_state(state);
-	struct drm_crtc_state *drm_crtc_state;
-	enum drm_blend_factor src_factor, dst_factor;
-	int ret;
 
-	crtc = crtc ? crtc : plane->state->crtc;
+	crtc = crtc ? crtc : plane->crtc;
 	intel_crtc = to_intel_crtc(crtc);
 
 	/*
@@ -132,12 +125,6 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	 */
 	if (!crtc)
 		return 0;
-
-	drm_crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
-	if (WARN_ON(!drm_crtc_state))
-		return -EINVAL;
-
-	crtc_state = to_intel_crtc_state(drm_crtc_state);
 
 	/*
 	 * The original src/dest coordinates are stored in state->base, but
@@ -157,54 +144,25 @@ static int intel_plane_atomic_check(struct drm_plane *plane,
 	intel_state->clip.x1 = 0;
 	intel_state->clip.y1 = 0;
 	intel_state->clip.x2 =
-		crtc_state->base.enable ? crtc_state->pipe_src_w : 0;
+		intel_crtc->active ? intel_crtc->config->pipe_src_w : 0;
 	intel_state->clip.y2 =
-		crtc_state->base.enable ? crtc_state->pipe_src_h : 0;
+		intel_crtc->active ? intel_crtc->config->pipe_src_h : 0;
 
-	if (state->fb && intel_rotation_90_or_270(state->rotation)) {
-		if (!(state->fb->modifier[0] == I915_FORMAT_MOD_Y_TILED ||
-			state->fb->modifier[0] == I915_FORMAT_MOD_Yf_TILED)) {
-			DRM_DEBUG_KMS("Y/Yf tiling required for 90/270!\n");
-			return -EINVAL;
-		}
-
+	/*
+	 * Disabling a plane is always okay; we just need to update
+	 * fb tracking in a special way since cleanup_fb() won't
+	 * get called by the plane helpers.
+	 */
+	if (state->fb == NULL && plane->state->fb != NULL) {
 		/*
-		 * 90/270 is not allowed with RGB64 16:16:16:16,
-		 * RGB 16-bit 5:6:5, and Indexed 8-bit.
-		 * TBD: Add RGB64 case once its added in supported format list.
+		 * 'prepare' is never called when plane is being disabled, so
+		 * we need to handle frontbuffer tracking as a special case
 		 */
-		switch (state->fb->pixel_format) {
-		case DRM_FORMAT_C8:
-		case DRM_FORMAT_RGB565:
-			DRM_DEBUG_KMS("Unsupported pixel format %s for 90/270!\n",
-					drm_get_format_name(state->fb->pixel_format));
-			return -EINVAL;
-
-		default:
-			break;
-		}
+		intel_crtc->atomic.disabled_planes |=
+			(1 << drm_plane_index(plane));
 	}
 
-	intel_state->visible = false;
-	ret = intel_plane->check_plane(plane, crtc_state, intel_state);
-	if (ret)
-		return ret;
-
-	if (state->blend_mode.func & ~GENMASK_ULL(31, 0)) {
-		DRM_DEBUG_KMS("Invalid bits in blend mode function (0x%llx)!\n",
-			      state->blend_mode.func);
-		return -EINVAL;
-	}
-
-	src_factor = DRM_BLEND_FUNC_SRC_FACTOR(state->blend_mode.func);
-	dst_factor = DRM_BLEND_FUNC_DST_FACTOR(state->blend_mode.func);
-	if ((src_factor == DRM_BLEND_FACTOR_AUTO) ^
-	    (dst_factor == DRM_BLEND_FACTOR_AUTO)) {
-		DRM_DEBUG_KMS("Invalid mix of auto and non-auto blend factors!");
-		return -EINVAL;
-	}
-
-	return intel_plane_atomic_calc_changes(&crtc_state->base, state);
+	return intel_plane->check_plane(plane, intel_state);
 }
 
 static void intel_plane_atomic_update(struct drm_plane *plane,
@@ -213,14 +171,12 @@ static void intel_plane_atomic_update(struct drm_plane *plane,
 	struct intel_plane *intel_plane = to_intel_plane(plane);
 	struct intel_plane_state *intel_state =
 		to_intel_plane_state(plane->state);
-	struct drm_crtc *crtc = plane->state->crtc ?: old_state->crtc;
 
-	if (intel_state->visible)
-		intel_plane->update_plane(plane,
-					  to_intel_crtc_state(crtc->state),
-					  intel_state);
-	else
-		intel_plane->disable_plane(plane, crtc);
+	/* Don't disable an already disabled plane */
+	if (!plane->state->fb && !old_state->fb)
+		return;
+
+	intel_plane->commit_plane(plane, intel_state);
 }
 
 const struct drm_plane_helper_funcs intel_plane_helper_funcs = {
@@ -247,16 +203,8 @@ intel_plane_atomic_get_property(struct drm_plane *plane,
 				struct drm_property *property,
 				uint64_t *val)
 {
-	struct drm_i915_private *dev_priv = state->plane->dev->dev_private;
-	struct intel_plane_state *intel_state = to_intel_plane_state(state);
-
-	if (property == dev_priv->render_comp_property) {
-		*val = intel_state->render_comp_enable;
-	} else {
-		DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
-		return -EINVAL;
-	}
-	return 0;
+	DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+	return -EINVAL;
 }
 
 /**
@@ -277,14 +225,6 @@ intel_plane_atomic_set_property(struct drm_plane *plane,
 				struct drm_property *property,
 				uint64_t val)
 {
-	struct drm_i915_private *dev_priv = state->plane->dev->dev_private;
-	struct intel_plane_state *intel_state = to_intel_plane_state(state);
-
-	if (property == dev_priv->render_comp_property) {
-		intel_state->render_comp_enable = val;
-	} else {
-		DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
-		return -EINVAL;
-	}
-	return 0;
+	DRM_DEBUG_KMS("Unknown plane property '%s'\n", property->name);
+	return -EINVAL;
 }

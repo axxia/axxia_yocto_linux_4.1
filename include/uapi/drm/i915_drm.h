@@ -28,7 +28,6 @@
 #define _UAPI_I915_DRM_H_
 
 #include <drm/drm.h>
-#include <drm/i915_perfmon.h>
 
 /* Please note that modifications to all structs defined here are
  * subject to backwards-compatibility constraints.
@@ -154,21 +153,6 @@ typedef struct _drm_i915_sarea {
 
 } drm_i915_sarea_t;
 
-struct i915_ext_ioctl_data {
-	u32 sub_cmd;	/* Extended ioctl to call */
-	u8  table;	/* Reserved, must be zero */
-	u8  pad1;	/* Alignment pad */
-	u16 pad2;	/* Alignment pad */
-
-	/*
-	 * User-space pointer could be 32-bits or 64-bits
-	 * so use u64 to guarantee compatibility with 64-bit kernels
-	 * This obviates the need to provide both a compat_ioctl and standard
-	 * ioctl for this interface
-	 */
-	u64 args_ptr;
-};
-
 /* due to userspace building against these headers we need some compat here */
 #define planeA_x pipeA_x
 #define planeA_y pipeA_y
@@ -243,22 +227,6 @@ struct i915_ext_ioctl_data {
 #define DRM_I915_GEM_CONTEXT_GETPARAM	0x34
 #define DRM_I915_GEM_CONTEXT_SETPARAM	0x35
 
-#define DRM_I915_PERFMON		0x3e
-
-/* Special, two-level, extended ioctl */
-#define DRM_I915_EXT_IOCTL		0x5F
-
-
-/* Extended ioctl definitions */
-#define DRM_I915_EXT_USERDATA		0x0
-#define DRM_I915_GEM_GET_APERTURE2	0x1
-
-#define DRM_IOCTL_I915_EXT_USERDATA \
-	DRM_IOWR(DRM_I915_EXT_USERDATA, struct drm_i915_gem_userdata_blk)
-#define DRM_IOCTL_I915_GEM_GET_APERTURE2 \
-	DRM_IOR(DRM_I915_GEM_GET_APERTURE2, struct drm_i915_gem_get_aperture2)
-
-
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
 #define DRM_IOCTL_I915_FLIP		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLIP)
@@ -311,11 +279,6 @@ struct i915_ext_ioctl_data {
 #define DRM_IOCTL_I915_GEM_USERPTR			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_USERPTR, struct drm_i915_gem_userptr)
 #define DRM_IOCTL_I915_GEM_CONTEXT_GETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_GETPARAM, struct drm_i915_gem_context_param)
 #define DRM_IOCTL_I915_GEM_CONTEXT_SETPARAM	DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_GEM_CONTEXT_SETPARAM, struct drm_i915_gem_context_param)
-#define DRM_IOCTL_I915_PERFMON 			DRM_IOWR (DRM_COMMAND_BASE + DRM_I915_PERFMON, struct drm_i915_perfmon)
-
-#define DRM_IOCTL_I915_EXT_IOCTL	\
-		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_EXT_IOCTL, \
-		struct i915_ext_ioctl_data)
 
 /* Allow drivers to submit batchbuffers directly to hardware, relying
  * on the security mechanisms provided by hardware.
@@ -387,25 +350,9 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_REVISION              32
 #define I915_PARAM_SUBSLICE_TOTAL	 33
 #define I915_PARAM_EU_TOTAL		 34
-#define I915_PARAM_HAS_GPU_RESET	 35
-#define I915_PARAM_HAS_RESOURCE_STREAMER 36
-#define I915_PARAM_HAS_EXEC_SOFTPIN	 37
-
-/* Private (not upstreamed) parameters start from 0x800   */
-/* This helps to avoid conflicts with new upstream values */
-#define I915_PARAM_HAS_POOLED_EU         0x800
-#define I915_PARAM_MIN_EU_IN_POOL        0x801
-#define I915_PARAM_HAS_GET_APERTURE2     0x802
-#define I915_PARAM_HAS_GUC               0x803
-#define I915_PARAM_HAS_HUC               0x804
-#define I915_PARAM_CREATE_VERSION        0x805
 
 typedef struct drm_i915_getparam {
-	s32 param;
-	/*
-	 * WARNING: Using pointers instead of fixed-size u64 means we need to write
-	 * compat32 code. Don't repeat this mistake.
-	 */
+	int param;
 	int __user *value;
 } drm_i915_getparam_t;
 
@@ -498,46 +445,6 @@ struct drm_i915_gem_create {
 	 */
 	__u32 handle;
 	__u32 pad;
-	/**
-	 * Requested flags (currently used for placement
-	 * (which memory domain))
-	 *
-	 * You can request that the object be created from special memory
-	 * rather than regular system pages using this parameter. Such
-	 * irregular objects may have certain restrictions (such as CPU
-	 * access to a stolen object is verboten).
-	 *
-	 * This can be used in the future for other purposes too
-	 * e.g. specifying tiling/caching/madvise
-	 */
-	__u64 flags;
-#define I915_CREATE_PLACEMENT_NORMAL 	0 /* standard swappable bo  */
-/* Allocate the object from memory reserved for the igfx (stolen).
- *
- * Objects allocated from stolen are restricted in the API they can use,
- * as direct CPU access to stolen memory is prohibited by the system.
- * This means that you cannot use a regular CPU mmap (either using WB
- * or with the WC extension). You can still use a GTT mmap, pwrite,
- * pread and pass it around for use by execbuffer and between processes
- * like normal.
- *
- * Stolen memory is a very limited resource and certain functions of the
- * hardware can only work from within stolen memory. Userspace's
- * allocations may be evicted from stolen and moved to normal memory as
- * required. If the allocation is marked as purgeable (using madvise),
- * the allocation will be dropped and further access to the object's
- * backing storage will result in -EFAULT. Stolen objects will also be
- * migrated to normal memory across suspend and resume, as the stolen
- * memory is not preserved.
- *
- * Stolen memory is regarded as a resource placement hint, most suitable
- * for medium-sized buffers that are only accessed by the GPU and can be
- * discarded.
- */
-#define I915_CREATE_PLACEMENT_STOLEN 	1 /* Cannot use CPU mmaps */
-
-#define I915_CREATE_PLACEMENT_MASK	0xff
-#define __I915_CREATE_UNKNOWN_FLAGS	~I915_CREATE_PLACEMENT_MASK
 };
 
 struct drm_i915_gem_pread {
@@ -765,21 +672,15 @@ struct drm_i915_gem_exec_object2 {
 	__u64 alignment;
 
 	/**
-	 * When the EXEC_OBJECT_PINNED flag is specified this is populated by
-	 * the user with the GTT offset at which this object will be pinned.
-	 * When the I915_EXEC_NO_RELOC flag is specified this must contain the
-	 * presumed_offset of the object.
-	 * During execbuffer2 the kernel populates it with the value of the
-	 * current GTT offset of the object, for future presumed_offset writes.
+	 * Returned value of the updated offset of the object, for future
+	 * presumed_offset writes.
 	 */
 	__u64 offset;
 
 #define EXEC_OBJECT_NEEDS_FENCE (1<<0)
 #define EXEC_OBJECT_NEEDS_GTT	(1<<1)
 #define EXEC_OBJECT_WRITE	(1<<2)
-#define EXEC_OBJECT_SUPPORTS_48B_ADDRESS (1<<3)
-#define EXEC_OBJECT_PINNED	(1<<4)
-#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_PINNED<<1)
+#define __EXEC_OBJECT_UNKNOWN_FLAGS -(EXEC_OBJECT_WRITE<<1)
 	__u64 flags;
 
 	__u64 rsvd1;
@@ -854,19 +755,12 @@ struct drm_i915_gem_execbuffer2 {
 #define I915_EXEC_HANDLE_LUT		(1<<12)
 
 /** Used for switching BSD rings on the platforms with two BSD rings */
-#define I915_EXEC_BSD_SHIFT	 (13)
-#define I915_EXEC_BSD_MASK	 (3 << I915_EXEC_BSD_SHIFT)
-/* default ping-pong mode */
-#define I915_EXEC_BSD_DEFAULT	 (0 << I915_EXEC_BSD_SHIFT)
-#define I915_EXEC_BSD_RING1	 (1 << I915_EXEC_BSD_SHIFT)
-#define I915_EXEC_BSD_RING2	 (2 << I915_EXEC_BSD_SHIFT)
+#define I915_EXEC_BSD_MASK		(3<<13)
+#define I915_EXEC_BSD_DEFAULT		(0<<13) /* default ping-pong mode */
+#define I915_EXEC_BSD_RING1		(1<<13)
+#define I915_EXEC_BSD_RING2		(2<<13)
 
-/** Tell the kernel that the batchbuffer is processed by
- *  the resource streamer.
- */
-#define I915_EXEC_RESOURCE_STREAMER     (1<<15)
-
-#define __I915_EXEC_UNKNOWN_FLAGS -(I915_EXEC_RESOURCE_STREAMER<<1)
+#define __I915_EXEC_UNKNOWN_FLAGS -(1<<15)
 
 #define I915_EXEC_CONTEXT_ID_MASK	(0xffffffff)
 #define i915_execbuffer2_set_context_id(eb2, context) \
@@ -896,35 +790,10 @@ struct drm_i915_gem_busy {
 	/** Handle of the buffer to check for busy */
 	__u32 handle;
 
-	/** Return busy status
-	 *
-	 * A return of 0 implies that the object is idle (after
-	 * having flushed any pending activity), and a non-zero return that
-	 * the object is still in-flight on the GPU. (The GPU has not yet
-	 * signaled completion for all pending requests that reference the
-	 * object.)
-	 *
-	 * The returned dword is split into two fields to indicate both
-	 * the engines on which the object is being read, and the
-	 * engine on which it is currently being written (if any).
-	 *
-	 * The low word (bits 0:15) indicate if the object is being written
-	 * to by any engine (there can only be one, as the GEM implicit
-	 * synchronisation rules force writes to be serialised). Only the
-	 * engine for the last write is reported.
-	 *
-	 * The high word (bits 16:31) are a bitmask of which engines are
-	 * currently reading from the object. Multiple engines may be
-	 * reading from the object simultaneously.
-	 *
-	 * The value of each engine is the same as specified in the
-	 * EXECBUFFER2 ioctl, i.e. I915_EXEC_RENDER, I915_EXEC_BSD etc.
-	 * Note I915_EXEC_DEFAULT is a symbolic value and is mapped to
-	 * the I915_EXEC_RENDER engine for execution, and so it is never
-	 * reported as active itself. Some hardware may have parallel
-	 * execution engines, e.g. multiple media engines, which are
-	 * mapped to the same identifier in the EXECBUFFER2 ioctl and
-	 * so are not separately reported for busyness.
+	/** Return busy status (1 if busy, 0 if idle).
+	 * The high word is used to indicate on which rings the object
+	 * currently resides:
+	 *  16:31 - busy (r or r/w) rings (16 render, 17 bsd, 18 blt, etc)
 	 */
 	__u32 busy;
 };
@@ -1039,41 +908,6 @@ struct drm_i915_gem_get_tiling {
 	__u32 phys_swizzle_mode;
 };
 
-/* Interface allowing user metadata to be attached to gem bo's */
-#define I915_USERDATA_CREATE_OP 0
-#define I915_USERDATA_SET_OP    1
-#define I915_USERDATA_GET_OP    2
-
-#define I915_USERDATA_READONLY 1 /* Data cannot be set after create */
-
-struct drm_i915_gem_userdata_blk {
-	/* One of the USERDATA OP defines above */
-	__u16 op;
-
-	/* Create flags */
-	__u16 flags;
-
-	/* Handle of the buffer whose userdata will be accessed */
-	__u32 handle;
-
-	/* Byte offset into data block */
-	__u32 offset;
-
-	/*
-	 * Number of bytes to allocate or move
-	 * On return, the number of bytes previously allocated
-	*/
-	__u32 bytes;
-
-	/*
-	 * User-space pointer could be 32-bits or 64-bits
-	 * so use u64 to guarantee compatibility with 64-bit kernels
-	 * This obviates the need to provide both a compat_ioctl and standard
-	 * ioctl for this interface
-	*/
-	__u64 data_ptr;
-};
-
 struct drm_i915_gem_get_aperture {
 	/** Total size of the aperture used by i915_gem_execbuffer, in bytes */
 	__u64 aper_size;
@@ -1083,48 +917,6 @@ struct drm_i915_gem_get_aperture {
 	 * bytes
 	 */
 	__u64 aper_available_size;
-
-	/**
-	 * Versioning to indicate if map_total_size and stolen_total_size
-	 * value returned are valid or not
-	 */
-	__u64 version;
-
-	/**
-	 * Total space in the mappable region of the aperture, in bytes
-	 */
-	__u64 map_total_size;
-
-	/**
-	 * Total space in the stolen region, in bytes
-	 */
-	__u64 stolen_total_size;
-};
-
-struct drm_i915_gem_get_aperture2 {
-	/** Total size of the aperture used by i915_gem_execbuffer, in bytes */
-	__u64 aper_size;
-
-	/**
-	 * Available space in the aperture used by i915_gem_execbuffer, in
-	 * bytes
-	 */
-	__u64 aper_available_size;
-
-	/**
-	 * Total space in the mappable region of the aperture, in bytes
-	 */
-	__u64 map_total_size;
-
-	/**
-	 * Available space in the mappable region of the aperture, in bytes
-	 */
-	__u64 map_available_size;
-
-	/**
-	 * Single largest available region inside the mappable region, in bytes.
-	 */
-	__u64 map_largest_size;
 };
 
 struct drm_i915_get_pipe_from_crtc_id {
@@ -1204,7 +996,6 @@ struct drm_intel_overlay_put_image {
 /* flags */
 #define I915_OVERLAY_UPDATE_ATTRS	(1<<0)
 #define I915_OVERLAY_UPDATE_GAMMA	(1<<1)
-#define I915_OVERLAY_DISABLE_DEST_COLORKEY	(1<<2)
 struct drm_intel_overlay_attrs {
 	__u32 flags;
 	__u32 color_key;
@@ -1271,23 +1062,9 @@ struct drm_i915_gem_context_destroy {
 };
 
 struct drm_i915_reg_read {
-	/*
-	 * Register offset.
-	 * For 64bit wide registers where the upper 32bits don't immediately
-	 * follow the lower 32bits, the offset of the lower 32bits must
-	 * be specified
-	 */
 	__u64 offset;
 	__u64 val; /* Return value */
 };
-/* Known registers:
- *
- * Render engine timestamp - 0x2358 + 64bit - gen7+
- * - Note this register returns an invalid value if using the default
- *   single instruction 8byte read, in order to workaround that use
- *   offset (0x2538 | 1) instead.
- *
- */
 
 struct drm_i915_reset_stats {
 	__u32 ctx_id;
@@ -1323,10 +1100,7 @@ struct drm_i915_gem_context_param {
 	__u32 ctx_id;
 	__u32 size;
 	__u64 param;
-#define I915_CONTEXT_PARAM_BAN_PERIOD	0x1
-#define I915_CONTEXT_PARAM_NO_ZEROMAP	0x2
-#define I915_CONTEXT_PARAM_GTT_SIZE	0x3
-#define I915_CONTEXT_PARAM_PRIORITY	0x4
+#define I915_CONTEXT_PARAM_BAN_PERIOD 0x1
 	__u64 value;
 };
 

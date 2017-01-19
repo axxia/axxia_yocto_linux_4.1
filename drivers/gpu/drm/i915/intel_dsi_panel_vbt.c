@@ -204,63 +204,39 @@ static const u8 *mipi_exec_gpio(struct intel_dsi *intel_dsi, const u8 *data)
 	struct drm_device *dev = intel_dsi->base.base.dev;
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->vbt.dsi.seq_version >= 3)
-		data++;
-
 	gpio = *data++;
 
 	/* pull up/down */
-	action = *data++ & 1;
-
-	if (gpio >= ARRAY_SIZE(gtable)) {
-		DRM_DEBUG_KMS("unknown gpio %u\n", gpio);
-		goto out;
-	}
-
-	if (!IS_VALLEYVIEW(dev_priv)) {
-		DRM_DEBUG_KMS("GPIO element not supported on this platform\n");
-		goto out;
-	}
-
-	if (dev_priv->vbt.dsi.seq_version >= 3) {
-		DRM_DEBUG_KMS("GPIO element v3 not supported\n");
-		goto out;
-	}
+	action = *data++;
 
 	function = gtable[gpio].function_reg;
 	pad = gtable[gpio].pad_reg;
 
-	mutex_lock(&dev_priv->sb_lock);
+	mutex_lock(&dev_priv->dpio_lock);
 	if (!gtable[gpio].init) {
 		/* program the function */
 		/* FIXME: remove constant below */
-		vlv_iosf_sb_write(dev_priv, IOSF_PORT_GPIO_NC, function,
-				  0x2000CC00);
+		vlv_gpio_nc_write(dev_priv, function, 0x2000CC00);
 		gtable[gpio].init = 1;
 	}
 
 	val = 0x4 | action;
 
 	/* pull up/down */
-	vlv_iosf_sb_write(dev_priv, IOSF_PORT_GPIO_NC, pad, val);
-	mutex_unlock(&dev_priv->sb_lock);
+	vlv_gpio_nc_write(dev_priv, pad, val);
+	mutex_unlock(&dev_priv->dpio_lock);
 
-out:
 	return data;
-}
-
-static const u8 *mipi_exec_i2c_skip(struct intel_dsi *intel_dsi, const u8 *data)
-{
-	return data + *(data + 6) + 7;
 }
 
 typedef const u8 * (*fn_mipi_elem_exec)(struct intel_dsi *intel_dsi,
 					const u8 *data);
 static const fn_mipi_elem_exec exec_elem[] = {
-	[MIPI_SEQ_ELEM_SEND_PKT] = mipi_exec_send_packet,
-	[MIPI_SEQ_ELEM_DELAY] = mipi_exec_delay,
-	[MIPI_SEQ_ELEM_GPIO] = mipi_exec_gpio,
-	[MIPI_SEQ_ELEM_I2C] = mipi_exec_i2c_skip,
+	NULL, /* reserved */
+	mipi_exec_send_packet,
+	mipi_exec_delay,
+	mipi_exec_gpio,
+	NULL, /* status read; later */
 };
 
 /*
@@ -270,114 +246,107 @@ static const fn_mipi_elem_exec exec_elem[] = {
  */
 
 static const char * const seq_name[] = {
-	[MIPI_SEQ_ASSERT_RESET] = "MIPI_SEQ_ASSERT_RESET",
-	[MIPI_SEQ_INIT_OTP] = "MIPI_SEQ_INIT_OTP",
-	[MIPI_SEQ_DISPLAY_ON] = "MIPI_SEQ_DISPLAY_ON",
-	[MIPI_SEQ_DISPLAY_OFF]  = "MIPI_SEQ_DISPLAY_OFF",
-	[MIPI_SEQ_DEASSERT_RESET] = "MIPI_SEQ_DEASSERT_RESET",
-	[MIPI_SEQ_BACKLIGHT_ON] = "MIPI_SEQ_BACKLIGHT_ON",
-	[MIPI_SEQ_BACKLIGHT_OFF] = "MIPI_SEQ_BACKLIGHT_OFF",
-	[MIPI_SEQ_TEAR_ON] = "MIPI_SEQ_TEAR_ON",
-	[MIPI_SEQ_TEAR_OFF] = "MIPI_SEQ_TEAR_OFF",
-	[MIPI_SEQ_POWER_ON] = "MIPI_SEQ_POWER_ON",
-	[MIPI_SEQ_POWER_OFF] = "MIPI_SEQ_POWER_OFF",
+	"UNDEFINED",
+	"MIPI_SEQ_ASSERT_RESET",
+	"MIPI_SEQ_INIT_OTP",
+	"MIPI_SEQ_DISPLAY_ON",
+	"MIPI_SEQ_DISPLAY_OFF",
+	"MIPI_SEQ_DEASSERT_RESET"
 };
 
-static const char *sequence_name(enum mipi_seq seq_id)
+static void generic_exec_sequence(struct intel_dsi *intel_dsi, const u8 *data)
 {
-	if (seq_id < ARRAY_SIZE(seq_name) && seq_name[seq_id])
-		return seq_name[seq_id];
-	else
-		return "(unknown)";
-}
-
-static void generic_exec_sequence(struct drm_panel *panel, enum mipi_seq seq_id)
-{
-	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
-	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
-	struct drm_i915_private *dev_priv = to_i915(intel_dsi->base.base.dev);
-	const u8 *data;
 	fn_mipi_elem_exec mipi_elem_exec;
+	int index;
 
-	if (WARN_ON(seq_id >= ARRAY_SIZE(dev_priv->vbt.dsi.sequence)))
+	if (!data)
 		return;
 
-	data = dev_priv->vbt.dsi.sequence[seq_id];
-	if (!data) {
-		DRM_DEBUG_KMS("MIPI sequence %d - %s not available\n",
-			      seq_id, sequence_name(seq_id));
-		return;
-	}
+	DRM_DEBUG_DRIVER("Starting MIPI sequence - %s\n", seq_name[*data]);
 
-	WARN_ON(*data != seq_id);
-
-	DRM_DEBUG_KMS("Starting MIPI sequence %d - %s\n",
-		      seq_id, sequence_name(seq_id));
-
-	/* Skip Sequence Byte. */
+	/* go to the first element of the sequence */
 	data++;
 
-	/* Skip Size of Sequence. */
-	if (dev_priv->vbt.dsi.seq_version >= 3)
-		data += 4;
-
+	/* parse each byte till we reach end of sequence byte - 0x00 */
 	while (1) {
-		u8 operation_byte = *data++;
-		u8 operation_size = 0;
-
-		if (operation_byte == MIPI_SEQ_ELEM_END)
-			break;
-
-		if (operation_byte < ARRAY_SIZE(exec_elem))
-			mipi_elem_exec = exec_elem[operation_byte];
-		else
-			mipi_elem_exec = NULL;
-
-		/* Size of Operation. */
-		if (dev_priv->vbt.dsi.seq_version >= 3)
-			operation_size = *data++;
-
-		if (mipi_elem_exec) {
-			data = mipi_elem_exec(intel_dsi, data);
-		} else if (operation_size) {
-			/* We have size, skip. */
-			DRM_DEBUG_KMS("Unsupported MIPI operation byte %u\n",
-				      operation_byte);
-			data += operation_size;
-		} else {
-			/* No size, can't skip without parsing. */
-			DRM_ERROR("Unsupported MIPI operation byte %u\n",
-				  operation_byte);
+		index = *data;
+		mipi_elem_exec = exec_elem[index];
+		if (!mipi_elem_exec) {
+			DRM_ERROR("Unsupported MIPI element, skipping sequence execution\n");
 			return;
 		}
+
+		/* goto element payload */
+		data++;
+
+		/* execute the element specific rotines */
+		data = mipi_elem_exec(intel_dsi, data);
+
+		/*
+		 * After processing the element, data should point to
+		 * next element or end of sequence
+		 * check if have we reached end of sequence
+		 */
+		if (*data == 0x00)
+			break;
 	}
 }
 
 static int vbt_panel_prepare(struct drm_panel *panel)
 {
-	generic_exec_sequence(panel, MIPI_SEQ_ASSERT_RESET);
-	generic_exec_sequence(panel, MIPI_SEQ_INIT_OTP);
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const u8 *sequence;
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_ASSERT_RESET];
+	generic_exec_sequence(intel_dsi, sequence);
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_INIT_OTP];
+	generic_exec_sequence(intel_dsi, sequence);
 
 	return 0;
 }
 
 static int vbt_panel_unprepare(struct drm_panel *panel)
 {
-	generic_exec_sequence(panel, MIPI_SEQ_DEASSERT_RESET);
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const u8 *sequence;
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DEASSERT_RESET];
+	generic_exec_sequence(intel_dsi, sequence);
 
 	return 0;
 }
 
 static int vbt_panel_enable(struct drm_panel *panel)
 {
-	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_ON);
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const u8 *sequence;
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DISPLAY_ON];
+	generic_exec_sequence(intel_dsi, sequence);
 
 	return 0;
 }
 
 static int vbt_panel_disable(struct drm_panel *panel)
 {
-	generic_exec_sequence(panel, MIPI_SEQ_DISPLAY_OFF);
+	struct vbt_panel *vbt_panel = to_vbt_panel(panel);
+	struct intel_dsi *intel_dsi = vbt_panel->intel_dsi;
+	struct drm_device *dev = intel_dsi->base.base.dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	const u8 *sequence;
+
+	sequence = dev_priv->vbt.dsi.sequence[MIPI_SEQ_DISPLAY_OFF];
+	generic_exec_sequence(intel_dsi, sequence);
 
 	return 0;
 }
@@ -420,7 +389,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	struct mipi_pps_data *pps = dev_priv->vbt.dsi.pps;
 	struct drm_display_mode *mode = dev_priv->vbt.lfp_lvds_vbt_mode;
 	struct vbt_panel *vbt_panel;
-	u32 bpp;
+	u32 bits_per_pixel = 24;
 	u32 tlpx_ns, extra_byte_count, bitrate, tlpx_ui;
 	u32 ui_num, ui_den;
 	u32 prepare_cnt, exit_zero_cnt, clk_zero_cnt, trail_cnt;
@@ -436,13 +405,15 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->eotp_pkt = mipi_config->eot_pkt_disabled ? 0 : 1;
 	intel_dsi->clock_stop = mipi_config->enable_clk_stop ? 1 : 0;
 	intel_dsi->lane_count = mipi_config->lane_cnt + 1;
-	intel_dsi->pixel_format =
-			pixel_format_from_register_bits(
-				mipi_config->videomode_color_format << 7);
-	bpp = mipi_dsi_pixel_format_to_bpp(intel_dsi->pixel_format);
-
+	intel_dsi->pixel_format = mipi_config->videomode_color_format << 7;
 	intel_dsi->dual_link = mipi_config->dual_link;
 	intel_dsi->pixel_overlap = mipi_config->pixel_overlap;
+
+	if (intel_dsi->pixel_format == VID_MODE_FORMAT_RGB666)
+		bits_per_pixel = 18;
+	else if (intel_dsi->pixel_format == VID_MODE_FORMAT_RGB565)
+		bits_per_pixel = 16;
+
 	intel_dsi->operation_mode = mipi_config->is_cmd_mode;
 	intel_dsi->video_mode_format = mipi_config->video_transfer_mode;
 	intel_dsi->escape_clk_div = mipi_config->byte_clk_sel;
@@ -476,7 +447,8 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	 */
 	if (intel_dsi->video_mode_format == VIDEO_MODE_BURST) {
 		if (mipi_config->target_burst_mode_freq) {
-			computed_ddr = (pclk * bpp) / intel_dsi->lane_count;
+			computed_ddr =
+				(pclk * bits_per_pixel) / intel_dsi->lane_count;
 
 			if (mipi_config->target_burst_mode_freq <
 								computed_ddr) {
@@ -499,7 +471,7 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 	intel_dsi->burst_mode_ratio = burst_mode_ratio;
 	intel_dsi->pclk = pclk;
 
-	bitrate = (pclk * bpp) / intel_dsi->lane_count;
+	bitrate = (pclk * bits_per_pixel) / intel_dsi->lane_count;
 
 	switch (intel_dsi->escape_clk_div) {
 	case 0:
@@ -694,8 +666,6 @@ struct drm_panel *vbt_panel_init(struct intel_dsi *intel_dsi, u16 panel_id)
 
 	/* This is cheating a bit with the cleanup. */
 	vbt_panel = devm_kzalloc(dev->dev, sizeof(*vbt_panel), GFP_KERNEL);
-	if (!vbt_panel)
-		return NULL;
 
 	vbt_panel->intel_dsi = intel_dsi;
 	drm_panel_init(&vbt_panel->panel);

@@ -5,6 +5,7 @@
  */
 #include <linux/pci.h>
 #include <linux/acpi.h>
+#include <linux/vga_switcheroo.h>
 #include <drm/drmP.h>
 #include "i915_drv.h"
 
@@ -21,11 +22,6 @@ static const u8 intel_dsm_guid[] = {
 	0x4f, 0x4e,
 	0xa8, 0x54,
 	0x0f, 0x13, 0x17, 0xb0, 0x1c, 0x2c
-};
-
-static const struct acpi_device_id irst_ids[] = {
-	{"INT3392", 0},
-	{"", 0}
 };
 
 static char *intel_dsm_port_name(u8 id)
@@ -150,7 +146,7 @@ static bool intel_dsm_detect(void)
 
 	if (vga_count == 2 && has_dsm) {
 		acpi_get_name(intel_dsm_priv.dhandle, ACPI_FULL_PATHNAME, &buffer);
-		DRM_DEBUG_DRIVER("vga_switcheroo: detected DSM switching method %s handle\n",
+		DRM_DEBUG_DRIVER("VGA switcheroo: detected DSM switching method %s handle\n",
 				 acpi_method_name);
 		return true;
 	}
@@ -166,19 +162,4 @@ void intel_register_dsm_handler(void)
 
 void intel_unregister_dsm_handler(void)
 {
-}
-
-int match_device(struct device *dev, void* ids) {
-	if (acpi_match_device(irst_ids, dev))
-		return 1;
-
-	return 0;
-}
-
-bool intel_detect_acpi_rst(void)
-{
-	if (bus_for_each_dev(&acpi_bus_type, NULL, NULL, match_device))
-		return true;;
-
-	return false;
 }
