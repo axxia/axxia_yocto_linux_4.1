@@ -2213,7 +2213,7 @@ static int i915_dump_lrc(struct seq_file *m, void *unused)
 			if (ctx->file_priv) {
 				seq_printf(m, "CONTEXT: %s (PID: %u, UH:%d)\n",
 					   engine->name,
-					   pid_nr(ctx->file_priv->file->pid),
+					   pid_nr(ctx->pid),
 					   ctx->user_handle);
 				i915_dump_lrc_obj(m, ctx, engine, dump_flag);
 			}
