@@ -54,6 +54,15 @@ MODULE_PARM_DESC(splash,
 		 "Load a splash screen binary image for a specific display."
 		 "splash=<connector>:<image>:w,h,pitch,crtc_x,crtc_y,crtc_w,crtc_h");
 
+static inline struct drm_encoder *get_encoder(struct drm_connector *connector)
+{
+	struct intel_encoder *encoder;
+
+	encoder = intel_attached_encoder(connector);
+
+	return &encoder->base;
+}
+
 /*
  * This makes use of the video= kernel command line to determine what
  * connectors to configure. See Documentation/fb/modedb.txt for details
@@ -450,8 +459,8 @@ static int update_atomic_state(struct drm_device *dev,
 	int ret;
 	struct splash_screen_info *splash_info;
 
-	if (connector->encoder)
-		crtc = connector->encoder->crtc;
+	if (get_encoder(connector))
+		crtc = get_encoder(connector)->crtc;
 	else
 		return -EINVAL;
 
@@ -538,7 +547,7 @@ static void modeset_config_fn(struct work_struct *work)
 	mutex_lock(&dev->mode_config.mutex);
 	drm_for_each_connector(connector, dev) {
 		if (use_connector(connector)) {
-			if (!(encoder = connector->encoder))
+			if (!(encoder = get_encoder(connector)))
 				continue;
 			if (!attach_crtc(dev, encoder, &used_crtcs))
 				continue;
@@ -559,7 +568,7 @@ static void modeset_config_fn(struct work_struct *work)
 			connector->status = connector->funcs->detect(connector,
 								     true);
 			if (connector->status == connector_status_connected) {
-				if (!(encoder = connector->encoder))
+				if (!(encoder = get_encoder(connector)))
 					continue;
 				if (!attach_crtc(dev, encoder, &used_crtcs))
 					continue;
