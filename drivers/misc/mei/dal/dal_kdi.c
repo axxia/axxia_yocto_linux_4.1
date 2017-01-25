@@ -262,7 +262,7 @@ static int kdi_create_session(u64 *handle, const char *jta_id,
 	ret = acp_pload_ins_jta(buffer, buffer_length, &pack);
 	if (ret) {
 		pr_err("acp_pload_ins_jta() return %d", ret);
-		return to_kdi_err(ret);
+		return ret;
 	}
 
 	ta_pkg = pack.ta_pack;
@@ -279,7 +279,7 @@ static int kdi_create_session(u64 *handle, const char *jta_id,
 	ret = bhp_open_ta_session(handle, jta_id, ta_pkg, ta_pkg_size,
 				     init_param, init_param_length);
 
-	return to_kdi_err(ret);
+	return ret;
 }
 
 int dal_create_session(u64 *session_handle,  const char *app_id,
