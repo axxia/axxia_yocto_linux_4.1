@@ -57,7 +57,7 @@ invoke_oem_fn(struct oem_parameters *p)
 		     "mov %x3, x3" : "=r" (p->reg0), "=r" (p->reg1),
 		     "=r" (p->reg2), "=r" (p->reg3));
 
-	return 0;
+	return;
 }
 
 /*
@@ -101,7 +101,7 @@ axxia_dspc_write(struct file *file, const char __user *buffer,
 	if (copy_from_user(input, buffer, count))
 		return -EFAULT;
 
-	mask = kstrtoul(input, NULL, 0);
+	mask = kstrtoul(input, 0, 0);
 	axxia_dspc_set_state((unsigned int)mask);
 
 	return count;
@@ -154,7 +154,7 @@ axxia_actlr_el3_write(struct file *file, const char __user *buffer,
 	if (copy_from_user(input, buffer, count))
 		return -EFAULT;
 
-	axxia_actlr_el3_set(kstrtoul(input, NULL, 0));
+	axxia_actlr_el3_set(kstrtoul(input, 0, 0));
 
 	return count;
 }
@@ -206,7 +206,7 @@ axxia_actlr_el2_write(struct file *file, const char __user *buffer,
 	if (copy_from_user(input, buffer, count))
 		return -EFAULT;
 
-	axxia_actlr_el2_set(kstrtoul(input, NULL, 0));
+	axxia_actlr_el2_set(kstrtoul(input, 0, 0));
 
 	return count;
 }
@@ -267,7 +267,7 @@ axxia_dspc_set_state(unsigned long state)
 	if (0 != parameters.reg0)
 		pr_warn("Setting the DSP State Failed!\n");
 
-	return 0;
+	return;
 }
 EXPORT_SYMBOL(axxia_dspc_set_state);
 
@@ -308,7 +308,7 @@ axxia_actlr_el3_set(unsigned long input)
 	if (0 != parameters.reg0)
 		pr_warn("Setting ACTLR_EL3 Failed!\n");
 
-	return 0;
+	return;
 }
 EXPORT_SYMBOL(axxia_actlr_el3_set);
 
@@ -349,7 +349,7 @@ axxia_actlr_el2_set(unsigned long input)
 	if (0 != parameters.reg0)
 		pr_warn("Setting ACTLR_EL2 Failed!\n");
 
-	return 0;
+	return;
 }
 EXPORT_SYMBOL(axxia_actlr_el2_set);
 

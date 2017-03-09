@@ -484,7 +484,7 @@ int vmfs_notify_change(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		goto out;
 
-	error = inode_change_ok(inode, attr);
+	error = setattr_prepare(dentry, attr);
 	if (error < 0)
 		goto out;
 
