@@ -20,7 +20,8 @@ obj-$(CONFIG_EDAC_AXXIA_SYSMEM_5500)	+= axxia_edac-mc.o
 obj-$(CONFIG_EDAC_AXXIA_SYSMEM_5600)	+= axxia_edac-mc_56xx.o
 obj-$(CONFIG_EDAC_AXXIA_CMEM_5600)	+= axxia_edac-cmc_56xx.o
 obj-$(CONFIG_EDAC_AXXIA_L3)		+= axxia_edac-l3.o
-obj-$(CONFIG_EDAC_AXXIA_L2_CPU)	+= axxia_edac-l2_cpu.o
+obj-$(CONFIG_EDAC_AXXIA_L2_CPU_5500)	+= axxia_edac-l2_cpu.o
+obj-$(CONFIG_EDAC_AXXIA_L2_CPU_5600)	+= axxia_edac-l2_cpu_56xx.o
 obj-$(CONFIG_EDAC_GHES)			+= ghes_edac.o
 obj-$(CONFIG_EDAC_MCE_INJ)		+= mce_amd_inj.o
 
@@ -73,3 +74,6 @@ obj-$(CONFIG_EDAC_OCTEON_PCI)		+= octeon_edac-pci.o
 
 obj-$(CONFIG_EDAC_ALTERA_MC)		+= altera_edac.o
 obj-$(CONFIG_EDAC_SYNOPSYS)		+= synopsys_edac.o
+
+CFLAGS_axxia_edac-l2_cpu.o      += -I$(srctree)/arch/$(ARCH)/include/asm/ -include $(srctree)/arch/$(ARCH)/include/asm/axxia_l2_55xx.h
+CFLAGS_axxia_edac-l2_cpu_56xx.o += -I$(srctree)/arch/$(ARCH)/include/asm/ -include $(srctree)/arch/$(ARCH)/include/asm/axxia_l2_56xx.h
