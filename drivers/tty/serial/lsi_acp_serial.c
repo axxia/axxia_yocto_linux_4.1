@@ -546,7 +546,7 @@ acp_serial_startup(struct uart_port *port)
 	}
 
 	retval = request_irq(uap->port.irq, acp_serial_isr,
-			     IRQF_DISABLED, "uart-pl011", uap);
+			     0, "uart-pl011", uap);
 
 	if (retval) {
 		pr_err("request_irq(%d) failed!\n", uap->port.irq);
