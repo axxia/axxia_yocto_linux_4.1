@@ -44,7 +44,7 @@ static u32 last_port;
 #define ACPX1_PCIE_MPAGE_UPPER(n) (0x1010 + (n * 8))
 #define ACPX1_PCIE_MPAGE_LOWER(n) (0x1014 + (n * 8))
 
-static void __init
+static void
 fixup_acp_pci_bridge(struct pci_dev *dev)
 {
 	/* if we aren't a PCIe don't bother */
