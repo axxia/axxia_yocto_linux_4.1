@@ -16,6 +16,8 @@
 #include <asm/smap.h>
 #include <linux/linkage.h>
 #include <linux/err.h>
+#include <asm/pgtable_types.h>
+#include <asm/kaiser.h>
 
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
 #include <linux/elf-em.h>
@@ -102,6 +104,7 @@ ENTRY(ia32_sysenter_target)
 	 * it is too small to ever cause noticeable irq latency.
 	 */
 	SWAPGS_UNSAFE_STACK
+	SWITCH_KERNEL_CR3_NO_STACK
 	movq	PER_CPU_VAR(cpu_tss + TSS_sp0), %rsp
 	ENABLE_INTERRUPTS(CLBR_NONE)
 
@@ -190,6 +193,7 @@ sysexit_from_sys_call:
 	 */
 	movl	RSP(%rsp),%esp
 
+	SWITCH_USER_CR3
 	/*
 	 * USERGS_SYSRET32 does:
 	 *  gsbase = user's gs base
@@ -321,6 +325,7 @@ ENTRY(ia32_cstar_target)
 	 * it is too small to ever cause noticeable irq latency.
 	 */
 	SWAPGS_UNSAFE_STACK
+	SWITCH_KERNEL_CR3_NO_STACK
 	movl	%esp,%r8d
 	movq	PER_CPU_VAR(kernel_stack),%rsp
 	ENABLE_INTERRUPTS(CLBR_NONE)
@@ -394,6 +399,7 @@ sysretl_from_sys_call:
 	 * interrupt entries on x86_64 set SS to NULL.)  We prevent that
 	 * from happening by reloading SS in __switch_to.
 	 */
+	SWITCH_USER_CR3
 	USERGS_SYSRET32
 
 #ifdef CONFIG_AUDITSYSCALL
@@ -461,6 +467,7 @@ ENTRY(ia32_syscall)
 	PARAVIRT_ADJUST_EXCEPTION_FRAME
 	ASM_CLAC			/* Do this early to minimize exposure */
 	SWAPGS
+	SWITCH_KERNEL_CR3_NO_STACK
 	ENABLE_INTERRUPTS(CLBR_NONE)
 
 	/* Zero-extending 32-bit regs, do not remove */

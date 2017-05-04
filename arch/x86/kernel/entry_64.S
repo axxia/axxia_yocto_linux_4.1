@@ -42,6 +42,7 @@
 #include <asm/context_tracking.h>
 #include <asm/smap.h>
 #include <asm/pgtable_types.h>
+#include <asm/kaiser.h>
 #include <linux/err.h>
 
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
@@ -144,6 +145,7 @@ ENTRY(system_call)
 	 * it is too small to ever cause noticeable irq latency.
 	 */
 	SWAPGS_UNSAFE_STACK
+	SWITCH_KERNEL_CR3_NO_STACK
 	/*
 	 * A hypervisor implementation might want to use a label
 	 * after the swapgs, so that it can do the swapgs
@@ -216,9 +218,10 @@ system_call_fastpath:
 	testl $_TIF_ALLWORK_MASK, ASM_THREAD_INFO(TI_flags, %rsp, SIZEOF_PTREGS)
 	jnz int_ret_from_sys_call_irqs_off	/* Go to the slow path */
 
-	RESTORE_C_REGS_EXCEPT_RCX_R11
 	movq	RIP(%rsp),%rcx
 	movq	EFLAGS(%rsp),%r11
+	RESTORE_C_REGS_EXCEPT_RCX_R11
+        SWITCH_USER_CR3
 	movq	RSP(%rsp),%rsp
 	/*
 	 * 64bit SYSRET restores rip from rcx,
@@ -404,10 +407,12 @@ syscall_return:
 syscall_return_via_sysret:
 	/* r11 is already restored (see code above) */
 	RESTORE_C_REGS_EXCEPT_R11
+        SWITCH_USER_CR3
 	movq RSP(%rsp),%rsp
 	USERGS_SYSRET64
 
 opportunistic_sysret_failed:
+        SWITCH_USER_CR3
 	SWAPGS
 	jmp	restore_c_regs_and_iret
 END(system_call)
@@ -582,6 +587,7 @@ END(irq_entries_start)
 	testl $3, CS-RBP(%rsp)
 	je 1f
 	SWAPGS
+        SWITCH_KERNEL_CR3
 1:
 	/*
 	 * Save previous stack pointer, optionally switch to interrupt stack.
@@ -642,7 +648,7 @@ retint_swapgs:		/* return to user-space */
 	 */
 	DISABLE_INTERRUPTS(CLBR_ANY)
 	TRACE_IRQS_IRETQ
-
+        SWITCH_USER_CR3
 	SWAPGS
 	jmp	restore_c_regs_and_iret
 
@@ -698,6 +704,7 @@ native_irq_return_ldt:
 	pushq %rax
 	pushq %rdi
 	SWAPGS
+        SWITCH_KERNEL_CR3
 	movq PER_CPU_VAR(espfix_waddr),%rdi
 	movq %rax,(0*8)(%rdi)	/* RAX */
 	movq (2*8)(%rsp),%rax	/* RIP */
@@ -1112,6 +1119,7 @@ ENTRY(paranoid_entry)
 	testl %edx,%edx
 	js 1f	/* negative -> in kernel */
 	SWAPGS
+	SWITCH_KERNEL_CR3
 	xorl %ebx,%ebx
 1:	ret
 END(paranoid_entry)
@@ -1133,6 +1141,7 @@ ENTRY(paranoid_exit)
 	testl %ebx,%ebx				/* swapgs needed? */
 	jnz paranoid_exit_no_swapgs
 	TRACE_IRQS_IRETQ
+        SWITCH_USER_CR3_NO_STACK
 	SWAPGS_UNSAFE_STACK
 	jmp paranoid_exit_restore
 paranoid_exit_no_swapgs:
@@ -1157,6 +1166,7 @@ ENTRY(error_entry)
 	je error_kernelspace
 error_swapgs:
 	SWAPGS
+        SWITCH_KERNEL_CR3
 error_sti:
 	TRACE_IRQS_OFF
 	ret
@@ -1186,6 +1196,7 @@ bstep_iret:
 
 error_bad_iret:
 	SWAPGS
+        SWITCH_USER_CR3
 	mov %rsp,%rdi
 	call fixup_bad_iret
 	mov %rax,%rsp
@@ -1271,6 +1282,7 @@ ENTRY(nmi)
 	 */
 
 	SWAPGS_UNSAFE_STACK
+        SWITCH_KERNEL_CR3_NO_STACK
 	cld
 	movq	%rsp, %rdx
 	movq	PER_CPU_VAR(kernel_stack), %rsp
@@ -1310,6 +1322,7 @@ ENTRY(nmi)
 	 * work, because we don't want to enable interrupts.  Fortunately,
 	 * do_nmi doesn't modify pt_regs.
 	 */
+        SWITCH_USER_CR3
 	SWAPGS
 	jmp	restore_c_regs_and_iret
 
@@ -1507,6 +1520,7 @@ end_repeat_nmi:
 	testl %ebx,%ebx				/* swapgs needed? */
 	jnz nmi_restore
 nmi_swapgs:
+        SWITCH_USER_CR3_NO_STACK
 	SWAPGS_UNSAFE_STACK
 nmi_restore:
 	RESTORE_EXTRA_REGS
