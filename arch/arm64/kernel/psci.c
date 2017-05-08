@@ -33,6 +33,7 @@
 #include <asm/smp_plat.h>
 #include <asm/suspend.h>
 #include <asm/system_misc.h>
+#include <linux/arm-smccc.h>
 
 #define PSCI_POWER_STATE_TYPE_STANDBY		0
 #define PSCI_POWER_STATE_TYPE_POWER_DOWN	1
@@ -59,8 +60,6 @@ static struct psci_operations psci_ops;
 static int (*invoke_psci_fn)(u64, u64, u64, u64);
 typedef int (*psci_initcall_t)(const struct device_node *);
 
-asmlinkage int __invoke_psci_fn_hvc(u64, u64, u64, u64);
-asmlinkage int __invoke_psci_fn_smc(u64, u64, u64, u64);
 
 enum psci_function {
 	PSCI_FN_CPU_SUSPEND,
@@ -75,6 +74,26 @@ enum psci_function {
 static DEFINE_PER_CPU_READ_MOSTLY(struct psci_power_state *, psci_power_state);
 
 static u32 psci_function_id[PSCI_FN_MAX];
+
+static int __invoke_psci_fn_hvc(u64 function_id,
+			u64 arg0, u64 arg1,
+			u64 arg2)
+{
+	struct arm_smccc_res res;
+
+	__arm_smccc_hvc(function_id, arg0, arg1, arg2, &res);
+	return res.a0;
+}
+
+static int __invoke_psci_fn_smc(u64 function_id,
+			u64 arg0, u64 arg1,
+			u64 arg2)
+{
+	struct arm_smccc_res res;
+
+	__arm_smccc_smc(function_id, arg0, arg1, arg2, &res);
+	return res.a0;
+}
 
 static int psci_to_linux_errno(int errno)
 {
