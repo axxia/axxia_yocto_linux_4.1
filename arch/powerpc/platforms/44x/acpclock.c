@@ -129,7 +129,7 @@ static void acp_clk_release(struct kref *kref)
 
 	mutex_lock(&clocks_mutex);
 	list_del(&clk->node);
-	mutex_lock(&clocks_mutex);
+	mutex_unlock(&clocks_mutex);
 
 	kfree(clk);
 }
