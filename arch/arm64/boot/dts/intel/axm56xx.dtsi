@@ -27,7 +27,7 @@
 
 	aliases {
 		serial0	  = &serial0;
-		serial1   = &serial1;
+		serial1	  = &serial1;
 		serial2	  = &serial2;
 		serial3	  = &serial3;
 		timer	  = &timer0;
@@ -39,9 +39,10 @@
 		gpdma0	  = &gpdma0;
 		gpdma1	  = &gpdma1;
 		edac_cpu  = &edac_cpu;
-		edac_l2  = &edac_l2;
-		sm0       = &sm0;
-		sm1       = &sm1;
+		edac_l2	 = &edac_l2;
+		edac_l3	 = &edac_l3;
+		sm0	  = &sm0;
+		sm1	  = &sm1;
 		cm0	  = &cm0;
 		cm1	  = &cm1;
 	};
@@ -83,8 +84,8 @@
 	};
 
 	psci {
-		compatible      = "arm,psci-0.2";
-		method          = "smc";
+		compatible	= "arm,psci-0.2";
+		method		= "smc";
 	};
 
 	soc {
@@ -107,6 +108,14 @@
 
 		edac_l2: edac_l2 {
 			compatible = "intel,cortex-a57-l2-cache";
+			syscon = <&syscon>;
+			status = "disabled";
+		};
+
+		edac_l3: edac_l3 {
+			compatible = "intel,ccn504-l3-cache";
+			reg = <0x80 0x00000000 0 0x1000000>;
+			interrupts = <0 256 4>;
 			syscon = <&syscon>;
 			status = "disabled";
 		};
@@ -196,33 +205,33 @@
 		};
 
 		gpdma0: gpdma@8004120000 {
-                        compatible = "lsi,dma32";
+			compatible = "lsi,dma32";
 			reg = <0x80 0x04120000 0 0x10000>;
 			interrupts = <GIC_SPI 70 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 71 IRQ_TYPE_LEVEL_HIGH>;
-                        channel0 {
-                                interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
-                        };
+			channel0 {
+				interrupts = <GIC_SPI 72 IRQ_TYPE_LEVEL_HIGH>;
+			};
 
-                        channel1 {
-                                interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
-                        };
-                };
+			channel1 {
+				interrupts = <GIC_SPI 73 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
 
-                gpdma1: gpdma@8004130000 {
-                        compatible = "lsi,dma32";
+		gpdma1: gpdma@8004130000 {
+			compatible = "lsi,dma32";
 			reg = <0x80 0x04130000 0 0x10000>;
 			interrupts = <GIC_SPI 74 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
-                        channel0 {
-                                interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
-                        };
+			channel0 {
+				interrupts = <GIC_SPI 76 IRQ_TYPE_LEVEL_HIGH>;
+			};
 
-                        channel1 {
-                                interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
-                        };
-                };
+			channel1 {
+				interrupts = <GIC_SPI 77 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
 
 		i2c0: i2c@8080080000 {
 			compatible = "lsi,api2c";
@@ -296,10 +305,10 @@
 			control-value = <0>;
 			ranges = <0x00000000 0x000000c0 0x40000000
 				0xc0 0x40000000
-				0x00 0x10000000         /* config space */
+				0x00 0x10000000		/* config space */
 				0x03000000 0x00000000 0xa0000000
 				0xc0 0x00000000
-				0x00 0x40000000>;       /* outbound mem */
+				0x00 0x40000000>;	/* outbound mem */
 			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 94 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -319,10 +328,10 @@
 			control-value = <0>;
 			ranges = <0x00000000 0x000000c8 0x40000000
 				0xc8 0x40000000
-				0x00 0x10000000         /* config space */
+				0x00 0x10000000		/* config space */
 				0x03000000 0x00000000 0xa0000000
 				0xc8 0x00000000
-				0x00 0x40000000>;       /* outbound mem */
+				0x00 0x40000000>;	/* outbound mem */
 			interrupts = <GIC_SPI 92 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
@@ -342,10 +351,10 @@
 			control-value = <0>;
 			ranges = <0x00000000 0x000000d0 0x40000000
 				0xd0 0x40000000
-				0x00 0x10000000         /* config space */
+				0x00 0x10000000		/* config space */
 				0x03000000 0x00000000 0xa0000000
 				0xd0 0x00000000
-				0x00 0x40000000>;       /* outbound mem */
+				0x00 0x40000000>;	/* outbound mem */
 			interrupts = <GIC_SPI 93 IRQ_TYPE_LEVEL_HIGH>,
 				<GIC_SPI 96 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
