@@ -162,7 +162,7 @@ static atomic64_t mc_counter = ATOMIC_INIT(0);
  * one need to collect dumps for all available cs. Below given example
  * for two cs0/cs1.
  *
- *   SMEM MC           smmon_isr           smmon_wq
+ *   SMEM MC           smmon_isr_sw           smmon_wq
  *     |                   |                   |
  *     |                   |                   |
  *     |ALERT_N - int_status bit [33]          |
@@ -904,7 +904,13 @@ error_read:
 }
 
 static irqreturn_t
-smmon_isr(int interrupt, void *device)
+smmon_isr_hw(int interrupt, void *device)
+{
+	return IRQ_WAKE_THREAD;
+}
+
+static irqreturn_t
+smmon_isr_sw(int interrupt, void *device)
 {
 	struct intel_edac_dev_info *dev_info = device;
 	struct sm_56xx_denali_ctl_366 denali_ctl_366;
@@ -1382,8 +1388,8 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 	}
 
 	dev_info->data->irq = irq;
-	rc = devm_request_irq(&pdev->dev, irq,
-			smmon_isr, IRQF_ONESHOT,
+	rc = devm_request_threaded_irq(&pdev->dev, irq,
+			smmon_isr_hw, smmon_isr_sw, IRQF_ONESHOT,
 			&dev_info->data->irq_name[0], dev_info);
 
 	if (rc) {
