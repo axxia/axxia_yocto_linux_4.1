@@ -92,7 +92,7 @@ static cpumask_t active_irqs;
 /* PMU IRQ handler */
 static irqreturn_t acp_pmu_isr(int irq, void *dev_id)
 {
-	__get_cpu_var(irq_stat).pmu_irqs++;
+	__this_cpu_inc(irq_stat.pmu_irqs);
 	perf_irq(get_irq_regs());
 	return IRQ_HANDLED;
 }
@@ -151,7 +151,7 @@ static int acp_pmu_reserve_hardware(void)
 			continue;
 		}
 		err = request_irq(irq, acp_pmu_isr,
-				  IRQF_DISABLED | IRQF_NOBALANCING,
+				  IRQF_NOBALANCING,
 				  "pmu", NULL);
 		if (err) {
 			pr_err("PMU reqeust for IRQ%d failed\n", irq);
@@ -201,7 +201,7 @@ static void acp_pmu_disable(struct pmu *pmu)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	cpuhw = &__get_cpu_var(cpu_hw_events);
+	cpuhw = &get_cpu_var(cpu_hw_events);
 
 	if (!cpuhw->disabled) {
 		cpuhw->disabled = 1;
@@ -248,7 +248,7 @@ static void acp_pmu_enable(struct pmu *pmu)
 	unsigned long flags;
 
 	local_irq_save(flags);
-	cpuhw = &__get_cpu_var(cpu_hw_events);
+	cpuhw = &get_cpu_var(cpu_hw_events);
 	if (!cpuhw->disabled)
 		goto out;
 
@@ -641,7 +641,7 @@ static void perf_event_interrupt(struct pt_regs *regs)
 {
 	int i;
 	int core = smp_processor_id();
-	struct cpu_hw_events *cpuhw = &__get_cpu_var(cpu_hw_events);
+	struct cpu_hw_events *cpuhw = &get_cpu_var(cpu_hw_events);
 	struct perf_event *event;
 	unsigned long val;
 	int found = 0;

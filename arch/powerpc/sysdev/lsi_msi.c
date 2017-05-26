@@ -160,7 +160,6 @@ static int acp_pci_msi_hw_init(struct acp_pci_msi *msi,
 
 static int acp_pci_msi_setup_irqs(struct pci_dev *pdev, int nvec, int type);
 static void acp_pci_msi_teardown_irqs(struct pci_dev *pdev);
-static int acp_pci_msi_check_device(struct pci_dev *pdev, int nvec, int type);
 
 static int acp_pci_msi_init(struct platform_device *pdev, int port)
 {
@@ -191,7 +190,6 @@ static int acp_pci_msi_init(struct platform_device *pdev, int port)
 	acp_pci_msi[port] = msi;
 	ppc_md.setup_msi_irqs = acp_pci_msi_setup_irqs;
 	ppc_md.teardown_msi_irqs = acp_pci_msi_teardown_irqs;
-	ppc_md.msi_check_device = acp_pci_msi_check_device;
 
 	return 0;
 
@@ -290,12 +288,6 @@ static irq_hw_number_t acp_pci_msi_alloc_hwirqs(struct acp_pci_msi *msi,
 		__func__, num, order, offset);
 
 	return offset;
-}
-
-static int acp_pci_msi_check_device(struct pci_dev *pdev, int nvec, int type)
-{
-	int rc = 0;
-	return rc;
 }
 
 static void acp_pci_msi_teardown_irqs(struct pci_dev *pdev)

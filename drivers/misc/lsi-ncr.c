@@ -25,12 +25,15 @@
 #include <linux/lsi-ncr.h>
 #include <linux/of.h>
 #include <linux/delay.h>
+#include <linux/sizes.h>
 
 static int ncr_available;
 static int nca_big_endian = 1;
 static int is_5500;
 static int is_5600;
+#ifdef CONFIG_ARCH_AXXIA
 static int is_6700;
+#endif
 static void __iomem *nca;
 static void __iomem *apb2ser0;
 
@@ -865,6 +868,7 @@ EXPORT_SYMBOL(ncr_write32);
 static int
 ncr_init(void)
 {
+#ifdef CONFIG_ARCH_AXXIA
 	default_io_fn = &ncr_io_fn_nolock;
 
 	if (of_find_compatible_node(NULL, NULL, "lsi,axm5500-amarillo")) {
@@ -916,21 +920,23 @@ ncr_init(void)
 		apb2ser0 = ioremap(0x8002000000ULL, 0x400000);
 		is_6700 = 1;
 		nca_big_endian = 0; /* The 6700 NCA is LE */
-	} else if (of_find_compatible_node(NULL, NULL, "lsi,acp3500")) {
+	} else {
+		pr_err("No Valid Compatible String Found for NCR!\n");
+		return -1;
+	}
+#else
+	if (of_find_compatible_node(NULL, NULL, "lsi,acp3500")) {
 		pr_debug("Using ACP3500 Addresses\n");
 		nca = ioremap(0x002000520000ULL, 0x20000);
 		default_io_fn = &ncr_io_fn_nolock;
-	} else if (of_find_compatible_node(NULL, NULL, "lsi,acp3400")) {
-		pr_debug("Using ACP3400 Addresses\n");
+	} else {
+		pr_debug("Using ACP34xx Addresses\n");
 		nca = ioremap(0x002000520000ULL, 0x20000);
 		default_io_fn = &ncr_io_fn_lock;
-	} else {
-		pr_debug("No Valid Compatible String Found for NCR!\n");
-
-		return -1;
 	}
+#endif
 
-	pr_debug("ncr: available\n");
+	pr_info("ncr: available\n");
 	ncr_available = 1;
 
 	return 0;
