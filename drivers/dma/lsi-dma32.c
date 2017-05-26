@@ -225,7 +225,7 @@ static void init_descriptor(struct gpdma_desc *desc,
 static phys_addr_t desc_to_paddr(const struct gpdma_channel *dmac,
 				 const struct gpdma_desc *desc)
 {
-	phys_addr_t paddr = virt_to_phys(&desc->hw);
+	phys_addr_t paddr = virt_to_phys((void *)&desc->hw);
 
 	WARN_ON(paddr & 0xf);
 	if (dmac->engine->chip->flags & LSIDMA_NEXT_FULL)
