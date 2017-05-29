@@ -612,6 +612,8 @@ struct intel_edac_dev_info {
 	char *blk_name;
 	struct work_struct offload_alerts;
 	struct work_struct offload_events;
+	struct workqueue_struct *wq_alerts;
+	struct workqueue_struct *wq_events;
 	int is_ddr4;
 	int edac_idx;
 	u32 sm_region;
@@ -1193,7 +1195,7 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 	dev_info->data =
 		devm_kzalloc(&pdev->dev, sizeof(*dev_info->data), GFP_KERNEL);
 	if (!dev_info->data)
-		goto err_noctlinfo;
+		goto err_nomem;
 
 	init_waitqueue_head(&dev_info->data->dump_wq);
 	init_waitqueue_head(&dev_info->data->event_wq);
@@ -1335,20 +1337,34 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 	if (edac_device_add_device(dev_info->edac_dev) != 0) {
 		pr_info("Unable to add edac device for %s\n",
 			dev_info->ctl_name);
-		goto err_nosysfs;
+		goto err_noctlinfo;
 	}
 
 	snprintf(&dev_info->data->irq_name[0], IRQ_NAME_LEN,
 			"%s-mon", dev_info->ctl_name);
 
+	dev_info->wq_events =
+		alloc_workqueue("%s-events", WQ_MEM_RECLAIM, 1,
+				   (dev_info->ctl_name));
+	if (!dev_info->wq_events)
+		goto err_nosysfs;
+
+	if (dev_info->is_ddr4) {
+		dev_info->wq_alerts =
+		  alloc_workqueue("%s-alerts", WQ_MEM_RECLAIM, 1,
+				   (dev_info->ctl_name));
+
+		if (!dev_info->wq_alerts)
+			goto err_noevents;
+	}
 	if (dev_info->is_ddr4)
 		INIT_WORK(&dev_info->offload_alerts, axxia_alerts_work);
 
 	INIT_WORK(&dev_info->offload_events, axxia_events_work);
 
 	if (dev_info->is_ddr4)
-		schedule_work(&dev_info->offload_alerts);
-	schedule_work(&dev_info->offload_events);
+		queue_work(dev_info->wq_alerts, &dev_info->offload_alerts);
+	queue_work(dev_info->wq_events, &dev_info->offload_events);
 
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
@@ -1420,15 +1436,22 @@ err_noirq:
 	if (dev_info->is_ddr4)
 		cancel_work_sync(&dev_info->offload_alerts);
 	cancel_work_sync(&dev_info->offload_events);
-
 	edac_device_del_device(&dev_info->pdev->dev);
+
+	if (dev_info->is_ddr4)
+		destroy_workqueue(dev_info->wq_alerts);
+
+err_noevents:
+	destroy_workqueue(dev_info->wq_events);
 
 err_nosysfs:
 	edac_device_free_ctl_info(dev_info->edac_dev);
+
 err_noctlinfo:
 	mutex_destroy(&dev_info->data->edac_sysfs_data_lock);
 	atomic64_dec(&mc_counter);
 	return 1;
+
 err_nomem:
 	atomic64_dec(&mc_counter);
 	return -ENOMEM;
@@ -1453,6 +1476,10 @@ static int intel_edac_mc_remove(struct platform_device *pdev)
 			if (dev_info->is_ddr4)
 				cancel_work_sync(&dev_info->offload_alerts);
 			cancel_work_sync(&dev_info->offload_events);
+
+			if (dev_info->is_ddr4)
+				destroy_workqueue(dev_info->wq_alerts);
+			destroy_workqueue(dev_info->wq_events);
 		}
 
 		if (dev_info->edac_dev != NULL) {
