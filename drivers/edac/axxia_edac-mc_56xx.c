@@ -1192,6 +1192,16 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 	if (!dev_info)
 		goto err_nomem;
 
+	dev_info->ctl_name =
+		devm_kzalloc(&pdev->dev, 32*sizeof(char), GFP_KERNEL);
+	if (!dev_info->ctl_name)
+		goto err_nomem;
+
+	dev_info->blk_name =
+		devm_kzalloc(&pdev->dev, 32*sizeof(char), GFP_KERNEL);
+	if (!dev_info->blk_name)
+		goto err_nomem;
+
 	dev_info->data =
 		devm_kzalloc(&pdev->dev, sizeof(*dev_info->data), GFP_KERNEL);
 	if (!dev_info->data)
@@ -1202,6 +1212,12 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 
 	raw_spin_lock_init(&dev_info->data->mpr_data_lock);
 	mutex_init(&dev_info->data->edac_sysfs_data_lock);
+
+	strncpy(dev_info->ctl_name, np->name, 32);
+	dev_info->ctl_name[31] = '\0';
+
+	strncpy(dev_info->blk_name, "ECC", 32);
+	dev_info->ctl_name[31] = '\0';
 
 	dev_info->ctl_name = kstrdup(np->name, GFP_KERNEL);
 	dev_info->blk_name = "ECC";
