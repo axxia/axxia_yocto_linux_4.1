@@ -47,6 +47,8 @@
 #define ARM_SMCCC_OWNER_TRUSTED_OS      50
 #define ARM_SMCCC_OWNER_TRUSTED_OS_END  63
 
+#define ARM_SMCCC_UNKNOWN		0xffffffff
+
 struct arm_smccc_res {
 	u64 a0;
 	u64 a1;

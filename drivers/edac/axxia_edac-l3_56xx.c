@@ -424,24 +424,16 @@ static int intel_edac_l3_probe(struct platform_device *pdev)
 	if (!r)
 		return -EINVAL;
 
-	/* Check if we can use the interrupt */
-	__arm_smccc_smc(0xc4000027,
+	/*
+	 * Check if we can use the interrupt here.
+	 * We are not interested in PMU events, so let's try to disable it.
+	 * Once -1 return, it means old uboot without ccn service.
+	 * Then only polling mechanism is allowed, as it was before.
+	 */
+	if (ARM_SMCCC_UNKNOWN != __arm_smccc_smc(0xc4000027,
 			CCN_MN_ERRINT_STATUS__PMU_EVENTS__DISABLE,
-			0, 0, &ret);
-	if (__arm_smccc_smc(0xc4000026, 0, 0, 0, &ret) &
-			CCN_MN_ERRINT_STATUS__PMU_EVENTS__DISABLED) {
-		/* Can set 'disable' bits, so can acknowledge interrupts */
-
-		/*
-		 * TODO
-		 * perf for now switched off.
-		 *   __arm_smccc_smc(0xc4000027,
-		 *	CCN_MN_ERRINT_STATUS__PMU_EVENTS__ENABLE,
-		 *	0, 0, &ret);
-		 */
-
+			0, 0, &ret))
 		dev_info->irq_used = 1;
-	}
 
 	dev_info->edac_dev->pvt_info = dev_info;
 	dev_info->edac_dev->dev = &dev_info->pdev->dev;
