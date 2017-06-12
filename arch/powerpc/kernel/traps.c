@@ -37,6 +37,10 @@
 #include <linux/ratelimit.h>
 #include <linux/context_tracking.h>
 
+#include <asm/mmu.h>
+#include <asm/page.h>
+#include <asm/dcr-native.h>
+
 #include <asm/emulated_ops.h>
 #include <asm/pgtable.h>
 #include <asm/uaccess.h>
@@ -695,12 +699,59 @@ int machine_check_generic(struct pt_regs *regs)
 }
 #endif /* everything else */
 
+extern unsigned int finish_tlb_load_instruction_47x;
+extern unsigned int InstructionTLBError47x;
+
 void machine_check_exception(struct pt_regs *regs)
 {
 	enum ctx_state prev_state = exception_enter();
 	int recover = 0;
+	unsigned int cpu;
+	unsigned int  p2a_status;
+	unsigned int  p2a_address;
+	unsigned int  l2plbstats1;
+	unsigned int  mcsr;
+	unsigned int  mcsr0;
 
 	__this_cpu_inc(irq_stat.mce_exceptions);
+
+	mcsr = mfspr(SPRN_MCSR);
+	mcsr0 = mfspr(SPRN_MCSRR0);
+	p2a_status = mfdcr(0x100C) & 0x00000010;
+	p2a_address = mfdcr(0x1045);
+	p2a_address = (p2a_address << 4) & 0x000FFFF0;
+	cpu = smp_processor_id();
+
+	if (cpu < 4) {
+		mtdcr((cpu + 3) * 256, 0x304);
+		l2plbstats1 = mfdcr((cpu + 3) * 256 + 4);
+	} else {
+		mtdcr((cpu + 15) * 256, 0x304);
+		l2plbstats1 = mfdcr((cpu + 15) * 256 + 4);
+	}
+
+	if (((mcsr & 0x80200000) == 0x80200000) &&
+		(InstructionTLBError47x < mcsr0) &&
+		(mcsr0 < finish_tlb_load_instruction_47x) &&
+		(p2a_status == 0x00000010) &&
+		(l2plbstats1 == 0x000C0000)) {
+
+		if (cpu < 4) {
+			mtdcr((cpu + 3) * 256 + 4,
+				0x000C0000);
+		} else {
+			mtdcr((cpu + 15) * 256 + 4,
+				0x000C0000);
+		}
+
+		printk(KERN_INFO
+		       "machine_check_exception: Core %d: MCSR=0x%x l2plbstats1=0x%x",
+		       cpu, mcsr, l2plbstats1);
+		mtdcr(0x100C, 0xFFFFFFFF);
+		mtspr(SPRN_MCSR, 0);
+		recover = 1;
+		return;
+	}
 
 	/* See if any machine dependent calls. In theory, we would want
 	 * to call the CPU first, and call the ppc_md. one if the CPU
