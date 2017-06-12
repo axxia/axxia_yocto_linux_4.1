@@ -632,8 +632,8 @@ finish_tlb_load_44x:
 
 	andc.	r13,r13,r12		/* Check permission */
 
-	 /* Jump to common tlb load */
-	beq	finish_tlb_load_47x
+	 /* Jump to tlb data load */
+	beq	finish_tlb_load_data_47x
 
 2:	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
@@ -652,6 +652,7 @@ finish_tlb_load_44x:
 	 * information from different registers and bailout
 	 * to a different point.
 	 */
+	.globl InstructionTLBError47x
 	START_EXCEPTION(InstructionTLBError47x)
 	mtspr	SPRN_SPRG_WSCRATCH0,r10	/* Save some working registers */
 	mtspr	SPRN_SPRG_WSCRATCH1,r11
@@ -715,8 +716,8 @@ finish_tlb_load_44x:
 
 	andc.	r13,r13,r12		/* Check permission */
 
-	/* Jump to common TLB load point */
-	beq	finish_tlb_load_47x
+	/* Jump to TLB instruction load point */
+	beq	finish_tlb_load_instruction_47x
 
 2:	/* The bailout.  Restore registers to pre-exception conditions
 	 * and call the heavyweights to help us out.
@@ -730,7 +731,8 @@ finish_tlb_load_44x:
 	b	InstructionStorage
 
 /*
- * Both the instruction and data TLB miss get to this
+ * The instruction data TLB miss gets to finish_tlb_load_instruction_47x
+ * and data TLB miss gets to finish_tlb_load_data_47x
  * point to load the TLB.
  * 	r10 - free to use
  * 	r11 - PTE high word value
@@ -739,7 +741,34 @@ finish_tlb_load_44x:
  *	MMUCR - loaded with proper value when we get here
  *	Upon exit, we reload everything and RFI.
  */
-finish_tlb_load_47x:
+finish_tlb_load_data_47x:
+	/* Combine RPN & ERPN an write WS 1 */
+	rlwimi	r11,r12,0,0,31-PAGE_SHIFT
+	tlbwe	r11,r13,1
+
+	/* And make up word 2 */
+	li	r10,0xf85			/* Mask to apply from PTE */
+	rlwimi	r10,r12,29,30,30		/* DIRTY -> SW position */
+	and	r11,r12,r10			/* Mask PTE bits to keep */
+	andi.	r10,r12,_PAGE_USER		/* User page ? */
+	beq	1f				/* nope, leave U bits empty */
+	rlwimi	r11,r11,3,26,28			/* yes, copy S bits to U */
+1:	tlbwe	r11,r13,2
+
+	mfspr   r10,SPRN_DEAR
+	dcbt    0,r10
+
+	/* Done...restore registers and get out of here.
+	*/
+	mfspr	r11, SPRN_SPRG_RSCRATCH4
+	mtcr	r11
+	mfspr	r13, SPRN_SPRG_RSCRATCH3
+	mfspr	r12, SPRN_SPRG_RSCRATCH2
+	mfspr	r11, SPRN_SPRG_RSCRATCH1
+	mfspr	r10, SPRN_SPRG_RSCRATCH0
+	rfi
+	.globl finish_tlb_load_instruction_47x
+finish_tlb_load_instruction_47x:
 	/* Combine RPN & ERPN an write WS 1 */
 	rlwimi	r11,r12,0,0,31-PAGE_SHIFT
 	tlbwe	r11,r13,1
