@@ -22,6 +22,9 @@
 #define MAX_MSI_IRQS			64
 #define MAX_MSI_CTRLS			(MAX_MSI_IRQS / 32)
 #define AXXIA_MSI_IRQL			32
+#define AXXIA_MSI_UNCONFIGURED		0
+#define AXXIA_MSI_MODE			1
+#define AXXIA_MSIX_MODE			2
 
 struct pcie_port {
 	struct device		*dev;
@@ -55,6 +58,7 @@ struct pcie_port {
 					 [34]; */
 	int			msi_irqs[AXXIA_MSI_IRQL];
 	int			num_msi_irqs;
+	u32			msi_mode;
 	unsigned long		msi_data;
 	struct irq_domain	*irq_domain;
 	struct msi_controller chip;
