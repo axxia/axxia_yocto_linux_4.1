@@ -5,7 +5,11 @@ ccflags-$(CONFIG_USB_DWC3_DEBUG)	:= -DDEBUG
 
 obj-$(CONFIG_USB_DWC3)			+= dwc3.o
 
-dwc3-y					:= core.o debug.o trace.o
+ifneq ($(CONFIG_USB_DWC3_AXXIA), )
+	dwc3-y				:= core-axxia.o debug.o trace.o
+else
+	dwc3-y                          := core.o debug.o trace.o
+endif
 
 ifneq ($(filter y,$(CONFIG_USB_DWC3_HOST) $(CONFIG_USB_DWC3_DUAL_ROLE)),)
 	dwc3-y				+= host.o
