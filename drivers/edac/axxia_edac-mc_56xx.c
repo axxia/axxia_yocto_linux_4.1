@@ -614,6 +614,8 @@ struct intel_edac_dev_info {
 	struct work_struct offload_events;
 	struct workqueue_struct *wq_alerts;
 	struct workqueue_struct *wq_events;
+	int finish_alerts;
+	int finish_events;
 	int is_ddr4;
 	int edac_idx;
 	u32 sm_region;
@@ -1003,6 +1005,9 @@ start:
 		msecs_to_jiffies(ALIVE_NOTIFICATION_PERIOD)))
 		goto start;
 
+	if (dev_info->finish_alerts)
+		goto finish;
+
 		/* the only one running workqueue */
 	for (i = 0; i < dev_info->data->cs_count; ++i) {
 
@@ -1028,6 +1033,9 @@ start:
 		/* wait */
 		wait_event(dev_info->data->dump_wq,
 			   atomic_read(&dev_info->data->dump_ready));
+
+		if (dev_info->finish_alerts)
+			goto finish;
 
 		atomic_set(&dev_info->data->dump_ready, 0);
 		/* collect data */
@@ -1062,6 +1070,10 @@ error_write:
 	printk_ratelimited("Could not collect MPR dump.\n");
 	atomic_set(&dev_info->data->dump_in_progress, 0);
 	goto start;
+
+finish:
+	atomic_set(&dev_info->data->dump_ready, 0);
+	atomic_set(&dev_info->data->dump_in_progress, 0);
 }
 
 static void intel_sm_events_error_check(struct edac_device_ctl_info *edac_dev)
@@ -1079,6 +1091,9 @@ static void intel_sm_events_error_check(struct edac_device_ctl_info *edac_dev)
 			continue;
 
 		atomic_set(&dev_info->data->event_ready, 0);
+
+		if (dev_info->finish_events)
+			break;
 
 		mutex_lock(&dev_info->data->edac_sysfs_data_lock);
 		for (i = 0; i < NR_EVENTS; ++i) {
@@ -1166,6 +1181,22 @@ static int get_active_dram(struct intel_edac_dev_info *dev_info)
 		dram = MAX_DQ;
 
 	return dram;
+}
+
+static void finish_workqueues(struct intel_edac_dev_info *dev_info)
+{
+	if (dev_info->is_ddr4) {
+		dev_info->finish_alerts = 1;
+		atomic_inc(&dev_info->data->dump_in_progress);
+		atomic_set(&dev_info->data->dump_ready, 1);
+		wake_up(&dev_info->data->dump_wq);
+		cancel_work_sync(&dev_info->offload_alerts);
+	}
+
+	dev_info->finish_events = 1;
+	atomic_set(&dev_info->data->event_ready, 1);
+	wake_up(&dev_info->data->event_wq);
+	cancel_work_sync(&dev_info->offload_events);
 }
 
 static int intel_edac_mc_probe(struct platform_device *pdev)
@@ -1292,8 +1323,10 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 	dev_info->edac_dev =
 		edac_device_alloc_ctl_info(0, dev_info->ctl_name,
 					 1, dev_info->blk_name,
-					 NR_EVENTS +
-					 cs_count * dram_count * MPR_ERRORS,
+					 NR_EVENTS + (dev_info->is_ddr4 ?
+					 cs_count * dram_count * MPR_ERRORS
+					 :
+					 0),
 					 0, NULL, 0, dev_info->edac_idx);
 
 	if (!dev_info->edac_dev) {
@@ -1449,9 +1482,7 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 	return 0;
 
 err_noirq:
-	if (dev_info->is_ddr4)
-		cancel_work_sync(&dev_info->offload_alerts);
-	cancel_work_sync(&dev_info->offload_events);
+	finish_workqueues(dev_info);
 	edac_device_del_device(&dev_info->pdev->dev);
 
 	if (dev_info->is_ddr4)
@@ -1489,9 +1520,7 @@ static int intel_edac_mc_remove(struct platform_device *pdev)
 
 			dev_info->data->irq = 0;
 
-			if (dev_info->is_ddr4)
-				cancel_work_sync(&dev_info->offload_alerts);
-			cancel_work_sync(&dev_info->offload_events);
+			finish_workqueues(dev_info);
 
 			if (dev_info->is_ddr4)
 				destroy_workqueue(dev_info->wq_alerts);
