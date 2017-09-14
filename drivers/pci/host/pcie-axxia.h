@@ -19,8 +19,7 @@
  * it 32 as of now. Probably we will never need more than 32. If needed,
  * then increment it in multiple of 32.
  */
-#define MAX_MSI_IRQS			64
-#define MAX_MSI_CTRLS			(MAX_MSI_IRQS / 32)
+#define MAX_MSI_IRQS			256
 #define AXXIA_MSI_IRQL			32
 #define AXXIA_MSI_UNCONFIGURED		0
 #define AXXIA_MSI_MODE			1
@@ -62,6 +61,8 @@ struct pcie_port {
 	u32			msi_mode;
 	unsigned long		msi_data;
 	struct irq_domain	*irq_domain;
+	struct mutex		bitmap_lock;
+	unsigned long		*bitmap;
 	struct msi_controller chip;
 	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_IRQS);
 #if 0
