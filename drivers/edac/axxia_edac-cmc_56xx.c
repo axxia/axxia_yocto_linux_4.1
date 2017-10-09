@@ -31,6 +31,7 @@
 #include "edac_core.h"
 #include "edac_module.h"
 
+#define  CONFIG_DEBUG_CMEM 1
 #define FMT "%s: syscon lookup failed hence using hardcoded register address\n"
 
 #define MPR_FMT2 "\n%3d %#010x %#010x"
@@ -286,6 +287,31 @@ struct __packed cm_56xx_denali_ctl_34
 #endif
 };
 
+#ifdef CONFIG_DEBUG_CMEM
+
+#define CM_56XX_DENALI_CTL_62 0xf8
+
+struct __packed cm_56xx_denali_ctl_62
+{
+#ifdef CPU_BIG_ENDIAN
+	unsigned	reserved0				: 2;
+	unsigned	xor_check_bits				: 14;
+	unsigned	reserved1				: 7;
+	unsigned	fwc					: 1;
+	unsigned	reserved2				: 7;
+	unsigned	ecc_en					: 1;
+#else	/* Little Endian */
+	unsigned	ecc_en					: 1;
+	unsigned	reserved2				: 7;
+	unsigned	fwc					: 1;
+	unsigned	reserved1				: 7;
+	unsigned	xor_check_bits				: 14;
+	unsigned	reserved0				: 2;
+#endif
+};
+
+#endif
+
 struct __packed cm_56xx_denali_ctl_74
 {
 #ifdef CPU_BIG_ENDIAN
@@ -476,6 +502,47 @@ struct intel_edac_dev_info {
 };
 
 #ifdef CONFIG_DEBUG_CMEM
+static int setup_fault_injection(struct intel_edac_dev_info *dev_info,
+					int fault, int enable)
+{
+	struct cm_56xx_denali_ctl_62 denali_ctl_62;
+
+	if (ncr_read(dev_info->cm_region,
+			CM_56XX_DENALI_CTL_62,
+			4, &denali_ctl_62))
+				goto error_read;
+
+	denali_ctl_62.xor_check_bits = fault;
+
+	if (ncr_write(dev_info->cm_region,
+			CM_56XX_DENALI_CTL_62,
+			4, (u32 *) &denali_ctl_62))
+				goto error_write;
+
+	if (ncr_read(dev_info->cm_region,
+			CM_56XX_DENALI_CTL_62,
+			4, &denali_ctl_62))
+				goto error_read;
+
+	denali_ctl_62.fwc = (enable > 0 ? 0x1 : 0x0);
+
+	if (ncr_write(dev_info->cm_region,
+			CM_56XX_DENALI_CTL_62,
+			4, (u32 *) &denali_ctl_62))
+				goto error_write;
+	return 0;
+
+error_read:
+	printk_ratelimited("%s: Error reading denali_ctl_62\n",
+		       dev_name(&dev_info->pdev->dev));
+	return 1;
+
+error_write:
+	printk_ratelimited("%s: Error writing denali_ctl_62\n",
+		       dev_name(&dev_info->pdev->dev));
+	return 1;
+}
+
 static ssize_t mpr1_dump_show(struct edac_device_ctl_info
 				 *edac_dev, char *data)
 {
@@ -1335,7 +1402,15 @@ axxia_cmem_read(struct file *filp, char *buffer, size_t length, loff_t *offset)
 	 */
 	len = snprintf(buf, PAGE_SIZE-1, "Node: 0x%x\n"
 		"Command available:\n"
-		"          dump - triggers mpr_page1 dump.\n",
+		"          dump - triggers mpr_page1 dump.\n"
+		"          cerror - enable correctable error injection.\n"
+		"          uerror - enable uncorrectable error injection.\n"
+		"          disable - disable errors injection\n"
+		" When error is enabled run a sequence:\n"
+		"  ncpWrite -w 32 0x%x.0x0.0x4 0x11223344\n"
+		"  ncpRead 0x%x.0x0.0x4\n",
+		(int) dev_info->cm_region >> 16,
+		(int) dev_info->cm_region >> 16,
 		(int) dev_info->cm_region >> 16);
 
 	mutex_unlock(&dev_info->state_machine_lock);
@@ -1376,6 +1451,16 @@ axxia_cmem_write(struct file *file, const char __user *buffer,
 		atomic_inc(&dev_info->data->dump_in_progress);
 		wake_up(&dev_info->data->dump_wq);
 	}
+	if (!strncmp(buf, "cerror", 6)) {
+		/* 0x75 0x75 */
+		setup_fault_injection(dev_info, 0x3af5, 1);
+	}
+	if (!strncmp(buf, "uerror", 6)) {
+		/* 0x3 0x3 */
+		setup_fault_injection(dev_info, 0x183, 1);
+	}
+	if (!strncmp(buf, "disable", 7))
+		setup_fault_injection(dev_info, 0x0, 0);
 
 	kfree(buf);
 	return count;
