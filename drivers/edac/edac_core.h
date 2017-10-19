@@ -250,7 +250,7 @@ struct edac_device_ctl_info {
 	 *      If NULL: Then assumes INTERRUPT operation, where
 	 *              MC driver will receive events
 	 */
-	void (*edac_check) (struct edac_device_ctl_info * edac_dev);
+	void (*edac_check)(struct edac_device_ctl_info *edac_dev);
 
 	struct device *dev;	/* pointer to device structure */
 
@@ -260,7 +260,7 @@ struct edac_device_ctl_info {
 
 	void *pvt_info;		/* pointer to 'private driver' info */
 
-	unsigned long start_time;	/* edac_device load start time (jiffies) */
+	unsigned long start_time; /* edac_device load start time (jiffies) */
 
 	struct completion removal_complete;
 
@@ -293,7 +293,7 @@ struct edac_device_ctl_info {
 		container_of(w, struct mem_ctl_info, work)
 
 #define to_edac_device_ctl_work(w) \
-		container_of(w,struct edac_device_ctl_info,work)
+		container_of(w, struct edac_device_ctl_info, work)
 
 /*
  * The alloc() and free() functions for the 'edac_device' control info
@@ -348,7 +348,7 @@ struct edac_pci_ctl_info {
 	 *      If NULL: Then assumes INTERRUPT operation, where
 	 *              MC driver will receive events
 	 */
-	void (*edac_check) (struct edac_pci_ctl_info * edac_dev);
+	void (*edac_check)(struct edac_pci_ctl_info *edac_dev);
 
 	struct device *dev;	/* pointer to device structure */
 
@@ -382,7 +382,7 @@ struct edac_pci_ctl_info {
 };
 
 #define to_edac_pci_ctl_work(w) \
-		container_of(w, struct edac_pci_ctl_info,work)
+		container_of(w, struct edac_pci_ctl_info, work)
 
 /* write all or some bits in a byte-register*/
 static inline void pci_write_bits8(struct pci_dev *pdev, int offset, u8 value,
@@ -479,8 +479,15 @@ extern int edac_device_add_device(struct edac_device_ctl_info *edac_dev);
 extern struct edac_device_ctl_info *edac_device_del_device(struct device *dev);
 extern void edac_device_handle_ue(struct edac_device_ctl_info *edac_dev,
 				int inst_nr, int block_nr, const char *msg);
+extern void edac_device_handle_multi_ue(struct edac_device_ctl_info *edac_dev,
+				int inst_nr, int block_nr, int events,
+				const char *msg);
 extern void edac_device_handle_ce(struct edac_device_ctl_info *edac_dev,
 				int inst_nr, int block_nr, const char *msg);
+extern void edac_device_handle_multi_ce(struct edac_device_ctl_info *edac_dev,
+				int inst_nr, int block_nr, int events,
+				const char *msg);
+
 extern int edac_device_alloc_index(void);
 extern const char *edac_layer_name[];
 

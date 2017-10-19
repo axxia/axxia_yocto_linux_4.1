@@ -516,7 +516,7 @@ static int setup_fault_injection(struct intel_edac_dev_info *dev_info,
 
 	if (ncr_write(dev_info->cm_region,
 			CM_56XX_DENALI_CTL_62,
-			4, (u32 *) &denali_ctl_62)) 
+			4, (u32 *) &denali_ctl_62))
 				goto error_write;
 
 	if (ncr_read(dev_info->cm_region,
@@ -528,7 +528,7 @@ static int setup_fault_injection(struct intel_edac_dev_info *dev_info,
 
 	if (ncr_write(dev_info->cm_region,
 			CM_56XX_DENALI_CTL_62,
-			4, (u32 *) &denali_ctl_62)) 
+			4, (u32 *) &denali_ctl_62))
 				goto error_write;
 	return 0;
 
@@ -899,7 +899,7 @@ static void intel_cm_alerts_error_check(struct edac_device_ctl_info *edac_dev)
 	struct event_counter (*alerts)[MAX_DQ][MPR_ERRORS] =
 			dev_info->data->alerts;
 	struct cm_56xx_denali_ctl_34 denali_ctl_34;
-	int i, j, k, l, ret;
+	int i, j, k, ret;
 	u32 counter;
 
 start:
@@ -961,10 +961,10 @@ start:
 				 */
 				counter = atomic_xchg(&alerts[i][j][k].counter,
 							0);
-				for (l = 0; l < counter; ++l)
-					edac_device_handle_ce(edac_dev, 0,
+				if (counter)
+					edac_device_handle_multi_ce(edac_dev, 0,
 						alerts[i][j][k].edac_block_idx,
-						edac_dev->ctl_name);
+						counter, edac_dev->ctl_name);
 			}
 		}
 	}
@@ -994,7 +994,7 @@ static void intel_cm_events_error_check(struct edac_device_ctl_info *edac_dev)
 	struct intel_edac_dev_info *dev_info =
 			(struct intel_edac_dev_info *) edac_dev->pvt_info;
 	struct event_counter *events = dev_info->data->events;
-	int i, j;
+	int i;
 	u32 counter;
 
 	while (1) {
@@ -1011,7 +1011,7 @@ static void intel_cm_events_error_check(struct edac_device_ctl_info *edac_dev)
 		mutex_lock(&dev_info->data->edac_sysfs_data_lock);
 		for (i = 0; i < NR_EVENTS; ++i) {
 			counter = atomic_xchg(&events[i].counter, 0);
-			for (j = 0; j < counter; ++j) {
+			if (counter)
 				switch (i) {
 				/*
 				 * TODO - How can one determine event type?
@@ -1021,22 +1021,23 @@ static void intel_cm_events_error_check(struct edac_device_ctl_info *edac_dev)
 				case EV_MULT_ILLEGAL:
 				case EV_UNCORR_ECC:
 				case EV_MULT_UNCORR_ECC:
-					edac_device_handle_ue(edac_dev, 0, i,
-							edac_dev->ctl_name);
+					edac_device_handle_multi_ue(edac_dev,
+						0, i, counter,
+						edac_dev->ctl_name);
 					break;
 				case EV_CORR_ECC:
 				case EV_MULT_CORR_ECC:
 				case EV_PORT_ERROR:
 				case EV_WRAP_ERROR:
 				case EV_PARITY_ERROR:
-					edac_device_handle_ce(edac_dev, 0, i,
-							edac_dev->ctl_name);
+					edac_device_handle_multi_ce(edac_dev,
+						0, i, counter,
+						edac_dev->ctl_name);
 					break;
 				default:
 					printk_ratelimited(
 						"ERROR EVENT MISSING.\n");
 				}
-			}
 		}
 		mutex_unlock(&dev_info->data->edac_sysfs_data_lock);
 	}
@@ -1406,7 +1407,7 @@ axxia_cmem_read(struct file *filp, char *buffer, size_t length, loff_t *offset)
 		"          cerror - enable correctable error injection.\n"
 		"          uerror - enable uncorrectable error injection.\n"
 		"          disable - disable errors injection\n"
-		" When error is enabled run a sequence: \n"
+		" When error is enabled run a sequence:\n"
 		"  ncpWrite -w 32 0x%x.0x0.0x4 0x11223344\n"
 		"  ncpRead 0x%x.0x0.0x4\n",
 		(int) dev_info->cm_region >> 16,
@@ -1460,6 +1461,7 @@ axxia_cmem_write(struct file *file, const char __user *buffer,
 		setup_fault_injection(dev_info, 0x183, 1);
 	}
 	if (!strncmp(buf, "disable", 7)) {
+		/* disable injection */
 		setup_fault_injection(dev_info, 0x0, 0);
 	}
 

@@ -198,7 +198,7 @@ static irqreturn_t ccn_irq_thread(int irq, void *device)
 	union dickens_hnf_err_syndrome_reg1 err_syndrome_reg1;
 	struct arm_smccc_res r;
 	unsigned count = 0;
-	int i, j;
+	int i;
 
 	/* only HNF nodes are of our interest */
 	for (i = 0; i < CCN_HNF_NODES; ++i) {
@@ -222,10 +222,10 @@ static irqreturn_t ccn_irq_thread(int irq, void *device)
 				machine_restart(NULL);
 			}
 			count = err_syndrome_reg0.reg0.err_count;
-			for (j = 0; j < count; j++)
-				edac_device_handle_ce(edac_dev, 0,
+			if (count)
+				edac_device_handle_multi_ce(edac_dev, 0,
 					dev_info->data[i].idx,
-					edac_dev->ctl_name);
+					count, edac_dev->ctl_name);
 		}
 	}
 
@@ -335,7 +335,7 @@ static void intel_l3_error_check(struct edac_device_ctl_info *edac_dev)
 	union dickens_hnf_err_syndrome_reg0 err_syndrome_reg0;
 	union dickens_hnf_err_syndrome_clr err_syndrome_clr;
 	unsigned count = 0;
-	int i, instance;
+	int instance;
 	struct intel_edac_dev_info *dev_info;
 
 	err_syndrome_clr.value = 0x0;
@@ -363,9 +363,9 @@ static void intel_l3_error_check(struct edac_device_ctl_info *edac_dev)
 				machine_restart(NULL);
 			}
 			count = err_syndrome_reg0.reg0.err_count;
-			for (i = 0; i < count; i++)
-				edac_device_handle_ce(edac_dev, 0,
-					instance, edac_dev->ctl_name);
+			if (count)
+				edac_device_handle_multi_ce(edac_dev, 0,
+					instance, count, edac_dev->ctl_name);
 
 			/* clear the valid bit */
 			clear_node_error(addr + CCN_NODE_ERR_SYND_CLR);
