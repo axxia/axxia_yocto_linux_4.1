@@ -43,7 +43,13 @@
 #define MPR_HDR18	"      dram9     dram10     dram11     dram12"\
 		"     dram13     dram14     dram15     dram16     dram17"
 
-#define INTEL_EDAC_MOD_STR	"axxia56xx_edac"
+#if defined(CONFIG_EDAC_AXXIA_SYSMEM_5600)
+#define INTEL_EDAC_MOD_STR     "axxia56xx_edac"
+#endif
+
+#if defined(CONFIG_EDAC_AXXIA_SYSMEM_6700)
+#define INTEL_EDAC_MOD_STR     "axxia67xx_edac"
+#endif
 
 #define AXI2_SER3_PHY_ADDR	0x008002c00000ULL
 #define AXI2_SER3_PHY_SIZE	PAGE_SIZE

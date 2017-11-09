@@ -30,7 +30,14 @@
 #include "axxia_l2_56xx.h"
 
 
+#if defined(CONFIG_EDAC_AXXIA_L2_CPU_5600)
 #define INTEL_EDAC_MOD_STR     "axxia56xx_edac"
+#endif
+
+#if defined(CONFIG_EDAC_AXXIA_L2_CPU_6700)
+#define INTEL_EDAC_MOD_STR     "axxia67xx_edac"
+#endif
+
 #define CORES_PER_CLUSTER 4
 
 #define SYSCON_PERSIST_SCRATCH 0xdc
@@ -268,9 +275,21 @@ static int intel_edac_l2_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id intel_edac_l2_match[] = {
+#if defined(CONFIG_EDAC_AXXIA_L2_CPU_5600)
+
 	{
 	.compatible = "intel,cortex-a57-l2-cache",
 	},
+
+#endif
+
+#if defined(CONFIG_EDAC_AXXIA_L2_CPU_6700)
+
+	{
+	.compatible = "intel,cortex-a53-l2-cache",
+	},
+
+#endif
 	{},
 };
 
@@ -283,9 +302,21 @@ static struct platform_driver intel_edac_l2_driver = {
 	}
 };
 static const struct of_device_id intel_edac_cpu_match[] = {
+#if defined(CONFIG_EDAC_AXXIA_L2_CPU_5600)
+
 	{
 	.compatible = "intel,cortex-a57-cpu",
 	},
+
+#endif
+
+#if defined(CONFIG_EDAC_AXXIA_L2_CPU_6700)
+
+	{
+	.compatible = "intel,cortex-a53-cpu",
+	},
+
+#endif
 	{},
 };
 
