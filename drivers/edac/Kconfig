@@ -431,6 +431,15 @@ config EDAC_AXXIA_CMEM_6700
 	  the Configuration Memory error detection. Configuration Memory error
 	  detection is interrupt driven.
 
+config DEBUG_EDAC_AXXIA_CMEM
+	depends on ARCH_AXXIA
+	bool "AXXIA EDAC CMEM error injection interface."
+	help
+	  Support for configuration of CMEM edac error injection functionality.
+	  It works for both 5600 and 6700 board families.
+	  Enables error injection functionality for CMEM over procfs
+	  interface (/proc/driver/).
+
 config EDAC_AXXIA_L3_5500
 	tristate "AXXIA EDAC L3 Controller for 5500"
 	help

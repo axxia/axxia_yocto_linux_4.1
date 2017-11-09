@@ -31,7 +31,6 @@
 #include "edac_core.h"
 #include "edac_module.h"
 
-#define  CONFIG_DEBUG_CMEM 1
 #define FMT "%s: syscon lookup failed hence using hardcoded register address\n"
 
 #define MPR_FMT2 "\n%3d %#010x %#010x"
@@ -293,7 +292,7 @@ struct __packed cm_56xx_denali_ctl_34
 #endif
 };
 
-#ifdef CONFIG_DEBUG_CMEM
+#ifdef CONFIG_DEBUG_EDAC_AXXIA_CMEM
 
 #define CM_56XX_DENALI_CTL_62 0xf8
 
@@ -487,7 +486,7 @@ struct intel_edac_dev_info {
 	char *ctl_name;
 	char *blk_name;
 	char *proc_name;
-#ifdef CONFIG_DEBUG_CMEM
+#ifdef CONFIG_DEBUG_EDAC_AXXIA_CMEM
 	struct proc_dir_entry *dir_entry;
 #endif
 	struct mutex state_machine_lock;
@@ -507,7 +506,7 @@ struct intel_edac_dev_info {
 	void (*check)(struct edac_device_ctl_info *edac_dev);
 };
 
-#ifdef CONFIG_DEBUG_CMEM
+#ifdef CONFIG_DEBUG_EDAC_AXXIA_CMEM
 static int setup_fault_injection(struct intel_edac_dev_info *dev_info,
 					int fault, int enable)
 {
@@ -1283,7 +1282,7 @@ static int initialize(struct intel_edac_dev_info *dev_info)
 	dev_info->edac_dev->dev_name = dev_name(&dev_info->pdev->dev);
 	dev_info->edac_dev->edac_check = NULL;
 
-#ifdef CONFIG_DEBUG_CMEM
+#ifdef CONFIG_DEBUG_EDAC_AXXIA_CMEM
 	if (dev_info->is_ddr4)
 		axxia_mc_sysfs_attributes(dev_info->edac_dev);
 #endif
@@ -1385,7 +1384,7 @@ static int enable_driver_irq(struct intel_edac_dev_info *dev_info)
 }
 
 
-#ifdef CONFIG_DEBUG_CMEM
+#ifdef CONFIG_DEBUG_EDAC_AXXIA_CMEM
 static ssize_t
 axxia_cmem_read(struct file *filp, char *buffer, size_t length, loff_t *offset)
 {
@@ -1642,7 +1641,7 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 			dev_name(&dev_info->pdev->dev));
 	}
 
-#ifdef CONFIG_DEBUG_CMEM
+#ifdef CONFIG_DEBUG_EDAC_AXXIA_CMEM
 	/* in this case create procfs file to be used by rte */
 	dev_info->proc_name =
 		devm_kzalloc(&pdev->dev, 32*sizeof(char),
@@ -1693,7 +1692,7 @@ static int intel_edac_mc_remove(struct platform_device *pdev)
 		(struct intel_edac_dev_info *) &pdev->dev;
 
 	if (dev_info) {
-#ifdef CONFIG_DEBUG_CMEM
+#ifdef CONFIG_DEBUG_EDAC_AXXIA_CMEM
 		remove_procfs_entry(dev_info);
 #endif
 
