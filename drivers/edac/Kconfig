@@ -394,12 +394,30 @@ config EDAC_AXXIA_SYSMEM_5500
 	  the System Memory error detection. System Memory error
 	  detection is interrupt driven.
 
+config EDAC_AXXIA_SYSMEM_6700
+	depends on ARCH_AXXIA
+	bool "AXXIA EDAC SysMem Controller for 6700"
+	help
+	  Support for System Memory Denali controller error
+	  detection on the AXXIA AXM67xx devices. This enables
+	  the System Memory error detection. System Memory error
+	  detection is interrupt driven.
+
 config EDAC_AXXIA_CMEM_5600
 	depends on ARCH_AXXIA
 	bool "AXXIA EDAC CMem Controller for 5600"
 	help
 	  Support for Configuration Memory Denali controller error
 	  detection on the AXXIA AXM56xx devices. This enables
+	  the Configuration Memory error detection. Configuration Memory error
+	  detection is interrupt driven.
+
+config EDAC_AXXIA_CMEM_6700
+	depends on ARCH_AXXIA
+	bool "AXXIA EDAC CMem Controller for 6700"
+	help
+	  Support for Configuration Memory Denali controller error
+	  detection on the AXXIA AXM67xx devices. This enables
 	  the Configuration Memory error detection. Configuration Memory error
 	  detection is interrupt driven.
 
@@ -419,6 +437,14 @@ config EDAC_AXXIA_L3_5600
 	  L3 cache error detection. L3 cache error detection
 	  uses polling mechanism.
 
+config EDAC_AXXIA_L3_6700
+	tristate "AXXIA EDAC L3 Controller for 6700"
+	help
+	  Support for the eight L3 caches error detection
+	  on the AXXIA AXM67xx devices. This enables the
+	  L3 cache error detection. L3 cache error detection
+	  can use polling mechanism or be interrupt driven.
+
 config EDAC_AXXIA_L2_CPU_5500
 	tristate "AXXIA EDAC L2/CPU Controller for 5500"
 	help
@@ -433,6 +459,14 @@ config EDAC_AXXIA_L2_CPU_5600
 	  Support for L2 cache and A57 CPU error detection
 	  on AXXIA AXM56xx devices. This enables the L2
 	  cache and A57 CPU error detction. L2 cache and A57
+	  CPU error detection uses polling mechanism.
+
+config EDAC_AXXIA_L2_CPU_6700
+	tristate "AXXIA EDAC L2/CPU Controller for 6700"
+	help
+	  Support for L2 cache and A53 CPU error detection
+	  on AXXIA AXM67xx devices. This enables the L2
+	  cache and A53 CPU error detction. L2 cache and A53
 	  CPU error detection uses polling mechanism.
 
 config EDAC_ALTERA_MC
