@@ -232,33 +232,33 @@
 		};
 
 		gpdma0: gpdma@8005020000 {
-                        compatible = "lsi,dma32";
+			compatible = "lsi,dma32";
 			reg = <0x80 0x05020000 0 0x10000>;
 			interrupts = <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
-                        channel0 {
-                                interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
-                        };
+					<GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+			channel0 {
+				interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+			};
 
-                        channel1 {
-                                interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
-                        };
-                };
+			channel1 {
+				interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
 
-                gpdma1: gpdma@8005030000 {
-                        compatible = "lsi,dma32";
+		gpdma1: gpdma@8005030000 {
+			compatible = "lsi,dma32";
 			reg = <0x80 0x05030000 0 0x10000>;
 			interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
+					<GIC_SPI 49 IRQ_TYPE_LEVEL_HIGH>;
 			status = "disabled";
-                        channel0 {
-                                interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
-                        };
+			channel0 {
+				interrupts = <GIC_SPI 50 IRQ_TYPE_LEVEL_HIGH>;
+			};
 
-                        channel1 {
-                                interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
-                        };
-                };
+			channel1 {
+				interrupts = <GIC_SPI 51 IRQ_TYPE_LEVEL_HIGH>;
+			};
+		};
 
 		i2c0: i2c@8080600000 {
 			compatible = "lsi,api2c";
