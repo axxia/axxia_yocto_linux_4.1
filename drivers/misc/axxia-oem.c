@@ -92,7 +92,7 @@ axxia_dspc_write(struct file *file, const char __user *buffer,
 	char *input;
 	unsigned long mask;
 
-	input = kmalloc(count, __GFP_WAIT);
+	input = kmalloc(count + 1, __GFP_WAIT);
 
 	if (NULL == input)
 		return -ENOSPC;
@@ -146,7 +146,7 @@ axxia_actlr_el3_write(struct file *file, const char __user *buffer,
 {
 	char *input;
 
-	input = kmalloc(count, __GFP_WAIT);
+	input = kmalloc(count + 1, __GFP_WAIT);
 
 	if (NULL == input)
 		return -ENOSPC;
@@ -199,7 +199,7 @@ axxia_actlr_el2_write(struct file *file, const char __user *buffer,
 {
 	char *input;
 
-	input = kmalloc(count, __GFP_WAIT);
+	input = kmalloc(count + 1, __GFP_WAIT);
 
 	if (NULL == input)
 		return -ENOSPC;
@@ -255,7 +255,7 @@ axxia_ccn_offset_write(struct file *file, const char __user *buffer,
 	char *input;
 	unsigned int new_ccn_offset;
 
-	input = kmalloc(count, __GFP_WAIT);
+	input = kmalloc(count + 1, __GFP_WAIT);
 
 	if (NULL == input)
 		return -ENOSPC;
@@ -316,7 +316,7 @@ axxia_ccn_value_write(struct file *file, const char __user *buffer,
 {
 	char *input;
 
-	input = kmalloc(count, __GFP_WAIT);
+	input = kmalloc(count + 1, __GFP_WAIT);
 
 	if (NULL == input)
 		return -ENOSPC;
