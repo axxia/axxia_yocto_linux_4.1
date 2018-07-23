@@ -12,6 +12,7 @@
 #define CREATE_TRACE_POINTS
 
 #include <linux/module.h>
+#include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/slab.h>
 #include <linux/io.h>
@@ -80,6 +81,7 @@
 #define CCN_NODE_ERR_SYND_CLR		0x480
 
 static cpumask_t only_cpu_0 = { CPU_BITS_CPU0};
+static int l3_pmode = 0;
 
 union dickens_hnf_err_syndrome_reg0 {
 	struct __packed {
@@ -173,6 +175,20 @@ struct intel_edac_dev_info {
 	struct edac_device_ctl_info *edac_dev;
 	void (*check)(struct edac_device_ctl_info *edac_dev);
 };
+
+
+static int __init l3_polling_mode(char *str)
+{
+	int polling_mode;
+
+	if (get_option(&str, &polling_mode)) {
+		l3_pmode = polling_mode;
+		return 0;
+	}
+	return -EINVAL;
+}
+
+early_param("l3_polling_mode", l3_polling_mode);
 
 static void clear_node_error(void __iomem *addr)
 {
@@ -305,7 +321,8 @@ static irqreturn_t collect_and_clean(struct intel_edac_dev_info *dev_info,
 							err_synd_reg1);
 			dev_info->data_hni[i].err_synd_reg0 = err_synd_reg0;
 			dev_info->data_hni[i].err_synd_reg1 = err_synd_reg1;
-			dev_info->data_hni[i].idx = 0;
+			dev_info->data_hni[i].idx = CCN_HNF_NODES +
+							CCN_XP_NODES + i;
 
 			clear_node_error(ccn_base + CCN_HNI_NODE_BASE_ADDR(i) +
 						CCN_NODE_ERR_SYND_CLR);
@@ -345,6 +362,7 @@ static irqreturn_t collect_and_clean(struct intel_edac_dev_info *dev_info,
 
 			dev_info->data_xp[i].err_synd_reg0 = err_synd_reg0;
 			dev_info->data_xp[i].err_synd_reg1 = 0;
+			dev_info->data_xp[i].idx =  CCN_HNF_NODES + i;
 
 			trace_edacl3_syndromes(err_synd_reg0,
 						err_synd_reg1);
@@ -414,7 +432,8 @@ static void intel_l3_error_check(struct edac_device_ctl_info *edac_dev)
 			count = err_syndrome_reg0.reg0.err_count;
 			if (count)
 				edac_device_handle_multi_ce(edac_dev, 0,
-					instance, count, edac_dev->ctl_name);
+					dev_info->data[instance].idx, count,
+					edac_dev->ctl_name);
 
 			/* clear the valid bit */
 			clear_node_error(addr + CCN_NODE_ERR_SYND_CLR);
@@ -459,10 +478,11 @@ static int intel_edac_l3_probe(struct platform_device *pdev)
 			np->name);
 		goto err1;
 	}
+	/* for the moment only HNF errors are reported via sysfs */
 	dev_info->edac_dev =
 		edac_device_alloc_ctl_info(0, dev_info->ctl_name,
 					   1, dev_info->blk_name,
-					   CCN_HNI_NODES, 0, NULL, 0,
+					   CCN_HNF_NODES, 0, NULL, 0,
 					   dev_info->edac_idx);
 	if (!dev_info->edac_dev) {
 		pr_info("No memory for edac device\n");
@@ -481,20 +501,26 @@ static int intel_edac_l3_probe(struct platform_device *pdev)
 	 * Once -1 return, it means old uboot without ccn service.
 	 * Then only polling mechanism is allowed, as it was before.
 	 */
-	__arm_smccc_smc(0xc4000027, CCN_MN_ERRINT_STATUS__PMU_EVENTS__DISABLE,
-			0, 0, &ret);
-	trace_edacl3_smc_results(&ret);
 
-	if (ret.a0 != ARM_SMCCC_UNKNOWN) {
-		irqreturn_t res;
-
-		dev_info->irq_used = 1;
-		/* clear all error from earlier boot stage */
-		res = collect_and_clean(dev_info, 0);
+	if (l3_pmode) {
+		dev_info->irq_used = 0;
+	} else {
 		__arm_smccc_smc(0xc4000027,
-			CCN_MN_ERRINT_STATUS__INTREQ__DESSERT,
-			0, 0, &ret);
+				CCN_MN_ERRINT_STATUS__PMU_EVENTS__DISABLE,
+				0, 0, &ret);
 		trace_edacl3_smc_results(&ret);
+
+		if (ret.a0 != ARM_SMCCC_UNKNOWN) {
+			irqreturn_t res;
+
+			dev_info->irq_used = 1;
+			/* clear all error from earlier boot stage */
+			res = collect_and_clean(dev_info, 0);
+			__arm_smccc_smc(0xc4000027,
+				CCN_MN_ERRINT_STATUS__INTREQ__DESSERT,
+				0, 0, &ret);
+			trace_edacl3_smc_results(&ret);
+		}
 	}
 
 	dev_info->edac_dev->pvt_info = dev_info;
@@ -506,9 +532,11 @@ static int intel_edac_l3_probe(struct platform_device *pdev)
 	if (dev_info->irq_used) {
 		edac_op_state = EDAC_OPSTATE_INT;
 		dev_info->edac_dev->edac_check = NULL;
+		pr_info("L3 cache EDAC - interrupt mode.\n");
 	} else {
 		edac_op_state = EDAC_OPSTATE_POLL;
 		dev_info->edac_dev->edac_check = intel_l3_error_check;
+		pr_info("L3 cache EDAC - polling mode.\n");
 	}
 
 	if (edac_device_add_device(dev_info->edac_dev) != 0) {
