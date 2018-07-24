@@ -410,9 +410,17 @@ config DEBUG_EDAC_AXXIA_SYSMEM
 	  Support for configuration of SYSMEM edac tracing functionality.
 	  It works for both 5600 and 6700 board families.
 
+config EDAC_AXXIA_SYSMEM_SKIP_CORRECTABLE
+	depends on ARCH_AXXIA
+	bool "AXXIA EDAC SYSMEM correctable error disabled."
+	help
+	  Support for deactivation of processing of SYSMEM correctable errors
+	  (single and multiple ECC).
+	  It works for both 5600 and 6700 board families.
+
 config EDAC_AXXIA_CMEM_5600
 	depends on ARCH_AXXIA
-	bool "AXXIA EDAC CMem Controller for 5600"
+	bool "AXXIA EDAC CMEM Controller for 5600"
 	help
 	  Support for Configuration Memory Denali controller error
 	  detection on the AXXIA AXM56xx devices. This enables
@@ -436,6 +444,14 @@ config DEBUG_EDAC_AXXIA_CMEM
 	  It works for both 5600 and 6700 board families.
 	  Enables error injection functionality for CMEM over procfs
 	  interface (/proc/driver/).
+
+config EDAC_AXXIA_CMEM_SKIP_CORRECTABLE
+	depends on ARCH_AXXIA
+	bool "AXXIA EDAC CMEM correctable error disabled."
+	help
+	  Support for deactivation of processing of CMEM correctable errors
+	  (single and multiple ECC).
+	  It works for both 5600 and 6700 board families.
 
 config EDAC_AXXIA_L3_5500
 	tristate "AXXIA EDAC L3 Controller for 5500"

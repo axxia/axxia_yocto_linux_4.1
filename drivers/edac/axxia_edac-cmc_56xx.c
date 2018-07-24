@@ -104,33 +104,60 @@
 			INT_BIT_8 |\
 			INT_BIT_31))
 
-#define CM_INT_MASK_BASE (~(\
-			INT_BIT_1 |\
-			INT_BIT_2 |\
-			INT_BIT_3 |\
-			INT_BIT_4 |\
-			INT_BIT_5 |\
-			INT_BIT_6 |\
-			INT_BIT_7 |\
-			INT_BIT_11 |\
-			INT_BIT_21 |\
-			INT_BIT_23 |\
-			INT_BIT_31))
+#if defined(CONFIG_EDAC_AXXIA_CMEM_SKIP_CORRECTABLE)
+	#define CM_INT_MASK_BASE (~(\
+				INT_BIT_1 |\
+				INT_BIT_2 |\
+				INT_BIT_5 |\
+				INT_BIT_6 |\
+				INT_BIT_7 |\
+				INT_BIT_11 |\
+				INT_BIT_21 |\
+				INT_BIT_23 |\
+				INT_BIT_31))
 
-#define CM_INT_MASK_FULL (~(\
-			INT_BIT_1 |\
-			INT_BIT_2 |\
-			INT_BIT_3 |\
-			INT_BIT_4 |\
-			INT_BIT_5 |\
-			INT_BIT_6 |\
-			INT_BIT_7 |\
-			INT_BIT_11 |\
-			INT_BIT_21 |\
-			INT_BIT_23 |\
-			INT_BIT_25 |\
-			INT_BIT_30 |\
-			INT_BIT_31))
+	#define CM_INT_MASK_FULL (~(\
+				INT_BIT_1 |\
+				INT_BIT_2 |\
+				INT_BIT_5 |\
+				INT_BIT_6 |\
+				INT_BIT_7 |\
+				INT_BIT_11 |\
+				INT_BIT_21 |\
+				INT_BIT_23 |\
+				INT_BIT_25 |\
+				INT_BIT_30 |\
+				INT_BIT_31))
+#else
+
+	#define CM_INT_MASK_BASE (~(\
+				INT_BIT_1 |\
+				INT_BIT_2 |\
+				INT_BIT_3 |\
+				INT_BIT_4 |\
+				INT_BIT_5 |\
+				INT_BIT_6 |\
+				INT_BIT_7 |\
+				INT_BIT_11 |\
+				INT_BIT_21 |\
+				INT_BIT_23 |\
+				INT_BIT_31))
+
+	#define CM_INT_MASK_FULL (~(\
+				INT_BIT_1 |\
+				INT_BIT_2 |\
+				INT_BIT_3 |\
+				INT_BIT_4 |\
+				INT_BIT_5 |\
+				INT_BIT_6 |\
+				INT_BIT_7 |\
+				INT_BIT_11 |\
+				INT_BIT_21 |\
+				INT_BIT_23 |\
+				INT_BIT_25 |\
+				INT_BIT_30 |\
+				INT_BIT_31))
+#endif
 
 #define CM_INT_MASK_ALL (0x7fffffff)
 #define ALIVE_NOTIFICATION_PERIOD (90*1000)
@@ -426,8 +453,10 @@ enum init_return_codes {ERR_STAGE_8 = -8,
 enum events {
 	EV_ILLEGAL = 0,
 	EV_MULT_ILLEGAL,
+#ifndef CONFIG_EDAC_AXXIA_CMEM_SKIP_CORRECTABLE
 	EV_CORR_ECC,
 	EV_MULT_CORR_ECC,
+#endif
 	EV_UNCORR_ECC,
 	EV_MULT_UNCORR_ECC,
 	EV_PORT_ERROR,
@@ -441,8 +470,10 @@ enum events {
 static char *block_name[] = {
 	"illegal",
 	"mult_illegal",
+#ifndef CONFIG_EDAC_AXXIA_CMEM_SKIP_CORRECTABLE
 	"ecc",
 	"mult_ecc",
+#endif
 	"uncorr_ecc",
 	"mult_uncorr_ecc",
 	"port_error",
@@ -470,8 +501,10 @@ static char *block_name[] = {
 static const u32 event_mask[NR_EVENTS] = {
 	[EV_ILLEGAL]			= INT_BIT_1,
 	[EV_MULT_ILLEGAL]		= INT_BIT_2,
+#ifndef CONFIG_EDAC_AXXIA_CMEM_SKIP_CORRECTABLE
 	[EV_CORR_ECC]			= INT_BIT_3,
 	[EV_MULT_CORR_ECC]		= INT_BIT_4,
+#endif
 	[EV_UNCORR_ECC]			= INT_BIT_5,
 	[EV_MULT_UNCORR_ECC]		= INT_BIT_6,
 	[EV_PORT_ERROR]			= INT_BIT_7,
@@ -487,8 +520,10 @@ static const struct event_logging {
 } event_logging[NR_EVENTS] = {
 	[EV_ILLEGAL]		= {0, KERN_ERR, "Illegal access"},
 	[EV_MULT_ILLEGAL]	= {0, KERN_ERR, "Illegal access"},
+#ifndef CONFIG_EDAC_AXXIA_CMEM_SKIP_CORRECTABLE
 	[EV_CORR_ECC]		= {0, KERN_NOTICE, "Correctable ECC error"},
 	[EV_MULT_CORR_ECC]	= {0, KERN_NOTICE, "Correctable ECC error"},
+#endif
 	[EV_UNCORR_ECC]		= {1, KERN_CRIT, "Uncorrectable ECC error"},
 	[EV_MULT_UNCORR_ECC]	= {1, KERN_CRIT, "Uncorrectable ECC error"},
 	[EV_PORT_ERROR]		= {0, KERN_CRIT, "Port error"},
@@ -1169,8 +1204,10 @@ static void intel_cm_events_error_check(struct edac_device_ctl_info *edac_dev)
 						0, i, counter,
 						edac_dev->ctl_name);
 					break;
+#ifndef CONFIG_EDAC_AXXIA_CMEM_SKIP_CORRECTABLE
 				case EV_CORR_ECC:
 				case EV_MULT_CORR_ECC:
+#endif
 				case EV_PORT_ERROR:
 				case EV_WRAP_ERROR:
 				case EV_PARITY_ERROR:
