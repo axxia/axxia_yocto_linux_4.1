@@ -106,8 +106,18 @@
 #define INT_BIT_22 (0x00400000)
 #define INT_BIT_26 (0x04000000)
 
-
-#define SM_INT_MASK_LOW (~(\
+#ifdef CONFIG_EDAC_AXXIA_SYSMEM_SKIP_CORRECTABLE
+	#define SM_INT_MASK_LOW (~(\
+			INT_BIT_1 |\
+			INT_BIT_2 |\
+			INT_BIT_5 |\
+			INT_BIT_6 |\
+			INT_BIT_7 |\
+			INT_BIT_12 |\
+			INT_BIT_22 |\
+			INT_BIT_26))
+#else
+	#define SM_INT_MASK_LOW (~(\
 			INT_BIT_1 |\
 			INT_BIT_2 |\
 			INT_BIT_3 |\
@@ -118,6 +128,7 @@
 			INT_BIT_12 |\
 			INT_BIT_22 |\
 			INT_BIT_26))
+#endif
 
 #define SM_INT_MASK_ALL_LOW (0xffffffff)
 #define SM_INT_MASK_HIGH (INT_BIT_0)
@@ -411,8 +422,10 @@ struct __packed mpr_dump {
 enum events {
 	EV_ILLEGAL = 0,
 	EV_MULT_ILLEGAL,
+#ifndef CONFIG_EDAC_AXXIA_SYSMEM_SKIP_CORRECTABLE
 	EV_CORR_ECC,
 	EV_MULT_CORR_ECC,
+#endif
 	EV_UNCORR_ECC,
 	EV_MULT_UNCORR_ECC,
 	EV_PORT_ERROR,
@@ -425,8 +438,10 @@ enum events {
 static char *block_name[] = {
 	"illegal",
 	"mult_illegal",
+#ifndef CONFIG_EDAC_AXXIA_SYSMEM_SKIP_CORRECTABLE
 	"ecc",
 	"mult_ecc",
+#endif
 	"uncorr_ecc",
 	"mult_uncorr_ecc",
 	"port_error",
@@ -586,8 +601,10 @@ static char *block_name[] = {
 static const u32 event_mask[NR_EVENTS] = {
 	[EV_ILLEGAL]			= INT_BIT_1,
 	[EV_MULT_ILLEGAL]		= INT_BIT_2,
+#ifndef CONFIG_EDAC_AXXIA_SYSMEM_SKIP_CORRECTABLE
 	[EV_CORR_ECC]			= INT_BIT_3,
 	[EV_MULT_CORR_ECC]		= INT_BIT_4,
+#endif
 	[EV_UNCORR_ECC]			= INT_BIT_5,
 	[EV_MULT_UNCORR_ECC]		= INT_BIT_6,
 	[EV_PORT_ERROR]			= INT_BIT_7,
@@ -602,8 +619,10 @@ static const struct event_logging {
 } event_logging[NR_EVENTS] = {
 	[EV_ILLEGAL]		= {0, KERN_ERR, "Illegal access"},
 	[EV_MULT_ILLEGAL]	= {0, KERN_ERR, "Illegal access"},
+#ifndef CONFIG_EDAC_AXXIA_SYSMEM_SKIP_CORRECTABLE
 	[EV_CORR_ECC]		= {0, KERN_NOTICE, "Correctable ECC error"},
 	[EV_MULT_CORR_ECC]	= {0, KERN_NOTICE, "Correctable ECC error"},
+#endif
 	[EV_UNCORR_ECC]		= {1, KERN_CRIT, "Uncorrectable ECC error"},
 	[EV_MULT_UNCORR_ECC]	= {1, KERN_CRIT, "Uncorrectable ECC error"},
 	[EV_PORT_ERROR]		= {0, KERN_CRIT, "Port error"},
@@ -1230,8 +1249,10 @@ static void intel_sm_events_error_check(struct edac_device_ctl_info *edac_dev)
 						0, i, counter,
 						edac_dev->ctl_name);
 					break;
+#ifndef CONFIG_EDAC_AXXIA_SYSMEM_SKIP_CORRECTABLE
 				case EV_CORR_ECC:
 				case EV_MULT_CORR_ECC:
+#endif
 				case EV_PORT_ERROR:
 				case EV_WRAP_ERROR:
 				case EV_PARITY_ERROR:
