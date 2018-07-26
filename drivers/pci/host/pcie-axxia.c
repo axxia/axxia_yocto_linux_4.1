@@ -32,7 +32,6 @@
 
 #include "pcie-axxia.h"
 
-#define AXM_LEVEL_MSI
 
 #ifdef CONFIG_PCI_MSI
 #define AXXIA_GENERIC_MSI_DOMAIN_IRQ 1
@@ -528,11 +527,43 @@ static int axxia_check_set_msi_mode(struct pcie_port *pp, u32 is_msix)
 
 	if (pp->msi_mode == AXXIA_MSI_UNCONFIGURED) {
 		if (is_msix) {
+			dev_info(pp->dev, "Enable MSIx for pcie %d...\n",
+								pp->pei_nr);
+			axxia_axi_gpreg_readl(pp,
+				AXI_GPREG_EDG_IRQ_MASK_HI, &val);
+			val |= MSIX_ASSERTED;
+			axxia_axi_gpreg_writel(pp, val,
+				AXI_GPREG_EDG_IRQ_MASK_HI);
+
+			dev_info(pp->dev, "Disable MSI for pcie %d...\n",
+								pp->pei_nr);
+			axxia_cc_gpreg_readl(pp,
+				CC_GPREG_LVL_IRQ_MASK, &val);
+			val &= ~MSI_CNTRL_INT;
+			axxia_cc_gpreg_writel(pp, val,
+				CC_GPREG_LVL_IRQ_MASK);
+
 			axxia_axi_gpreg_readl(pp, AXI_GPREG_MSTR, &val);
 			val &= ~CFG_MSI_MODE;
 			axxia_axi_gpreg_writel(pp, val, AXI_GPREG_MSTR);
 			pp->msi_mode = AXXIA_MSIX_MODE;
 		} else {
+			dev_info(pp->dev, "Enable MSI for pcie %d...\n",
+							pp->pei_nr);
+			axxia_cc_gpreg_readl(pp,
+				CC_GPREG_LVL_IRQ_MASK, &val);
+			val |= MSI_CNTRL_INT;
+			axxia_cc_gpreg_writel(pp, val,
+				CC_GPREG_LVL_IRQ_MASK);
+
+			dev_info(pp->dev, "Disable MSIx for pcie %d...\n",
+							pp->pei_nr);
+			axxia_axi_gpreg_readl(pp,
+				AXI_GPREG_EDG_IRQ_MASK_HI, &val);
+			val &= ~MSIX_ASSERTED;
+			axxia_axi_gpreg_writel(pp, val,
+				AXI_GPREG_EDG_IRQ_MASK_HI);
+
 			axxia_axi_gpreg_readl(pp, AXI_GPREG_MSTR, &val);
 			val |= CFG_MSI_MODE;
 			axxia_axi_gpreg_writel(pp, val, AXI_GPREG_MSTR);
@@ -602,6 +633,7 @@ static int axxia_pcie_irq_domain_alloc(struct irq_domain *domain,
 	msi_alloc_info_t *va = args;
 	struct msi_desc *desc = va->desc;
 	int is_msix = 0;
+	int rc;
 
 	if (desc) {
 		if (desc->msi_attrib.is_msix)
@@ -628,18 +660,26 @@ static int axxia_pcie_irq_domain_alloc(struct irq_domain *domain,
 	if (msi_irq < 0)
 		return msi_irq;
 
-	axxia_check_set_msi_mode(pp, is_msix);
-	for (i = 0; i < nr_irqs; i++) {
-		irq_domain_set_info(domain, virq + i, msi_irq + i,
+	rc = axxia_check_set_msi_mode(pp, is_msix);
+	if (rc == 0) {
+		for (i = 0; i < nr_irqs; i++) {
+			irq_domain_set_info(domain, virq + i, msi_irq + i,
 				    &axxia_msi_bottom_irq_chip,
 				    domain->host_data, handle_simple_irq, NULL,
 				    NULL);
-		if (is_msix)
-			axxia_dw_pcie_msix_set_irq(pp, msi_irq + i, 1);
-		else
-			axxia_dw_pcie_msi_set_irq(pp, msi_irq + i);
+			if (is_msix)
+				axxia_dw_pcie_msix_set_irq(pp, msi_irq + i, 1);
+			else
+				axxia_dw_pcie_msi_set_irq(pp, msi_irq + i);
+		}
+		rc = 0;
+	} else {
+		mutex_lock(&pp->bitmap_lock);
+		bitmap_clear(pp->bitmap, msi_irq, nr_irqs);
+		mutex_unlock(&pp->bitmap_lock);
+		rc = -EINVAL;
 	}
-	return 0;
+	return rc;
 }
 
 static void axxia_pcie_irq_domain_free(struct irq_domain *domain,
@@ -844,24 +884,19 @@ static void axxia_pcie_enable_interrupts(struct pcie_port *pp)
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		/* unmask MSI */
 		if (pp->num_msi_irqs == 0) {
-#ifdef AXM_LEVEL_MSI
+#if 0  /* Delayed. Enabled during irq allocation */
 			axxia_cc_gpreg_readl(pp,
 				CC_GPREG_LVL_IRQ_MASK, &val);
 			val |= MSI_CNTRL_INT;
 			axxia_cc_gpreg_writel(pp, val,
 				CC_GPREG_LVL_IRQ_MASK);
-#else
-			axxia_cc_gpreg_readl(pp,
-				CC_GPREG_EDG_IRQ_MASK_HI, &val);
-			val |= MSI_ASSERTED;
-			axxia_cc_gpreg_writel(pp, val,
-				CC_GPREG_EDG_IRQ_MASK_HI);
-#endif
+
 			axxia_axi_gpreg_readl(pp,
 				AXI_GPREG_EDG_IRQ_MASK_HI, &val);
 			val |= MSIX_ASSERTED;
 			axxia_axi_gpreg_writel(pp, val,
 				AXI_GPREG_EDG_IRQ_MASK_HI);
+#endif
 
 		} else {
 			for (i = 0; i < pp->num_msi_irqs; i++) {
@@ -1335,27 +1370,16 @@ static irqreturn_t axxia_pcie_irq_handler(int irq, void *arg)
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		if (pp->num_msi_irqs == 0) {
 			offset = irq - pp->msi_irqs[0];
-#ifdef AXM_LEVEL_MSI
 			axxia_cc_gpreg_readl(pp,
 				CC_GPREG_LVL_IRQ_STAT, &val);
 			if (val & MSI_CNTRL_INT) {
-#else
-			axxia_cc_gpreg_readl(pp,
-				CC_GPREG_EDG_IRQ_STAT_HI, &val);
-			if (val & MSI_ASSERTED) {
-#endif
 				axxia_pcie_rd_own_conf(pp,
 				PCIE_MSI_INTR0_STATUS, 4, (u32 *)&val1);
 				if (val1)
 					ret = axxia_dw_pcie_handle_msi_irq(pp,
 									 val1);
-#ifdef AXM_LEVEL_MSI
 				axxia_cc_gpreg_writel(pp, MSI_CNTRL_INT,
 					      CC_GPREG_LVL_IRQ_STAT);
-#else
-				axxia_cc_gpreg_writel(pp, MSI_ASSERTED,
-					      CC_GPREG_EDG_IRQ_STAT_HI);
-#endif
 				if (!ret)
 					return IRQ_NONE;
 			}
