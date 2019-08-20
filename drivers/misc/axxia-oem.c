@@ -97,13 +97,18 @@ axxia_dspc_write(struct file *file, const char __user *buffer,
 	if (NULL == input)
 		return -ENOSPC;
 
-	if (copy_from_user(input, buffer, count))
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
+
 		return -EFAULT;
+	}
 
 	input[count] = 0;
 
 	mask = simple_strtoul(input, NULL, 0);
 	axxia_dspc_set_state((unsigned int)mask);
+
+	kfree(input);
 
 	return count;
 }
@@ -151,12 +156,17 @@ axxia_actlr_el3_write(struct file *file, const char __user *buffer,
 	if (NULL == input)
 		return -ENOSPC;
 
-	if (copy_from_user(input, buffer, count))
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
+
 		return -EFAULT;
+	}
 
 	input[count] = 0;
 
 	axxia_actlr_el3_set(simple_strtoul(input, NULL, 0));
+
+	kfree(input);
 
 	return count;
 }
@@ -204,12 +214,17 @@ axxia_actlr_el2_write(struct file *file, const char __user *buffer,
 	if (NULL == input)
 		return -ENOSPC;
 
-	if (copy_from_user(input, buffer, count))
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
+
 		return -EFAULT;
+	}
 
 	input[count] = 0;
 
 	axxia_actlr_el2_set(simple_strtoul(input, NULL, 0));
+
+	kfree(input);
 
 	return count;
 }
@@ -260,8 +275,11 @@ axxia_ccn_offset_write(struct file *file, const char __user *buffer,
 	if (NULL == input)
 		return -ENOSPC;
 
-	if (copy_from_user(input, buffer, count))
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
+
 		return -EFAULT;
+	}
 
 	input[count] = 0;
 
@@ -278,6 +296,8 @@ axxia_ccn_offset_write(struct file *file, const char __user *buffer,
 	}
 
 	ccn_offset = (unsigned int)new_ccn_offset;
+
+	kfree(input);
 
 	return count;
 }
@@ -321,12 +341,17 @@ axxia_ccn_value_write(struct file *file, const char __user *buffer,
 	if (NULL == input)
 		return -ENOSPC;
 
-	if (copy_from_user(input, buffer, count))
+	if (copy_from_user(input, buffer, count)) {
+		kfree(input);
+
 		return -EFAULT;
+	}
 
 	input[count] = 0;
 
 	axxia_ccn_set(ccn_offset, simple_strtoul(input, NULL, 0));
+
+	kfree(input);
 
 	return count;
 }
