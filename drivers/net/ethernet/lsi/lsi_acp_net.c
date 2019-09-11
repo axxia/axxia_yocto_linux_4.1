@@ -1037,7 +1037,10 @@ static int appnic_hard_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	if (!spin_trylock_irqsave(&pdata->tx_lock, flags))
 		return NETDEV_TX_LOCKED;
 
-	length = skb->len < ETH_ZLEN ? ETH_ZLEN : skb->len;
+	if (eth_skb_pad(skb))
+		return NETDEV_TX_OK;
+
+	length = skb->len;
 	buf_per_desc = pdata->tx_buf_sz / pdata->tx_num_desc;
 
 	/* If enough transmit descriptors are available, copy and transmit. */
