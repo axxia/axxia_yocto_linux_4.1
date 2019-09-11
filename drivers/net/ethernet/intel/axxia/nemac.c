@@ -602,16 +602,8 @@ static netdev_tx_t nemac_xmit(struct sk_buff *skb, struct net_device *ndev)
 	unsigned long flags;
 
 	/* Pad undersized frames to minimum size */
-	if (skb->len < ETH_ZLEN) {
-		int padlen = ETH_ZLEN - skb->len;
-
-		if (skb_pad(skb, padlen) != 0) {
-			dev_warn_ratelimited(&ndev->dev, "Padding failed\n");
-			dev_kfree_skb(skb);
-			return NETDEV_TX_OK;
-		}
-		skb_put(skb, padlen);
-	}
+	if (eth_skb_pad(skb))
+		return NETDEV_TX_OK;
 
 	spin_lock_irqsave(&priv->txlock, flags);
 	desc = queue_get_head(&priv->txq);
