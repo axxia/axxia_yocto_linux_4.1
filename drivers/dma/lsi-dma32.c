@@ -548,6 +548,9 @@ gpdma_prep_sg(struct dma_chan *chan,
 		}
 	}
 
+	if (prev == NULL)
+		return NULL;
+
 	/* Interrupt on last descriptor in chain */
 	prev->hw.ch_config |= cpu_to_le32(DMA_CONFIG_END);
 
