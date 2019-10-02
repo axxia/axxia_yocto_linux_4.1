@@ -1381,6 +1381,7 @@ static int open_outb_mbox_static(struct rio_mport *mport,
 	spin_lock_irqsave(&mb->lock, iflags0);
 
 	if (test_bit(RIO_MB_OPEN, &mb->state)) {
+		kfree(mb);
 		spin_unlock_irqrestore(&mb->lock, iflags0);
 		return -EINVAL;
 	}
