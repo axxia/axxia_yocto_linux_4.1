@@ -2228,7 +2228,7 @@ void axxia_close_outb_mbox(struct rio_mport *mport, int mbox_id)
 
 
 	if ((mbox_id < 0) ||
-	    (mbox_id > RIO_MAX_TX_MBOX))
+	    (mbox_id >= RIO_MAX_TX_MBOX))
 		return;
 	mb = priv->ob_mbox[mbox_id];
 	if ((!mb) ||
