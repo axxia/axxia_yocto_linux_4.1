@@ -538,6 +538,7 @@ ncr_apb2ser_e12(unsigned int region,
 	unsigned int ctrl_98_off;
 	unsigned int ctrl_99_off;
 	unsigned int ctrl_224_off;
+	unsigned long timeout = jiffies + msecs_to_jiffies(1000);
 
 	if (0 !=
 	    apb2ser_indirect_setup(region, &indirect_offset, &transfer_width))
@@ -585,6 +586,12 @@ ncr_apb2ser_e12(unsigned int region,
 		apb2ser_indirect_access(ctrl_99_off, indirect_offset, 4, 0,
 					(unsigned int *)
 					&hss_cobalt_ctrl_99.raw);
+
+		if (!time_before(jiffies, timeout)) {
+			pr_err("ABP2SER Timeout\n");
+
+			return -1;
+		}
 	} while (0 == hss_cobalt_ctrl_99.bits.cr_ack);
 
 	hss_cobalt_ctrl_98.bits.cr_rd = 0;
