@@ -3180,6 +3180,7 @@ _mtc_axi_dev_write(struct file *filp,
 	memset(mtc_buf, 0, len);
 	if (copy_from_user((void *)mtc_buf, (void *)data, len)) {
 		pr_debug("MTC Error write\n");
+		kfree(mtc_buf);
 		return -EFAULT;
 	}
 
