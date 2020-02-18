@@ -1238,7 +1238,7 @@ static int alloc_ob_dme_shared(struct rio_priv *priv,
 	struct rio_mport *mport = priv->mport;
 	struct rio_msg_dme *me = NULL;
 	struct rio_msg_desc *desc = NULL;
-	u32 dw0, dw1, dw2, dw3;
+	u32 dw0 = 0, dw1, dw2, dw3;
 	u64  desc_chn_start = 0;
 	int entries = OB_DME_ENTRIES;
 	int i;
@@ -1364,7 +1364,7 @@ static int open_outb_mbox_static(struct rio_mport *mport,
 	u32 dme_ctrl, dme_stat, desc_addr, wait = 0;
 	u64  desc_chn_start = 0;
 
-	if ((mbox_id < 0) || (mbox_id > RIO_MAX_TX_MBOX) ||
+	if ((mbox_id < 0) || (mbox_id >= RIO_MAX_TX_MBOX) ||
 	    (entries < 2) || (entries > priv->desc_max_entries))
 		return -EINVAL;
 	if (priv->ob_mbox[mbox_id])
@@ -1381,8 +1381,8 @@ static int open_outb_mbox_static(struct rio_mport *mport,
 	spin_lock_irqsave(&mb->lock, iflags0);
 
 	if (test_bit(RIO_MB_OPEN, &mb->state)) {
-		kfree(mb);
 		spin_unlock_irqrestore(&mb->lock, iflags0);
+		kfree(mb);
 		return -EINVAL;
 	}
 
