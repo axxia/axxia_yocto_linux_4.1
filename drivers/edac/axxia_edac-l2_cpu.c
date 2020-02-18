@@ -191,6 +191,9 @@ static void lsi_add_edac_devices(struct platform_device *pdev,
 		return;
 
 	dev_info->ctl_name = kstrdup(np->name, GFP_KERNEL);
+	if (!dev_info->ctl_name)
+		return;
+
 	if (num == 0) {
 		dev_info->blk_name = "cpumerrsr";
 		dev_info->check = lsi_cpu_error_check;
