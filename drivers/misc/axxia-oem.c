@@ -532,8 +532,6 @@ static const struct file_operations axxia_ccn_value_proc_ops = {
 static int
 setup_ccn_proc(void)
 {
-	int rc = 0;
-
 	if (of_find_compatible_node(NULL, NULL, "lsi,axc6732")) {
 		ccn_phys_base = 0x4000000000ULL;
 	} else if (of_find_compatible_node(NULL, NULL, "lsi,axm5616")) {
@@ -549,23 +547,23 @@ setup_ccn_proc(void)
 	if (proc_create("driver/axxia_ccn_offset", 0200, NULL,
 			&axxia_ccn_offset_proc_ops) == NULL) {
 		pr_err("Could not create /proc/driver/axxia_ccn_offset!\n");
-		rc = -EFAULT;
-	} else if (proc_create("driver/axxia_ccn_value", 0200, NULL,
-			       &axxia_ccn_value_proc_ops) == NULL) {
+		return -EFAULT;
+	}
+
+	if (proc_create("driver/axxia_ccn_value", 0200, NULL,
+			&axxia_ccn_value_proc_ops) == NULL) {
 		pr_err("Could not create /proc/driver/axxia_ccn_value!\n");
-		rc = -EFAULT;
+		remove_proc_entry("driver/axxia_ccn_offset", NULL);
+
+		return -EFAULT;
 	}
 
-	if (rc) {
-		pr_err("Axxia CCN Access is Not Available!\n");
-	} else {
-		if (ccn_oem_available)
-			pr_info("Axxia CCN (scm) Initialized\n");
-		else
-			pr_info("Axxia CCN (direct) Initialized\n");
-	}
+	if (ccn_oem_available)
+		pr_info("Axxia CCN (scm) Initialized\n");
+	else
+		pr_info("Axxia CCN (direct) Initialized\n");
 
-	return rc;
+	return 0;
 }
 
 /*
@@ -789,28 +787,48 @@ static int
 axxia_oem_init(void)
 {
 	struct arm_smccc_res res;
+	int is_6700 = 0;
 	int rc = 0;
 
-	if (of_find_compatible_node(NULL, NULL, "lsi,axc6732")) {
+	if (of_find_compatible_node(NULL, NULL, "lsi,axc6732"))
+		is_6700 = 1;
+
+	if (is_6700) {
 		/* Only applicable to the 6700. */
 		if (NULL == proc_create("driver/axxia_dspc", S_IWUSR, NULL,
-					&axxia_dspc_proc_ops))
+					&axxia_dspc_proc_ops)) {
 			pr_err("Could not create /proc/driver/axxia_dspc!\n");
-		else
-			pr_info("Axxia DSP Control Initialized\n");
+
+			return -ENODEV;
+		}
+
+		pr_info("Axxia DSP Control Initialized\n");
 	}
 
 	if (NULL == proc_create("driver/axxia_actlr_el3", S_IWUSR, NULL,
-				&axxia_actlr_el3_proc_ops))
+				&axxia_actlr_el3_proc_ops)) {
 		pr_err("Could not create /proc/driver/axxia_actlr_el3!\n");
-	else
-		pr_info("Axxia ACTLR_EL3 Control Initialized\n");
+
+		if (is_6700)
+			remove_proc_entry("driver/axxia_dspc", NULL);
+
+		return -ENODEV;
+	}
+
+	pr_info("Axxia ACTLR_EL3 Control Initialized\n");
 
 	if (NULL == proc_create("driver/axxia_actlr_el2", S_IWUSR, NULL,
-				&axxia_actlr_el2_proc_ops))
+				&axxia_actlr_el2_proc_ops)) {
 		pr_err("Could not create /proc/driver/axxia_actlr_el2!\n");
-	else
-		pr_info("Axxia ACTLR_EL3 Control Initialized\n");
+		remove_proc_entry("driver/axxia_actlr_el3", NULL);
+
+		if (is_6700)
+			remove_proc_entry("driver/axxia_dspc", NULL);
+
+		return -ENODEV;
+	}
+
+	pr_info("Axxia ACTLR_EL3 Control Initialized\n");
 
 	/*
 	  In some cases, CCN access is required (SBB work around for
@@ -836,12 +854,22 @@ axxia_oem_init(void)
 		ccn_oem_available = 0;
 		rc = enable_ccn_access();
 
-		if (rc)
+		if (rc) {
 			pr_err("Unable to Enable CCN Access via GPDMA!\n");
+			remove_proc_entry("driver/axxia_actlr_el2", NULL);
+			remove_proc_entry("driver/axxia_actlr_el3", NULL);
+
+			if (is_6700)
+				remove_proc_entry("driver/axxia_dspc", NULL);
+
+			return -ENODEV;
+		}
 	}
 
-	if (!rc)
-		rc = setup_ccn_proc();
+	rc = setup_ccn_proc();
+
+	if (rc) {
+	}
 
 	return rc;
 }
