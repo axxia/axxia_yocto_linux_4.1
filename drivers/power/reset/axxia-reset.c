@@ -88,24 +88,15 @@ static const struct file_operations axxia_ddr_retention_proc_ops = {
 void
 axxia_ddr_retention_init(void)
 {
-	/*
-	* this feature is only meaningful on ASIC systems,
-	* but for now we allow it on simulator
-	*/
-
-/*	if (of_find_compatible_node(NULL, NULL, "lsi,axm5500-amarillo")) { */
-	if (1) {
-		/* Create /proc entry. */
-		if (!proc_create("driver/axxia_ddr_retention_reset",
-				S_IWUSR, NULL, &axxia_ddr_retention_proc_ops)) {
-			pr_info("Failed to register DDR retention proc entry\n");
-		} else {
-			ddr_retention_enabled = 1;
-			pr_info("DDR Retention Reset Initialized\n");
-		}
-	} else {
-		pr_info("DDR Retention Reset is Not Available\n");
+	/* Create /proc entry. */
+	if (!proc_create("driver/axxia_ddr_retention_reset",
+			 S_IWUSR, NULL, &axxia_ddr_retention_proc_ops)) {
+		pr_info("Failed to register DDR retention proc entry\n");
+		return;
 	}
+
+	ddr_retention_enabled = 1;
+	pr_info("DDR Retention Reset Initialized\n");
 }
 
 
