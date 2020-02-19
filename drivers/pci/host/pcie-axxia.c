@@ -686,8 +686,12 @@ static void axxia_pcie_irq_domain_free(struct irq_domain *domain,
 				  unsigned int virq, unsigned int nr_irqs)
 {
 	struct pcie_port *pp = domain->host_data;
-	struct irq_data *data = irq_domain_get_irq_data(domain, virq);
+	struct irq_data *data;
 	int i;
+
+	data = irq_domain_get_irq_data(domain, virq);
+	if (!data)
+		return;
 
 	mutex_lock(&pp->bitmap_lock);
 	bitmap_clear(pp->bitmap, data->hwirq, nr_irqs);
@@ -816,7 +820,7 @@ int axxia_dw_pcie_handle_msix_irq(struct pcie_port *pp, int offset)
 {
 	unsigned long val;
 	int i, pos, irq;
-	int ret;
+	int ret = 0;
 
 	i = offset;
 	axxia_axi_gpreg_readl(pp,
@@ -1743,6 +1747,9 @@ static int axxia_pcie_probe(struct platform_device *pdev)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
 
+	if (!res)
+		return -ENOMEM;
+
 	if (0xa002000000 == res->start) {
 		pp->pei_nr = 0;
 	} else if (0xa004000000 == res->start) {
@@ -1900,11 +1907,9 @@ static const struct file_operations axxia_pcie_reset_proc_ops = {
 
 static int pcie2_init(void)
 {
-	struct proc_dir_entry *pf = proc_create("driver/axxia_pcie_reset",
-						S_IWUSR, NULL,
-						&axxia_pcie_reset_proc_ops);
-
-	if (pf == NULL) {
+	if (proc_create("driver/axxia_pcie_reset",
+			S_IWUSR, NULL,
+			&axxia_pcie_reset_proc_ops) == NULL) {
 		pr_err("Could not create /proc/driver/axxia_pcie_reset!\n");
 		return -1;
 	}
