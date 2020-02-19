@@ -1107,6 +1107,7 @@ static struct rio_msg_dme *alloc_message_engine(struct rio_mport *mport,
 
 err:
 	dme_put(me);
+	kfree(me);
 	return ERR_PTR(rc);
 }
 
@@ -1776,8 +1777,11 @@ static int open_inb_mbox(struct rio_mport *mport, void *dev_id,
 				break;
 			}
 		}
-		if (rc < 0)
+		if (rc < 0) {
+			kfree(mb);
+
 			return rc;
+		}
 
 		me = alloc_message_engine(mport,
 					  dme_no,
