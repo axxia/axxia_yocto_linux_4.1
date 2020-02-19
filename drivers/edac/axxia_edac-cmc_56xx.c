@@ -1561,6 +1561,9 @@ static int enable_driver_irq(struct intel_edac_dev_info *dev_info)
 	}
 
 	desc = irq_to_desc(irq);
+	if (!desc)
+		return ERR_STAGE_6;
+
 	sched_setaffinity(desc->action->thread->pid, &only_cpu_0);
 
 	return 0;

@@ -1392,6 +1392,10 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 	dev_info->ctl_name[31] = '\0';
 
 	dev_info->ctl_name = kstrdup(np->name, GFP_KERNEL);
+
+	if (!dev_info->ctl_name)
+		goto err_nomem;
+
 	dev_info->blk_name = "ECC";
 	edac_op_state = EDAC_OPSTATE_POLL;
 
@@ -1623,6 +1627,9 @@ static int intel_edac_mc_probe(struct platform_device *pdev)
 		goto err_noirq;
 	}
 	desc = irq_to_desc(irq);
+	if (!desc)
+		goto err_noirq;
+
 	sched_setaffinity(desc->action->thread->pid, &only_cpu_0);
 
 	return 0;
